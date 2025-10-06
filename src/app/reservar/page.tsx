@@ -624,49 +624,20 @@ export default function ReservarMane() {
                   {step < 3 ? `Etapa ${step + 1} de 3` : ''}
                 </Text>
                 {/* ===== Cabeçalho de etapa + Ícone + Progresso ===== */}
-                {step < 3 && (
-                  <Card radius="md" p="sm" style={{ width: '100%', maxWidth: 460, background: '#fff', border: 'none' }} shadow="sm">
-                    <Stack gap={6} align="stretch">
-                      <Box
-                        aria-hidden
-                        style={{
-                          width: 64,
-                          height: 64,
-                          borderRadius: 9999,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          border: '3px solid var(--mantine-color-green-5)',
-                          background: '#EFFFF3',
-                          margin: '0 auto 4px',
-                        }}
-                      >
-                        {stepIconFor(step)}
-                      </Box>
-
-                      <Text size="xs" c="dimmed" ta="center">
-                        {`Etapa ${step + 1} de 3`}
-                      </Text>
-
-                      <Title order={5} ta="center" fw={400}>
-                        {STEP_META[step].title}
-                      </Title>
-                      <Text size="sm" c="dimmed" ta="center">
-                        {STEP_META[step].desc}
-                      </Text>
-
-                      <Box mt={6}>
-                        <Progress
-                          value={progress}
-                          color="green"
-                          size="lg"
-                          radius="xl"
-                          striped
-                          animated
-                        />
-                      </Box>
-                    </Stack>
-                  </Card>
+                {step < 3 ? (
+                  <>
+                    <Title order={5} ta="center" fw={400}>
+                      {STEP_META[step].title}
+                    </Title>
+                    <Text size="sm" c="dimmed" ta="center">
+                      {STEP_META[step].desc}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Title order={5} ta="center" fw={400}>Reserva concluída</Title>
+                    <Text size="sm" c="dimmed" ta="center">Seu QR Code foi gerado</Text>
+                  </>
                 )}
 
                 <Box mt={6}>
