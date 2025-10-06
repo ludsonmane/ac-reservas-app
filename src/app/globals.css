@@ -26,3 +26,27 @@ h1, h2, h3, h4 {
   font-weight: 400 !important;
   font-family: var(--font-alfa) !important;
 }
+
+/* evita zoom automático do iOS quando o input tem < 16px */
+@media (max-width: 600px) {
+  input,
+  select,
+  textarea,
+  /* Mantine */
+  .mantine-Input-input,
+  .mantine-NumberInput-input,
+  .mantine-PasswordInput-input,
+  .mantine-Select-input,
+  .mantine-TimeInput-input,
+  .mantine-DateInput-input,
+  .mantine-DatePickerInput-input {
+    font-size: 16px !important; /* chave para não haver zoom */
+    line-height: 1.4;
+  }
+}
+
+/* ajuda o Safari a não reescalar texto automaticamente */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+

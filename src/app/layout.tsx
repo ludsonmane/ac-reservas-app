@@ -3,6 +3,7 @@ import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
 import { ColorSchemeScript, MantineProvider, createTheme, rem } from '@mantine/core';
 import { Alfa_Slab_One, Comfortaa } from 'next/font/google';
+import './globals.css';
 
 export const metadata = {
   title: 'Mané Mercado • Reservas',
