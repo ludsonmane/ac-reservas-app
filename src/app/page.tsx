@@ -135,7 +135,6 @@ function MenuCard({
         transition: 'transform .12s ease, box-shadow .12s ease',
       }}
       onMouseEnter={(e) => {
-        // só aplica hover em devices com hover
         if (window.matchMedia('(hover: hover)').matches) {
           e.currentTarget.style.transform = 'translateY(-2px)';
           e.currentTarget.style.boxShadow = '0 10px 24px rgba(0,0,0,.06)';
@@ -148,10 +147,10 @@ function MenuCard({
         }
       }}
     >
-      {/* MOBILE: coluna | DESKTOP (>=768px): linha com botão à direita */}
+      {/* SEMPRE 2 COLUNAS: info | botão (inclusive no mobile) */}
       <div className="menuCard">
         <div className="menuInfo">
-          <Group gap={8} wrap="nowrap" align="center">
+          <Group gap={8} wrap="nowrap" align="flex-start">
             <Box
               aria-hidden
               style={{
@@ -164,6 +163,7 @@ function MenuCard({
                 justifyContent: 'center',
                 background: '#EFFFF3',
                 flex: '0 0 auto',
+                marginTop: 2,
               }}
             >
               {icon}
@@ -175,8 +175,8 @@ function MenuCard({
                   margin: 0,
                   fontFamily: '"Alfa Slab One", system-ui, sans-serif',
                   letterSpacing: '-0.01em',
-                  fontSize: 18, // >=16px (evita zoom do iOS)
-                  lineHeight: 1.2,
+                  fontSize: 18, // >=16px (anti-zoom iOS)
+                  lineHeight: 1.15,
                 }}
               >
                 {title}
@@ -208,27 +208,45 @@ function MenuCard({
         </div>
       </div>
 
-      {/* CSS responsivo específico do card */}
+      {/* CSS do card (mantém botão à direita no mobile) */}
       <style jsx>{`
         .menuCard {
           display: grid;
-          grid-template-columns: 1fr; /* mobile: empilhado */
-          gap: 12px;
+          grid-template-columns: 1fr auto; /* SEMPRE 2 colunas */
+          align-items: center;
+          gap: 10px 12px;
+        }
+        .menuInfo {
+          min-width: 0; /* permite texto quebrar sem empurrar o botão */
+        }
+        .menuAction {
+          justify-self: end; /* alinha à direita */
         }
         .menuActionBtn {
-          width: 100%; /* mobile: botão full-width */
-          height: 42px;
-          font-size: 16px; /* evita zoom do iOS */
-          font-weight: 600;
+          width: 110px;     /* largura fixa p/ caber no mobile */
+          height: 40px;
+          font-size: 16px;  /* evita zoom do iOS */
+          font-weight: 700;
+          padding: 0 14px;
+          white-space: nowrap;
         }
 
-        @media (min-width: 768px) {
+        /* Em telas MUITO estreitas (<340px), deixamos stack como fallback */
+        @media (max-width: 340px) {
           .menuCard {
-            grid-template-columns: 1fr auto; /* desktop: info | botão */
-            align-items: center;
+            grid-template-columns: 1fr;
           }
           .menuActionBtn {
-            width: auto; /* desktop: botão do tamanho do conteúdo */
+            width: 100%;
+            justify-self: stretch;
+          }
+        }
+
+        /* Desktop: mantém botão do tamanho do conteúdo */
+        @media (min-width: 768px) {
+          .menuActionBtn {
+            width: auto;
+            min-width: 120px;
           }
         }
       `}</style>
