@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -26,7 +26,6 @@ import Link from 'next/link';
 import { API_BASE } from '@/lib/api';
 
 /* ====== helpers/consts ====== */
-// mesmas opções usadas no fluxo de reserva (apenas para mapear labels)
 const UNIDADES = [
   { id: 'aguas-claras', label: 'Mané Mercado — Águas Claras' },
   { id: 'arena-brasilia', label: 'Mané Mercado — Arena Brasília' },
@@ -54,11 +53,9 @@ type ReservationDTO = {
   reservationDate: string;
   people: number;
   kids?: number | null;
-
-  // mapeamentos
-  unit?: string | null; // 'aguas-claras'
-  area?: string | null; // 'salao'
-  utm_campaign?: string | null; // fallback "unidade:area"
+  unit?: string | null;
+  area?: string | null;
+  utm_campaign?: string | null;
   fullName?: string | null;
   cpf?: string | null;
   email?: string | null;
@@ -79,7 +76,7 @@ type BPInput = {
   emailHint?: string | null;
 };
 
-/* ====== Skeleton do BoardingPass (igual padrão da reserva) ====== */
+/* ====== Skeleton do BoardingPass ====== */
 function BoardingPassSkeleton() {
   return (
     <Card withBorder radius="lg" p="lg" shadow="md" mt="sm" style={{ background: '#FBF5E9' }}>
@@ -103,8 +100,61 @@ function BoardingPassSkeleton() {
   );
 }
 
+/* ====== Skeleton inline (antes da hidratação) ====== */
+function ConsultarSkeletonInline() {
+  return (
+    <Box
+      style={{
+        minHeight: '100dvh',
+        background: '#ffffff',
+        display: 'flex',
+        alignItems: 'center',
+        fontFamily: '"Comfortaa", system-ui, sans-serif',
+      }}
+    >
+      <Container size={560} px="md" style={{ paddingTop: rem(40), paddingBottom: rem(24) }}>
+        <Anchor c="dimmed" size="sm" mb={rem(8)} style={{ visibility: 'hidden' }}>
+          Voltar
+        </Anchor>
+
+        <Stack align="center" gap={6} mb="sm">
+          <Skeleton height={44} width={160} radius="sm" />
+          <Skeleton height={28} width={220} radius="sm" />
+          <Skeleton height={14} width={280} radius="xl" />
+        </Stack>
+
+        <Card withBorder radius="lg" p="lg" shadow="sm" style={{ background: '#FBF5E9' }}>
+          <Stack gap="md">
+            <Title order={3} ta="center" fw={600} style={{ fontSize: 22 }}>
+              <Skeleton height={26} width={240} mx="auto" radius="sm" />
+            </Title>
+
+            <Card withBorder radius="md" p="md" shadow="xs" style={{ background: '#fff' }}>
+              <Stack gap="md">
+                <Skeleton height={16} width={160} radius="sm" />
+                <Skeleton height={42} radius="md" />
+                <Skeleton height={40} width={140} radius="md" mx="auto" />
+              </Stack>
+            </Card>
+          </Stack>
+        </Card>
+
+        <Skeleton mt="md" height={12} width={320} mx="auto" radius="xl" />
+      </Container>
+    </Box>
+  );
+}
+
 /* ====== Página ====== */
 export default function ConsultarReservaPage() {
+  // mostra skeleton no primeiro paint e some após hidratar
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setHydrated(true), 200);
+    return () => clearTimeout(id);
+  }, []);
+  if (!hydrated) return <ConsultarSkeletonInline />;
+
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,15 +175,14 @@ export default function ConsultarReservaPage() {
     setLoading(true);
     setError(null);
     setBpProps(null);
-    setOpened(true); // abre a modal imediatamente e mostra skeleton
+    setOpened(true); // abre a modal e mostra skeleton
 
     try {
-      // recomendado:
-      // GET /v1/reservations/lookup?code=JT5WK6
+      // 1) lookup por query
       let url = `${API_BASE}/v1/reservations/lookup?code=${encodeURIComponent(trimmed)}`;
       let r = await fetch(url, { cache: 'no-store' });
 
-      // fallback alternativo (se preferir /code/:code)
+      // 2) fallback por path
       if (r.status === 404) {
         url = `${API_BASE}/v1/reservations/code/${encodeURIComponent(trimmed)}`;
         r = await fetch(url, { cache: 'no-store' });
@@ -148,7 +197,6 @@ export default function ConsultarReservaPage() {
       // Deriva props para o BoardingPass
       let unitId = data.unit || undefined;
       let areaId = data.area || undefined;
-
       if ((!unitId || !areaId) && data.utm_campaign) {
         const [u, a] = data.utm_campaign.split(':');
         unitId = unitId || u;
@@ -157,7 +205,6 @@ export default function ConsultarReservaPage() {
 
       const unitLabel = labelFromUnitId(unitId) || 'Mané Mercado';
       const areaName = areaNameFromId(areaId) || '—';
-
       const dateStr = dayjs(data.reservationDate).format('DD/MM/YYYY');
       const timeStr = dayjs(data.reservationDate).format('HH:mm');
 
@@ -276,13 +323,12 @@ export default function ConsultarReservaPage() {
           radius="lg"
           overlayProps={{ blur: 2, opacity: 0.35 }}
           styles={{
-            header: { display: 'none' }, // some o header da modal
+            header: { display: 'none' },
             body: { paddingTop: 0 },
             content: { background: 'transparent', boxShadow: 'none' },
           }}
           withCloseButton={false}
         >
-          {/* Conteúdo da modal: Skeleton enquanto busca, Boarding ao carregar */}
           {bpProps ? (
             <BoardingPass
               id={bpProps.id}
