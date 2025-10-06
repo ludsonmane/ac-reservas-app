@@ -23,6 +23,7 @@ import Image from 'next/image';
 import dayjs from 'dayjs';
 import BoardingPass from '../reservar/BoardingPass';
 import Link from 'next/link';
+import { API_BASE } from '@/lib/api';
 
 /* ====== helpers/consts ====== */
 // mesmas opções usadas no fluxo de reserva (apenas para mapear labels)
@@ -39,11 +40,11 @@ const AREAS = [
 
 function labelFromUnitId(id?: string | null) {
   if (!id) return undefined;
-  return UNIDADES.find(u => u.id === id)?.label;
+  return UNIDADES.find((u) => u.id === id)?.label;
 }
 function areaNameFromId(id?: string | null) {
   if (!id) return undefined;
-  return AREAS.find(a => a.id === id)?.nome;
+  return AREAS.find((a) => a.id === id)?.nome;
 }
 
 /* ====== tipos ====== */
@@ -55,9 +56,9 @@ type ReservationDTO = {
   kids?: number | null;
 
   // mapeamentos
-  unit?: string | null;          // 'aguas-claras'
-  area?: string | null;          // 'salao'
-  utm_campaign?: string | null;  // fallback "unidade:area"
+  unit?: string | null; // 'aguas-claras'
+  area?: string | null; // 'salao'
+  utm_campaign?: string | null; // fallback "unidade:area"
   fullName?: string | null;
   cpf?: string | null;
   email?: string | null;
@@ -126,17 +127,15 @@ export default function ConsultarReservaPage() {
     setBpProps(null);
     setOpened(true); // abre a modal imediatamente e mostra skeleton
 
-    const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001';
-
     try {
       // recomendado:
       // GET /v1/reservations/lookup?code=JT5WK6
-      let url = `${base}/v1/reservations/lookup?code=${encodeURIComponent(trimmed)}`;
+      let url = `${API_BASE}/v1/reservations/lookup?code=${encodeURIComponent(trimmed)}`;
       let r = await fetch(url, { cache: 'no-store' });
 
       // fallback alternativo (se preferir /code/:code)
       if (r.status === 404) {
-        url = `${base}/v1/reservations/code/${encodeURIComponent(trimmed)}`;
+        url = `${API_BASE}/v1/reservations/code/${encodeURIComponent(trimmed)}`;
         r = await fetch(url, { cache: 'no-store' });
       }
 
@@ -164,8 +163,8 @@ export default function ConsultarReservaPage() {
 
       const bp: BPInput = {
         id: data.id,
-        code: (data.reservationCode || trimmed),
-        qrUrl: `${base}/v1/reservations/${data.id}/qrcode`,
+        code: data.reservationCode || trimmed,
+        qrUrl: `${API_BASE}/v1/reservations/${data.id}/qrcode`,
         unitLabel,
         areaName,
         dateStr,
@@ -184,8 +183,6 @@ export default function ConsultarReservaPage() {
       setLoading(false);
     }
   }
-
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001';
 
   return (
     <Box
