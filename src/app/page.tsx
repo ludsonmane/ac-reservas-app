@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -12,10 +13,20 @@ import {
   Group,
   Box,
   rem,
+  Skeleton,
 } from '@mantine/core';
 import { IconSearch, IconCalendarPlus } from '@tabler/icons-react';
 
 export default function Home() {
+  // Mostra skeleton até hidratar (e um tique a mais para suavizar)
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setHydrated(true), 250);
+    return () => clearTimeout(id);
+  }, []);
+
+  if (!hydrated) return <HomeSkeleton />;
+
   return (
     <Box
       style={{
@@ -37,20 +48,6 @@ export default function Home() {
             priority
             style={{ height: 44, width: 'auto' }}
           />
-          <Title
-            order={2}
-            fw={500}
-            ta="center"
-            style={{
-              color: '#146C2E',
-              fontFamily: '"Alfa Slab One", system-ui, sans-serif',
-            }}
-          >
-            Mané Mercado
-          </Title>
-          <Text size="sm" c="dimmed" ta="center">
-            Águas Claras & Arena Brasília
-          </Text>
         </Stack>
 
         {/* Card de boas-vindas */}
@@ -109,6 +106,77 @@ export default function Home() {
   );
 }
 
+/* --------- Skeleton da Home (carregado antes da hidratação) --------- */
+function HomeSkeleton() {
+  return (
+    <Box
+      style={{
+        minHeight: '100dvh',
+        background: '#ffffff',
+        display: 'flex',
+        alignItems: 'center',
+        fontFamily: '"Comfortaa", system-ui, sans-serif',
+      }}
+    >
+      <Container size={560} px="md">
+        {/* HEADER */}
+        <Stack align="center" gap={6} mb="sm">
+          <Skeleton height={44} width={160} radius="sm" />
+        </Stack>
+
+        {/* CARD PRINCIPAL */}
+        <Card
+          withBorder
+          radius="lg"
+          p="lg"
+          shadow="sm"
+          style={{
+            background: '#FBF5E9',
+            borderColor: 'rgba(20,108,46,0.15)',
+          }}
+        >
+          <Stack gap="md">
+            <Title order={3} ta="center" fw={600} style={{ fontSize: 22 }}>
+              <Skeleton height={26} width={260} mx="auto" radius="sm" />
+            </Title>
+
+            {/* CARD 1 */}
+            <Card withBorder radius="md" p="md" shadow="xs" style={{ background: '#fff' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+                <Stack gap={6}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <Skeleton height={36} width={36} radius={10} />
+                    <Skeleton height={20} width={160} radius="sm" />
+                  </div>
+                  <Skeleton height={14} width={260} radius="xl" />
+                </Stack>
+                <Skeleton height={40} width={110} radius="md" />
+              </div>
+            </Card>
+
+            {/* CARD 2 */}
+            <Card withBorder radius="md" p="md" shadow="xs" style={{ background: '#fff' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+                <Stack gap={6}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <Skeleton height={36} width={36} radius={10} />
+                    <Skeleton height={20} width={190} radius="sm" />
+                  </div>
+                  <Skeleton height={14} width={300} radius="xl" />
+                </Stack>
+                <Skeleton height={40} width={110} radius="md" />
+              </div>
+            </Card>
+          </Stack>
+        </Card>
+
+        <Skeleton mt="md" height={12} width={320} mx="auto" radius="xl" />
+      </Container>
+    </Box>
+  );
+}
+
+/* ------------------- Card da lista da Home ------------------- */
 function MenuCard({
   title,
   description,
@@ -147,7 +215,7 @@ function MenuCard({
         }
       }}
     >
-      {/* SEMPRE 2 COLUNAS: info | botão (inclusive no mobile) */}
+      {/* Sempre 2 colunas: info | botão (também no mobile) */}
       <div className="menuCard">
         <div className="menuInfo">
           <Group gap={8} wrap="nowrap" align="flex-start">
@@ -208,7 +276,7 @@ function MenuCard({
         </div>
       </div>
 
-      {/* CSS do card (mantém botão à direita no mobile) */}
+      {/* CSS do card (botão à direita no mobile também) */}
       <style jsx>{`
         .menuCard {
           display: grid;
@@ -217,32 +285,28 @@ function MenuCard({
           gap: 10px 12px;
         }
         .menuInfo {
-          min-width: 0; /* permite texto quebrar sem empurrar o botão */
+          min-width: 0;
         }
         .menuAction {
-          justify-self: end; /* alinha à direita */
+          justify-self: end;
         }
         .menuActionBtn {
-          width: 110px;     /* largura fixa p/ caber no mobile */
+          width: 110px;
           height: 40px;
-          font-size: 16px;  /* evita zoom do iOS */
+          font-size: 16px;
           font-weight: 700;
           padding: 0 14px;
           white-space: nowrap;
         }
-
-        /* Em telas MUITO estreitas (<340px), deixamos stack como fallback */
         @media (max-width: 340px) {
           .menuCard {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr; /* fallback p/ telas ultra estreitas */
           }
           .menuActionBtn {
             width: 100%;
             justify-self: stretch;
           }
         }
-
-        /* Desktop: mantém botão do tamanho do conteúdo */
         @media (min-width: 768px) {
           .menuActionBtn {
             width: auto;
