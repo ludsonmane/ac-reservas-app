@@ -76,7 +76,7 @@ type BPInput = {
   emailHint?: string | null;
 };
 
-/* ====== Skeleton do BoardingPass ====== */
+/* ====== Skeletons ====== */
 function BoardingPassSkeleton() {
   return (
     <Card withBorder radius="lg" p="lg" shadow="md" mt="sm" style={{ background: '#FBF5E9' }}>
@@ -100,7 +100,6 @@ function BoardingPassSkeleton() {
   );
 }
 
-/* ====== Skeleton inline (antes da hidratação) ====== */
 function ConsultarSkeletonInline() {
   return (
     <Box
@@ -128,7 +127,6 @@ function ConsultarSkeletonInline() {
             <Title order={3} ta="center" fw={600} style={{ fontSize: 22 }}>
               <Skeleton height={26} width={240} mx="auto" radius="sm" />
             </Title>
-
             <Card withBorder radius="md" p="md" shadow="xs" style={{ background: '#fff' }}>
               <Stack gap="md">
                 <Skeleton height={16} width={160} radius="sm" />
@@ -147,21 +145,20 @@ function ConsultarSkeletonInline() {
 
 /* ====== Página ====== */
 export default function ConsultarReservaPage() {
-  // mostra skeleton no primeiro paint e some após hidratar
+  // ✅ TODOS os hooks no topo, sempre chamados em qualquer render
   const [hydrated, setHydrated] = useState(false);
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [opened, setOpened] = useState(false);
+  const [bpProps, setBpProps] = useState<BPInput | null>(null);
+
   useEffect(() => {
     const id = setTimeout(() => setHydrated(true), 200);
     return () => clearTimeout(id);
   }, []);
-  if (!hydrated) return <ConsultarSkeletonInline />;
 
-  const [code, setCode] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // modal
-  const [opened, setOpened] = useState(false);
-  const [bpProps, setBpProps] = useState<BPInput | null>(null);
+  const showSkeleton = !hydrated;
 
   async function buscar() {
     const trimmed = code.trim().toUpperCase();
@@ -175,14 +172,12 @@ export default function ConsultarReservaPage() {
     setLoading(true);
     setError(null);
     setBpProps(null);
-    setOpened(true); // abre a modal e mostra skeleton
+    setOpened(true);
 
     try {
-      // 1) lookup por query
       let url = `${API_BASE}/v1/reservations/lookup?code=${encodeURIComponent(trimmed)}`;
       let r = await fetch(url, { cache: 'no-store' });
 
-      // 2) fallback por path
       if (r.status === 404) {
         url = `${API_BASE}/v1/reservations/code/${encodeURIComponent(trimmed)}`;
         r = await fetch(url, { cache: 'no-store' });
@@ -194,7 +189,6 @@ export default function ConsultarReservaPage() {
 
       const data = (await r.json()) as ReservationDTO;
 
-      // Deriva props para o BoardingPass
       let unitId = data.unit || undefined;
       let areaId = data.area || undefined;
       if ((!unitId || !areaId) && data.utm_campaign) {
@@ -239,116 +233,119 @@ export default function ConsultarReservaPage() {
         fontFamily: '"Comfortaa", system-ui, sans-serif',
       }}
     >
-      <Container size={560} px="md" style={{ paddingTop: rem(40), paddingBottom: rem(24) }}>
-        {/* Voltar */}
-        <Anchor
-          component={Link}
-          href="/"
-          c="dimmed"
-          size="sm"
-          mb={rem(8)}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-        >
-          <IconArrowLeft size={16} />
-          Voltar
-        </Anchor>
-
-        {/* Header */}
-        <Stack align="center" gap={6} mb="sm">
-          <Image
-            src="/images/1.png"
-            alt="Mané Mercado"
-            width={160}
-            height={44}
-            priority
-            style={{ height: 44, width: 'auto' }}
-          />
-          <Title
-            order={2}
-            fw={500}
-            ta="center"
-            style={{
-              color: '#146C2E',
-              fontFamily: '"Alfa Slab One", system-ui, sans-serif',
-            }}
+      {showSkeleton ? (
+        <ConsultarSkeletonInline />
+      ) : (
+        <Container size={560} px="md" style={{ paddingTop: rem(40), paddingBottom: rem(24) }}>
+          {/* Voltar */}
+          <Anchor
+            component={Link}
+            href="/"
+            c="dimmed"
+            size="sm"
+            mb={rem(8)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            Localizar Reserva
-          </Title>
-          <Text size="sm" c="dimmed" ta="center">
-            Use seu código (ex.: <b>JT5WK6</b>) para visualizar a reserva e o QR.
-          </Text>
-        </Stack>
+            <IconArrowLeft size={16} />
+            Voltar
+          </Anchor>
 
-        {/* Formulário de busca */}
-        <Card withBorder radius="lg" p="lg" shadow="sm" style={{ background: '#FBF5E9' }}>
-          <Stack gap="md">
-            <TextInput
-              label="Código da reserva"
-              placeholder="Digite o código (ex.: JT5WK6)"
-              value={code}
-              onChange={(e) => setCode(e.currentTarget.value.toUpperCase())}
-              autoComplete="off"
-              spellCheck={false}
-              maxLength={12}
+          {/* Header */}
+          <Stack align="center" gap={6} mb="sm">
+            <Image
+              src="/images/1.png"
+              alt="Mané Mercado"
+              width={160}
+              height={44}
+              priority
+              style={{ height: 44, width: 'auto' }}
             />
-            <Group justify="center">
-              <Button
-                onClick={buscar}
-                loading={loading}
-                leftSection={<IconSearch size={18} />}
-                color="green"
-                radius="md"
-              >
-                Buscar
-              </Button>
-            </Group>
-
-            {error && (
-              <Alert color="red" icon={<IconInfoCircle />}>
-                {error}
-              </Alert>
-            )}
+            <Title
+              order={2}
+              fw={500}
+              ta="center"
+              style={{
+                color: '#146C2E',
+                fontFamily: '"Alfa Slab One", system-ui, sans-serif',
+              }}
+            >
+              Localizar Reserva
+            </Title>
+            <Text size="sm" c="dimmed" ta="center">
+              Use seu código (ex.: <b>JT5WK6</b>) para visualizar a reserva e o QR.
+            </Text>
           </Stack>
-        </Card>
 
-        {/* Não renderizamos o BoardingPass embaixo — apenas na modal */}
-        <Divider my="lg" opacity={0} />
+          {/* Formulário de busca */}
+          <Card withBorder radius="lg" p="lg" shadow="sm" style={{ background: '#FBF5E9' }}>
+            <Stack gap="md">
+              <TextInput
+                label="Código da reserva"
+                placeholder="Digite o código (ex.: JT5WK6)"
+                value={code}
+                onChange={(e) => setCode(e.currentTarget.value.toUpperCase())}
+                autoComplete="off"
+                spellCheck={false}
+                maxLength={12}
+              />
+              <Group justify="center">
+                <Button
+                  onClick={buscar}
+                  loading={loading}
+                  leftSection={<IconSearch size={18} />}
+                  color="green"
+                  radius="md"
+                >
+                  Buscar
+                </Button>
+              </Group>
 
-        {/* MODAL DO TICKET */}
-        <Modal
-          opened={opened}
-          onClose={() => setOpened(false)}
-          centered
-          size="lg"
-          radius="lg"
-          overlayProps={{ blur: 2, opacity: 0.35 }}
-          styles={{
-            header: { display: 'none' },
-            body: { paddingTop: 0 },
-            content: { background: 'transparent', boxShadow: 'none' },
-          }}
-          withCloseButton={false}
-        >
-          {bpProps ? (
-            <BoardingPass
-              id={bpProps.id}
-              code={bpProps.code}
-              qrUrl={bpProps.qrUrl}
-              unitLabel={bpProps.unitLabel}
-              areaName={bpProps.areaName}
-              dateStr={bpProps.dateStr}
-              timeStr={bpProps.timeStr}
-              people={bpProps.people}
-              kids={bpProps.kids ?? 0}
-              fullName={bpProps.fullName ?? undefined}
-              cpf={bpProps.cpf ?? undefined}
-              emailHint={bpProps.emailHint ?? undefined}
-            />
-          ) : (
-            <BoardingPassSkeleton />
-          )}
-        </Modal>
-      </Container>
+              {error && (
+                <Alert color="red" icon={<IconInfoCircle />}>
+                  {error}
+                </Alert>
+              )}
+            </Stack>
+          </Card>
+
+          <Divider my="lg" opacity={0} />
+
+          {/* MODAL DO TICKET */}
+          <Modal
+            opened={opened}
+            onClose={() => setOpened(false)}
+            centered
+            size="lg"
+            radius="lg"
+            overlayProps={{ blur: 2, opacity: 0.35 }}
+            styles={{
+              header: { display: 'none' },
+              body: { paddingTop: 0 },
+              content: { background: 'transparent', boxShadow: 'none' },
+            }}
+            withCloseButton={false}
+          >
+            {bpProps ? (
+              <BoardingPass
+                id={bpProps.id}
+                code={bpProps.code}
+                qrUrl={bpProps.qrUrl}
+                unitLabel={bpProps.unitLabel}
+                areaName={bpProps.areaName}
+                dateStr={bpProps.dateStr}
+                timeStr={bpProps.timeStr}
+                people={bpProps.people}
+                kids={bpProps.kids ?? 0}
+                fullName={bpProps.fullName ?? undefined}
+                cpf={bpProps.cpf ?? undefined}
+                emailHint={bpProps.emailHint ?? undefined}
+              />
+            ) : (
+              <BoardingPassSkeleton />
+            )}
+          </Modal>
+        </Container>
+      )}
     </Box>
   );
 }
