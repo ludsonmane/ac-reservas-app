@@ -6,13 +6,11 @@ import Script from 'next/script';
 
 declare global {
   interface Window {
-    fbq?: any;
-    _fbq?: any;
+    fbq?: (...args: any[]) => void;   // ⬅️ era `any`, agora é função
+    _fbq?: (...args: any[]) => void;  // idem, por consistência
     __manePixels?: {
       loadedIds: Set<string>;
-      activeId?: string;
-      scriptLoaded?: boolean;
-      debug?: boolean;
+      unitActivePixelId?: string | null;
     };
   }
 }
