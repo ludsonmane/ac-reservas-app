@@ -24,6 +24,7 @@ import dayjs from 'dayjs';
 import BoardingPass from '../reservar/BoardingPass';
 import Link from 'next/link';
 import { API_BASE } from '@/lib/api';
+import { useSearchParams } from 'next/navigation'; // ⬅️ NOVO
 
 /* ====== helpers/consts ====== */
 const UNIDADES = [
@@ -53,8 +54,10 @@ type ReservationDTO = {
   reservationDate: string;
   people: number;
   kids?: number | null;
-  unit?: string | null;
-  area?: string | null;
+  unit?: string | null;       // compat
+  unitId?: string | null;     // novo
+  area?: string | null;       // compat
+  areaName?: string | null;   // novo
   utm_campaign?: string | null;
   fullName?: string | null;
   cpf?: string | null;
@@ -145,7 +148,6 @@ function ConsultarSkeletonInline() {
 
 /* ====== Página ====== */
 export default function ConsultarReservaPage() {
-  // ✅ TODOS os hooks no topo, sempre chamados em qualquer render
   const [hydrated, setHydrated] = useState(false);
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -153,17 +155,32 @@ export default function ConsultarReservaPage() {
   const [opened, setOpened] = useState(false);
   const [bpProps, setBpProps] = useState<BPInput | null>(null);
 
+  const searchParams = useSearchParams(); // ⬅️ NOVO
+
   useEffect(() => {
     const id = setTimeout(() => setHydrated(true), 200);
     return () => clearTimeout(id);
   }, []);
 
+  // ⬅️ NOVO: pegar ?code= da URL e jogar no input (sem auto-buscar)
+  useEffect(() => {
+    const raw = searchParams?.get('code') || searchParams?.get('c') || '';
+    if (raw) {
+      setCode(normalizeCode(raw));
+    }
+  }, [searchParams]);
+
   const showSkeleton = !hydrated;
 
+  // Normaliza para A-Z/0-9 e remove espaços
+  function normalizeCode(v: string) {
+    return v.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  }
+
   async function buscar() {
-    const trimmed = code.trim().toUpperCase();
-    if (!trimmed) {
-      setError('Informe o código da reserva (ex.: JT5WK6).');
+    const normalized = normalizeCode(code);
+    if (!/^[A-Z0-9]{6}$/.test(normalized)) {
+      setError('Informe um código válido (6 caracteres A–Z/0–9, ex.: JT5WK6).');
       setBpProps(null);
       setOpened(false);
       return;
@@ -175,11 +192,17 @@ export default function ConsultarReservaPage() {
     setOpened(true);
 
     try {
-      let url = `${API_BASE}/v1/reservations/lookup?code=${encodeURIComponent(trimmed)}`;
+      // 1) Público novo
+      let url = `${API_BASE}/v1/reservations/public/lookup?code=${encodeURIComponent(normalized)}`;
       let r = await fetch(url, { cache: 'no-store' });
 
+      // 2) Fallback (rotas antigas)
       if (r.status === 404) {
-        url = `${API_BASE}/v1/reservations/code/${encodeURIComponent(trimmed)}`;
+        url = `${API_BASE}/v1/reservations/lookup?code=${encodeURIComponent(normalized)}`;
+        r = await fetch(url, { cache: 'no-store' });
+      }
+      if (r.status === 404) {
+        url = `${API_BASE}/v1/reservations/code/${encodeURIComponent(normalized)}`;
         r = await fetch(url, { cache: 'no-store' });
       }
 
@@ -189,25 +212,28 @@ export default function ConsultarReservaPage() {
 
       const data = (await r.json()) as ReservationDTO;
 
-      let unitId = data.unit || undefined;
-      let areaId = data.area || undefined;
-      if ((!unitId || !areaId) && data.utm_campaign) {
+      // tenta novas props; fallback para utm_campaign "unit:area" do legado
+      let unitId = data.unitId || data.unit || undefined;
+      let areaName = data.areaName || data.area || undefined;
+
+      if ((!unitId || !areaName) && data.utm_campaign) {
         const [u, a] = data.utm_campaign.split(':');
         unitId = unitId || u;
-        areaId = areaId || a;
+        areaName = areaName || a;
       }
 
-      const unitLabel = labelFromUnitId(unitId) || 'Mané Mercado';
-      const areaName = areaNameFromId(areaId) || '—';
+      const unitLabel = labelFromUnitId(unitId) || (data.unit ?? 'Mané Mercado');
+      const areaFinal = areaNameFromId(areaName || '') || (areaName ?? '—');
+
       const dateStr = dayjs(data.reservationDate).format('DD/MM/YYYY');
       const timeStr = dayjs(data.reservationDate).format('HH:mm');
 
       const bp: BPInput = {
         id: data.id,
-        code: data.reservationCode || trimmed,
+        code: data.reservationCode || normalized,
         qrUrl: `${API_BASE}/v1/reservations/${data.id}/qrcode`,
         unitLabel,
-        areaName,
+        areaName: String(areaFinal),
         dateStr,
         timeStr,
         people: data.people ?? 0,
@@ -284,9 +310,11 @@ export default function ConsultarReservaPage() {
                 placeholder="Digite o código (ex.: JT5WK6)"
                 value={code}
                 onChange={(e) => setCode(e.currentTarget.value.toUpperCase())}
+                onKeyDown={(e) => { if (e.key === 'Enter') buscar(); }} // ⬅️ Enter para buscar
                 autoComplete="off"
                 spellCheck={false}
-                maxLength={12}
+                maxLength={6}
+                styles={{ input: { textTransform: 'uppercase', letterSpacing: '0.08em' } }}
               />
               <Group justify="center">
                 <Button

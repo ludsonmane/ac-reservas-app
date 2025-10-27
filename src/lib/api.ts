@@ -1,211 +1,174 @@
-// web/src/lib/api.ts
+// src/lib/api.ts
 
-// Em produção, deixe vazio quando API e Front estiverem na mesma origem.
-// Em DEV/PROD separados, defina NEXT_PUBLIC_API_BASE_URL (ou BASE/URL legados) com a URL da API.
-export const API_BASE = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  process.env.NEXT_PUBLIC_API_BASE ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  ''
-).replace(/\/+$/, ''); // remove barra final
+// Base da API: configure via .env.local -> NEXT_PUBLIC_API_BASE=http://localhost:4000
+export const API_BASE =
+  (process.env.NEXT_PUBLIC_API_BASE?.trim() || 'http://localhost:4000') as string;
 
-function trimSlash(s: string) { return s.replace(/\/+$/, ''); }
+type RequestOpts = RequestInit & {
+  /** Tempo máximo da requisição (ms). Default: 20000 */
+  timeoutMs?: number;
+  /** Desabilita envio de credenciais. Default: false (sem cookies por padrão) */
+  noCredentials?: boolean;
+};
 
-// Se base estiver vazio -> retorna path relativo ("/v1/...").
-// Se base vier absoluto -> concatena corretamente.
-function joinUrl(base: string, path: string) {
-  return base ? `${trimSlash(base)}${path.startsWith('/') ? '' : '/'}${path}` : path;
+/** Monta URL absoluta respeitando paths absolutos (http/https) */
+function toUrl(path: string) {
+  if (/^https?:\/\//i.test(path)) return path;
+  const p = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE}${p}`;
 }
 
-// Evita quebrar quando path for relativo: cai num "dummy base".
-function safeURL(u: string) {
-  try { return new URL(u); } catch { return new URL(u, 'http://dummy.local'); }
-}
+async function request<T = any>(path: string, init: RequestOpts = {}): Promise<T> {
+  const controller = new AbortController();
+  const timeoutMs = init.timeoutMs ?? 20000;
+  const t = setTimeout(() => controller.abort(), timeoutMs);
 
-function getUrl(path: string) { return safeURL(joinUrl(API_BASE, path)); }
-function pathnameOf(path: string) { return getUrl(path).pathname; }
-function qsOf(path: string) { return getUrl(path).searchParams; }
-
-function idemKey() {
-  return (globalThis.crypto?.randomUUID?.() as string) || Math.random().toString(36).slice(2);
-}
-
-async function jsonOrNull(res: Response) {
   try {
-    const t = await res.text();
-    return t ? JSON.parse(t) : null;
-  } catch { return null; }
-}
+    const res = await fetch(toUrl(path), {
+      // Evita cache agressivo do navegador
+      cache: 'no-store',
+      // CORS: para front público, normalmente SEM cookies.
+      // Se sua API usar cookie/sessão, troque para 'include'.
+      credentials: init.noCredentials ? 'omit' : 'same-origin',
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init.headers || {}),
+      },
+      signal: controller.signal,
+    });
 
-// Erro rico (status + URL + corpo)
-async function throwHttp(res: Response): Promise<never> {
-  const url = res.url || '(no-url)';
-  let text = '';
-  try { text = await res.text(); } catch {}
-  const msg = `[HTTP ${res.status}] ${url}${text ? ` – ${text}` : ''}`;
-  throw new Error(msg);
-}
+    // 204 No Content
+    if (res.status === 204) return undefined as T;
 
-/* ---------- Adapters ---------- */
-function mapList(path: string) {
-  const params = qsOf(path);
-  const page = params.get('page') || '1';
-  const limit = params.get('limit') || '20';
-  const q = params.get('q') || '';
-  const newQS = new URLSearchParams();
-  newQS.set('page', page);
-  newQS.set('pageSize', limit);
-  if (q) newQS.set('search', q);
-  const newPath = `/v1/reservations?${newQS.toString()}`;
-  const adapter = (d: any) => {
-    if (!d) return d;
-    const total = Number(d.total ?? 0);
-    const pageN = Number(d.page ?? page);
-    const pageSize = Number(d.pageSize ?? limit);
-    const totalPages = Number(d.totalPages ?? (pageSize ? Math.ceil(total / pageSize) : 1));
-    return {
-      items: Array.isArray(d.items) ? d.items : [],
-      meta: {
-        total, page: pageN, limit: pageSize, pages: totalPages,
-        hasPrev: pageN > 1, hasNext: pageN < totalPages
+    const ct = res.headers.get('content-type') || '';
+    const isJson = ct.includes('application/json');
+
+    let payload: any;
+    if (isJson) {
+      try {
+        payload = await res.json();
+      } catch {
+        payload = {};
       }
-    };
-  };
-  return { path: newPath, adapter };
-}
+    } else {
+      payload = await res.text();
+    }
 
-function mapCreate(body: any) {
-  const mapped = {
-    fullName: body?.fullName,
-    cpf: body?.cpf,
-    people: body?.people,
-    kids: body?.kids,                 // ✅ mantém 0 quando vier 0
-    area: body?.area ?? null,
+    if (!res.ok) {
+      // tenta extrair mensagens comuns
+      const msg =
+        (isJson
+          ? payload?.error?.message ||
+            payload?.message ||
+            payload?.error ||
+            res.statusText
+          : payload || res.statusText) || 'Erro na requisição';
 
-    reservationDate: body?.reservationDate,
-    birthdayDate: body?.birthdayDate,
+      const err: any = new Error(String(msg));
+      err.status = res.status;
+      err.payload = payload;
+      throw err;
+    }
 
-    email: body?.contactEmail ?? body?.email,
-    phone: body?.contactPhone ?? body?.phone,
-
-    // Somente utm_* (sem s_utm*)
-    utm_source: body?.utm_source ?? 'site',
-    utm_campaign: body?.utm_campaign,
-    utm_medium: body?.utm_medium,
-    utm_content: body?.utm_content,
-    utm_term: body?.utm_term,
-
-    unit: body?.unit,
-    source: body?.source ?? 'site',
-    notes: body?.notes
-  };
-  const adapter = (d: any) => ({ ok: true, id: d?.id ?? d?._id ?? null });
-  return { path: '/v1/reservations', body: mapped, adapter };
-}
-
-function mapUpdate(body: any) {
-  const m: any = {};
-  if ('fullName' in body) m.fullName = body.fullName;
-  if ('cpf' in body) m.cpf = body.cpf;
-  if ('people' in body) m.people = body.people;
-  if ('kids' in body) m.kids = body.kids;                 // ✅ mantém 0 se vier 0
-  if ('area' in body) m.area = body.area ?? null;
-
-  if ('reservationDate' in body) m.reservationDate = body.reservationDate;
-  if ('birthdayDate' in body) m.birthdayDate = body.birthdayDate;
-
-  if ('email' in body || 'contactEmail' in body) m.email = body.contactEmail ?? body.email;
-  if ('phone' in body || 'contactPhone' in body) m.phone = body.contactPhone ?? body.phone;
-  if ('notes' in body) m.notes = body.notes;
-
-  if ('utm_source' in body) m.utm_source = body.utm_source;
-  if ('utm_campaign' in body) m.utm_campaign = body.utm_campaign;
-  if ('utm_medium' in body) m.utm_medium = body.utm_medium;
-  if ('utm_content' in body) m.utm_content = body.utm_content;
-  if ('utm_term' in body) m.utm_term = body.utm_term;
-
-  if ('unit' in body) m.unit = body.unit;
-  if ('source' in body) m.source = body.source;
-  return m;
-}
-
-/* ---------- Rewriter ---------- */
-type RewriteResult =
-  | { path: string; adapter: (d: any) => any }
-  | { path: string; adapter: (d: any) => any; body: any };
-
-function rewrite(method: string, path: string, body?: any): RewriteResult {
-  const pn = pathnameOf(path);
-
-  if (method === 'GET' && pn === '/reservas') return mapList(path);
-
-  if (method === 'POST' && pn === '/reservas') return mapCreate(body);
-
-  if (method === 'GET' && /^\/reservas\/[^/]+$/.test(pn)) {
-    const id = pn.split('/').pop()!;
-    return { path: `/v1/reservations/${id}`, adapter: (d: any) => d };
+    return payload as T;
+  } catch (e: any) {
+    // normaliza abort/timeout
+    if (e?.name === 'AbortError') {
+      const err: any = new Error('Tempo de requisição excedido.');
+      err.status = 0;
+      throw err;
+    }
+    throw e;
+  } finally {
+    clearTimeout(t);
   }
-
-  if (method === 'PUT' && /^\/reservas\/[^/]+$/.test(pn)) {
-    const id = pn.split('/').pop()!;
-    return { path: `/v1/reservations/${id}`, body: mapUpdate(body), adapter: (d: any) => d };
-  }
-
-  if (method === 'DELETE' && /^\/reservas\/[^/]+$/.test(pn)) {
-    const id = pn.split('/').pop()!;
-    return { path: `/v1/reservations/${id}`, adapter: (d: any) => d };
-  }
-
-  return { path, body, adapter: (d: any) => d };
 }
 
-/* ---------- HTTP helpers ---------- */
-export async function apiGet<T>(path: string): Promise<T> {
-  const mapped = rewrite('GET', path);
-  const url = joinUrl(API_BASE, mapped.path);
-  const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok) await throwHttp(res);
-  const raw = await jsonOrNull(res);
-  return mapped.adapter(raw);
-}
+/* ------------ helpers REST genéricos ------------ */
+export const apiGet = <T = any>(path: string, init?: RequestOpts) =>
+  request<T>(path, { method: 'GET', ...(init || {}) });
 
-export async function apiPost<T>(path: string, body: any): Promise<T> {
-  const mapped = rewrite('POST', path, body);
-  const reqBody = ('body' in mapped) ? mapped.body : body;  // mantém 0/false/null
-  const url = joinUrl(API_BASE, mapped.path);
-
-  // opcional: log útil durante ajustes
-  // console.log('[API] POST', url, reqBody);
-
-  const res = await fetch(url, {
+export const apiPost = <T = any>(path: string, body?: any, init?: RequestOpts) =>
+  request<T>(path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idemKey() },
-    body: JSON.stringify(reqBody),
+    body: body === undefined ? undefined : JSON.stringify(body),
+    ...(init || {}),
   });
-  if (!res.ok) await throwHttp(res);
-  const raw = await jsonOrNull(res);
-  return mapped.adapter(raw);
-}
 
-export async function apiPut<T>(path: string, body: any): Promise<T> {
-  const mapped = rewrite('PUT', path, body);
-  const reqBody = ('body' in mapped) ? mapped.body : body;
-  const url = joinUrl(API_BASE, mapped.path);
-  const res = await fetch(url, {
+export const apiPut = <T = any>(path: string, body?: any, init?: RequestOpts) =>
+  request<T>(path, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(reqBody),
+    body: body === undefined ? undefined : JSON.stringify(body),
+    ...(init || {}),
   });
-  if (!res.ok) await throwHttp(res);
-  const raw = await jsonOrNull(res);
-  return mapped.adapter(raw);
-}
 
-export async function apiDelete<T>(path: string): Promise<T> {
-  const mapped = rewrite('DELETE', path);
-  const url = joinUrl(API_BASE, mapped.path);
-  const res = await fetch(url, { method: 'DELETE' });
-  if (!res.ok) await throwHttp(res);
-  const raw = await jsonOrNull(res);
-  return mapped.adapter(raw);
-}
+export const apiDelete = <T = any>(path: string, init?: RequestOpts) =>
+  request<T>(path, { method: 'DELETE', ...(init || {}) });
+
+/* ------------ endpoints convenientes ------------ */
+
+// Unidades públicas para selects (mane-api: /v1/units/public/options/list)
+export type UnitOption = { id: string; name: string; slug?: string };
+export const fetchUnitsOptions = () =>
+  apiGet<UnitOption[]>('/v1/units/public/options/list');
+
+// --- Áreas (estático) ---
+// Lista estática por unidade (NÃO calcula disponibilidade).
+// GET /v1/areas/public/by-unit/:unitId
+export type AreaStatic = {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  capacityAfternoon: number | null;
+  capacityNight: number | null;
+  isActive: boolean;
+};
+export const fetchAreasStaticByUnit = (unitId: string) =>
+  apiGet<AreaStatic[]>(`/v1/areas/public/by-unit/${encodeURIComponent(unitId)}`);
+
+// --- Disponibilidade (quando precisar calcular vagas) ---
+// GET /v1/reservations/public/availability?unitId=&date=YYYY-MM-DD&time=HH:mm
+export type AreaAvailability = {
+  id: string;
+  name: string;
+  photoUrl?: string | null;
+  capacityAfternoon?: number | null;
+  capacityNight?: number | null;
+  isActive: boolean;
+  remaining?: number; // alias: available
+  available?: number;
+  isAvailable?: boolean;
+};
+export const fetchAreasAvailability = (params: {
+  unitId: string;
+  date: string;      // YYYY-MM-DD
+  time?: string;     // HH:mm (opcional; sem time -> cálculo diário)
+}) => {
+  const q = new URLSearchParams({ unitId: params.unitId, date: params.date });
+  if (params.time) q.set('time', params.time);
+  return apiGet<AreaAvailability[]>(`/v1/reservations/public/availability?${q.toString()}`);
+};
+
+// Helper específico para **período** (recomendado para o passo 2 do fluxo)
+// Sempre exige time (HH:mm) para garantir cálculo do turno correto.
+export const fetchAvailabilityByPeriod = (
+  unitId: string,
+  dateISO: string,     // YYYY-MM-DD
+  timeHHmm: string     // HH:mm (obrigatório)
+) => {
+  const q = new URLSearchParams({ unitId, date: dateISO, time: timeHHmm });
+  return apiGet<AreaAvailability[]>(`/v1/reservations/public/availability?${q.toString()}`);
+};
+
+// --- Compat (se você já usava fetchAreasByUnit anteriormente) ---
+// OBS: esta função agora chama a LISTA ESTÁTICA (sem disponibilidade).
+// Prefira usar `fetchAreasStaticByUnit` ou `fetchAvailabilityByPeriod`.
+export type AreaOption = {
+  id: string;
+  name: string;
+  isActive?: boolean;
+  remaining?: number; // não é retornado pela rota estática
+};
+export const fetchAreasByUnit = (unitId: string, _dateISO?: string) =>
+  fetchAreasStaticByUnit(unitId);

@@ -1,6 +1,7 @@
 'use client';
 
 export const dynamic = 'force-dynamic';
+
 import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
 import { DatesProvider, DatePickerInput } from '@mantine/dates';
@@ -13,6 +14,11 @@ import { IconChevronDown, IconArrowLeft } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
 import BoardingPass from './BoardingPass';
 import Link from 'next/link';
+import {
+  ensureAnalyticsReady,
+  setActiveUnitPixelFromUnit,
+  trackReservationMade,
+} from '@/lib/analytics';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -28,52 +34,27 @@ import {
   IconPhone,
 } from '@tabler/icons-react';
 import NextImage from 'next/image';
-import { useRouter } from 'next/navigation';
 import { apiPost, apiGet, API_BASE } from '@/lib/api';
-
 
 dayjs.locale('pt-br');
 
-/* ===================== DADOS ===================== */
-const UNIDADES = [
-  { id: 'aguas-claras', label: 'Mané Mercado — Águas Claras' },
-  { id: 'arena-brasilia', label: 'Mané Mercado — Arena Brasília' },
-];
+/* ===================== TIPOS ===================== */
+type UnitOption = { id: string; name: string; slug?: string };
 
-const AREAS = [
-  {
-    id: 'salao',
-    nome: 'Salão',
-    desc: 'Interno, climatizado e confortável',
-    foto:
-      'https://images.unsplash.com/photo-1541542684-4a9c4af87c03?q=80&w=1600&auto=format&fit=crop',
-  },
-  {
-    id: 'varanda',
-    nome: 'Varanda',
-    desc: 'Externo, arejado e descontraído',
-    foto:
-      'https://images.unsplash.com/photo-1582582621950-48b395e0d9b2?q=80&w=1600&auto=format&fit=crop',
-  },
-  {
-    id: 'bar',
-    nome: 'Balcão',
-    desc: 'Perfeito para 1–2 pessoas',
-    foto:
-      'https://images.unsplash.com/photo-1559339352-11d035aa65de?q=80&w=1600&auto=format&fit=crop',
-  },
-];
+type AreaOption = {
+  id: string;
+  name: string;
+  description?: string;
+  capacity?: number;
+  photoUrl?: string;
+  available?: number;
+  isAvailable?: boolean;
+};
 
-const STEP_META = [
-  { title: 'Reserva', desc: 'Unidade, pessoas e horário' },
-  { title: 'Área', desc: 'Escolha onde quer sentar' },
-  { title: 'Cadastro', desc: 'Dados necessários.' },
-];
-
+/* ===================== HELPERS ===================== */
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1528605248644-14dd04022da1?q=80&w=1600&auto=format&fit=crop';
 
-/* ===================== HELPERS ===================== */
 const onlyDigits = (s: string) => s.replace(/\D+/g, '');
 function maskCPF(v: string) {
   const d = onlyDigits(v).slice(0, 11);
@@ -105,87 +86,13 @@ function joinDateTimeISO(date: Date | null, time: string) {
 }
 
 // --- Slots de horário permitidos ---
-const ALLOWED_SLOTS = [
-  // almoço
-  '12:00', '12:30', '13:00', '13:30',
-  // fim de tarde / noite
-  '17:00', '17:30', '18:00', '18:30',
-  '19:00', '19:30', '20:00', '20:30',
-  '21:00',
-];
-
-function isValidSlot(v: string) {
-  return ALLOWED_SLOTS.includes(v);
-}
+const ALLOWED_SLOTS = ['12:00', '12:30', '13:00', '18:00', '18:30', '19:00'];
+function isValidSlot(v: string) { return ALLOWED_SLOTS.includes(v); }
 const SLOT_ERROR_MSG = 'Escolha um horário válido da lista';
-
-function SlotTimePicker({
-  value,
-  onChange,
-  label = 'Horário',
-  placeholder = 'Selecionar',
-  error,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  label?: string;
-  placeholder?: string;
-  error?: string | null;
-}) {
-  const [opened, { open, close, toggle }] = useDisclosure(false);
-
-  return (
-    <Popover opened={opened} onChange={(o) => (o ? open() : close())} width={260} position="bottom-start" shadow="md">
-      <Popover.Target>
-        <TextInput
-          label={label}
-          placeholder={placeholder}
-          value={value}
-          readOnly
-          onClick={toggle}
-          leftSection={<IconClockHour4 size={16} />}
-          rightSection={<IconChevronDown size={16} />}
-          size="md"
-          error={error}
-          styles={{ input: { height: '48px', cursor: 'pointer', backgroundColor: '#fff' } }}
-        />
-      </Popover.Target>
-
-      <Popover.Dropdown>
-        <SimpleGrid cols={3} spacing={8}>
-          {ALLOWED_SLOTS.map((slot) => (
-            <UnstyledButton
-              key={slot}
-              onClick={() => {
-                onChange(slot);
-                close();
-              }}
-              style={{
-                padding: '8px 10px',
-                borderRadius: 8,
-                border: value === slot ? '2px solid var(--mantine-color-green-6)' : '1px solid rgba(0,0,0,.12)',
-                background: value === slot ? 'rgba(34,197,94,.08)' : '#fff',
-                fontWeight: 400,
-                fontSize: 14,
-                textAlign: 'center',
-              }}
-            >
-              {slot}
-            </UnstyledButton>
-          ))}
-        </SimpleGrid>
-      </Popover.Dropdown>
-    </Popover>
-  );
-}
 
 /** ====== Regras de data/horário ====== */
 const TODAY_START = dayjs().startOf('day').toDate();
-const OPEN_H = 12;
-const OPEN_M = 0;
-const CLOSE_H = 21;
-const CLOSE_M = 30;
-
+const OPEN_H = 12, OPEN_M = 0, CLOSE_H = 21, CLOSE_M = 30;
 function isTimeOutsideWindow(hhmm: string) {
   if (!hhmm) return false;
   const [hh, mm] = hhmm.split(':').map(Number);
@@ -260,6 +167,7 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
   );
 }
 
+
 /* ===================== Skeletons ===================== */
 function StepSkeleton() {
   return (
@@ -320,12 +228,16 @@ function AreaCard({
   desc,
   selected,
   onSelect,
+  disabled,
+  remaining,
 }: {
   foto: string;
   titulo: string;
   desc: string;
   selected: boolean;
   onSelect: () => void;
+  disabled?: boolean;
+  remaining?: number;
 }) {
   const [src, setSrc] = useState(foto || FALLBACK_IMG);
 
@@ -334,16 +246,17 @@ function AreaCard({
       withBorder
       radius="lg"
       p={0}
-      onClick={onSelect}
+      onClick={() => !disabled && onSelect()}
       style={{
-        cursor: 'pointer',
+        cursor: disabled ? 'not-allowed' : 'pointer',
         overflow: 'hidden',
         borderColor: selected ? 'var(--mantine-color-green-5)' : 'transparent',
         boxShadow: selected ? '0 8px 20px rgba(16, 185, 129, .15)' : '0 2px 10px rgba(0,0,0,.06)',
         transition: 'transform .15s ease',
-        background: '#FBF5E9',
+        background: disabled ? '#F4F4F4' : '#FBF5E9',
+        opacity: disabled ? 0.7 : 1,
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
+      onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.transform = 'translateY(-2px)'; }}
       onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
     >
       <Box style={{ position: 'relative', height: 160, background: '#f2f2f2' }}>
@@ -364,9 +277,19 @@ function AreaCard({
             background: 'linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.45) 100%)',
           }}
         />
-        {selected && (
+        {selected && !disabled && (
           <Badge color="green" variant="filled" style={{ position: 'absolute', top: 10, right: 10 }}>
             Selecionada
+          </Badge>
+        )}
+        {disabled && (
+          <Badge color="red" variant="filled" style={{ position: 'absolute', top: 10, right: 10 }}>
+            Esgotado
+          </Badge>
+        )}
+        {typeof remaining === 'number' && (
+          <Badge color="green" variant="light" style={{ position: 'absolute', bottom: 10, right: 10 }}>
+            Vagas: {remaining}
           </Badge>
         )}
       </Box>
@@ -385,8 +308,6 @@ function AreaCard({
 
 /* ===================== PÁGINA ===================== */
 export default function ReservarMane() {
-  const router = useRouter();
-
   // Passos
   const [step, setStep] = useState(0);
   const [stepLoading, setStepLoading] = useState(false);
@@ -402,6 +323,14 @@ export default function ReservarMane() {
     requestAnimationFrame(() => setProgress(target));
   }, [step]);
 
+  // ✅ Bootstrap GA4/Pixel dentro do componente (uma vez só)
+  const bootedRef = useRef(false);
+  useEffect(() => {
+    if (bootedRef.current) return;
+    ensureAnalyticsReady(); // apenas prepara dataLayer/gtag/fbq (não reinjeta scripts)
+    bootedRef.current = true;
+  }, []);
+
   const goToStep = (n: number) => {
     setStepLoading(true);
     setStep(n);
@@ -409,22 +338,27 @@ export default function ReservarMane() {
     return () => clearTimeout(t);
   };
 
-  // Passo 1
-  const [unidade, setUnidade] = useState<string | null>(UNIDADES[0].id);
+  /* ---------- UNIDADES ---------- */
+  const [units, setUnits] = useState<UnitOption[]>([]);
+  const [unitsLoading, setUnitsLoading] = useState(false);
+  const [unitsError, setUnitsError] = useState<string | null>(null);
+
+  // ⚠️ começa neutro para forçar escolha:
+  const [unidade, setUnidade] = useState<string | null>(null);
+
+  /* ---------- ÁREAS (com disponibilidade) ---------- */
+  const [areas, setAreas] = useState<AreaOption[]>([]);
+  const [areasLoading, setAreasLoading] = useState(false);
+  const [areasError, setAreasError] = useState<string | null>(null);
+  const [areaId, setAreaId] = useState<string | null>(null);
+
+  /* ---------- Outros estados ---------- */
   const [adultos, setAdultos] = useState<number | ''>(2);
   const [criancas, setCriancas] = useState<number | ''>(0);
   const [data, setData] = useState<Date | null>(null);
   const [hora, setHora] = useState<string>('');
   const [timeError, setTimeError] = useState<string | null>(null);
   const [dateError, setDateError] = useState<string | null>(null);
-
-  const handleContinueStep1 = () => {
-    console.log('[STEP1] crianças =', criancas, '| typeof =', typeof criancas);
-    goToStep(1);
-  };
-
-  // Passo 2
-  const [areaId, setAreaId] = useState<string | null>(AREAS[0].id);
 
   // Passo 3 (dados do cliente)
   const [fullName, setFullName] = useState('');
@@ -437,21 +371,153 @@ export default function ReservarMane() {
   const [sending, setSending] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
-  const [createdDetail, setCreatedDetail] = useState<any | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // total (antes de canNext1)
+  /* ---------- Progresso / validações (ANTES do efeito que usa `total`) ---------- */
   const total = useMemo(() => {
     const a = typeof adultos === 'number' ? adultos : 0;
     const c = typeof criancas === 'number' ? criancas : 0;
     return Math.max(1, Math.min(20, a + c));
   }, [adultos, criancas]);
 
+  /* ---------- Carregar UNIDADES ao montar ---------- */
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      setUnitsLoading(true);
+      setUnitsError(null);
+      try {
+        const list = await apiGet<any[]>('/v1/units/public/options/list');
+        const normalized: UnitOption[] = (list ?? []).map((u: any) => ({
+          id: String(u.id ?? u._id ?? u.slug ?? u.name),
+          name: String(u.name ?? u.title ?? u.slug ?? ''),
+          slug: u.slug ?? undefined,
+        }));
+        if (!alive) return;
+        setUnits(normalized);
+        // ❌ NÃO auto-seleciona unidade; começa neutro
+        // setUnidade((curr) => curr ?? (normalized[0]?.id ?? null));
+      } catch (e: any) {
+        if (!alive) return;
+        setUnitsError(e?.message || 'Falha ao carregar unidades.');
+        setUnits([]);
+        setUnidade(null);
+      } finally {
+        if (alive) setUnitsLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  /* ---------- Ativa o Pixel da UNIDADE sempre que a unidade mudar ---------- */
+  useEffect(() => {
+    if (!unidade || units.length === 0) return;
+    const unitObj = units.find(u => u.id === unidade);
+    if (unitObj) {
+      setActiveUnitPixelFromUnit({ id: unitObj.id, name: unitObj.name, slug: unitObj.slug });
+    } else {
+      // fallback: tenta com o próprio id (pode estar mapeado no analytics.ts)
+      setActiveUnitPixelFromUnit(unidade);
+    }
+  }, [unidade, units]);
+
+  /* ---------- Disponibilidade por PERÍODO: recarrega quando unidade/data/hora/total mudam ---------- */
+  const ymd = useMemo(() => (data ? dayjs(data).format('YYYY-MM-DD') : ''), [data]);
+
+  useEffect(() => {
+    let alive = true;
+
+    if (!unidade) { setAreas([]); setAreaId(null); return; }
+
+    // sem data/hora → lista estática (áreas ativas da unidade)
+    if (!ymd || !hora) {
+      (async () => {
+        setAreasLoading(true);
+        setAreasError(null);
+        try {
+          const list = await apiGet<any[]>(`/v1/areas/public/by-unit/${unidade}`);
+          const normalized: AreaOption[] = (list ?? []).map((a: any) => ({
+            id: String(a.id ?? a._id),
+            name: String(a.name ?? a.title ?? ''),
+            description: a.description ?? a.desc ?? '',
+            photoUrl: a.photoUrl ?? a.photo ?? '',
+            capacity: typeof a.capacity === 'number' ? a.capacity : undefined,
+            available: undefined,
+            isAvailable: undefined,
+          }));
+          if (!alive) return;
+          setAreas(normalized);
+          setAreaId((curr) => normalized.some(x => x.id === curr) ? curr : null);
+        } catch (e: any) {
+          if (!alive) return;
+          setAreasError(e?.message || 'Falha ao carregar áreas.');
+          setAreas([]);
+          setAreaId(null);
+        } finally {
+          if (alive) setAreasLoading(false);
+        }
+      })();
+      return () => { alive = false; };
+    }
+
+    // com data+hora → disponibilidade por período
+    (async () => {
+      setAreasLoading(true);
+      setAreasError(null);
+      try {
+        const qs = new URLSearchParams({ unitId: String(unidade), date: ymd, time: hora }).toString();
+        const list = await apiGet<any[]>(`/v1/reservations/public/availability?${qs}`);
+        const normalized: AreaOption[] = (list ?? []).map((a: any) => ({
+          id: String(a.id ?? a._id),
+          name: String(a.name ?? a.title ?? ''),
+          description: a.description ?? a.desc ?? '',
+          photoUrl: a.photoUrl ?? a.photo ?? '',
+          capacity: typeof a.capacity === 'number' ? a.capacity : undefined,
+          available: typeof a.available === 'number'
+            ? a.available
+            : (typeof a.remaining === 'number' ? a.remaining : undefined),
+          isAvailable: Boolean(a.isAvailable ?? ((a.available ?? a.remaining ?? 0) > 0)),
+        }));
+        if (!alive) return;
+        setAreas(normalized);
+
+        // se a área atual não tem vagas suficientes, ajustar para a primeira que tenha
+        setAreaId((curr) => {
+          const need = typeof total === 'number' ? total : 0;
+          const chosen = normalized.find(x => x.id === curr);
+          const left = chosen ? (chosen.available ?? 0) : 0;
+          if (!chosen || left < need) {
+            const firstOk = normalized.find(x => (x.available ?? 0) >= need);
+            return firstOk?.id ?? null;
+          }
+          return curr;
+        });
+      } catch (e: any) {
+        if (!alive) return;
+        setAreasError(e?.message || 'Falha ao carregar disponibilidade.');
+        setAreas([]);
+        setAreaId(null);
+      } finally {
+        if (alive) setAreasLoading(false);
+      }
+    })();
+
+    return () => { alive = false; };
+  }, [unidade, ymd, hora, total]);
+
   const contactOk = isValidEmail(email) && isValidPhone(phone);
   const canNext1 = Boolean(unidade && data && hora && total > 0 && !timeError && !dateError);
-  const canNext2 = Boolean(areaId);
+
+  const chosen = areas.find(a => a.id === areaId);
+  const leftChosen = chosen ? (chosen.available ?? chosen.capacity ?? 0) : 0;
+  const canNext2 = Boolean(areaId) && leftChosen >= (typeof total === 'number' ? total : 0);
+
   const canFinish = fullName.trim().length >= 3 && onlyDigits(cpf).length === 11 && contactOk;
+
+  const handleContinueStep1 = () => {
+    setError(null);
+    goToStep(1);
+  };
 
   async function confirmarReserva() {
     setSending(true);
@@ -480,10 +546,14 @@ export default function ReservarMane() {
         setSending(false);
         return;
       }
+      if (!areaId || !unidade) {
+        setError('Selecione a unidade e a área.');
+        setSending(false);
+        return;
+      }
 
       const reservationISO = joinDateTimeISO(data, hora);
       const birthdayISO = birthday ? dayjs(birthday).startOf('day').toDate().toISOString() : undefined;
-
       const kidsNum = typeof criancas === 'number' && !Number.isNaN(criancas) ? criancas : 0;
 
       const payload = {
@@ -495,81 +565,76 @@ export default function ReservarMane() {
         birthdayDate: birthdayISO,
         email: email.trim(),
         phone: onlyDigits(phone),
-        unit: unidade ?? undefined,
-        area: areaId ?? undefined,
+
+        unitId: unidade,
+        areaId: areaId,
+
         utm_source: 'site',
         utm_campaign: `${unidade}:${areaId}`,
         source: 'site',
       };
 
-      console.log('[FRONT] payload=', payload, 'kids=', payload.kids, 'type=', typeof payload.kids);
+      const res = await apiPost<{ id: string; reservationCode: string; status?: string }>(
+        '/v1/reservations/public',
+        payload
+      );
 
-      const res = await apiPost<{ id: string }>('/reservas', payload);
+      // ======= 🔔 DISPARO DE ANALYTICS =======
+      const unitObj = units.find(u => u.id === unidade);
+      const unitLabel = unitObj?.name || unitObj?.slug || unidade || '';
+      const areaObj = areas.find(a => a.id === areaId);
+      const areaLabel = areaObj?.name || '';
+
+      await trackReservationMade({
+        reservationCode: res.reservationCode,
+        fullName,
+        email,
+        phone: onlyDigits(phone),
+        unit: unitLabel,
+        area: areaLabel,
+        status: res.status || 'AWAITING_CHECKIN',
+        source: 'site',
+      });
+      // =======================================
+
       setCreatedId(res.id);
-
-      // Buscar detalhe p/ pegar reservationCode (e confirmar kids do DB)
-      setDetailLoading(true);
-      try {
-        const detail = await apiGet<any>(`/v1/reservations/${res.id}`);
-        setCreatedDetail(detail);
-        setCreatedCode(detail?.reservationCode ?? null);
-      } catch {
-        // fallback silencioso
-      } finally {
-        setDetailLoading(false);
-      }
-
+      setCreatedCode(res.reservationCode);
       goToStep(3);
     } catch (e: any) {
-      console.error('[FRONT] confirmarReserva erro:', e);
-      setError(e?.message || 'Não foi possível concluir sua reserva agora. Tente novamente.');
+      const msg = String(e?.message || '');
+      if (msg.includes('NO_CAPACITY') || msg.toLowerCase().includes('capacidade')) {
+        setError('Essa área não possui vagas para a quantidade escolhida. Ajuste o total ou escolha outra área.');
+        setStep(1);
+      } else {
+        setError(msg || 'Não foi possível concluir sua reserva agora. Tente novamente.');
+      }
     } finally {
       setSending(false);
     }
   }
 
-  // base API & QR — usa API_BASE do helper (sempre absoluto em DEV)
+  // base API & QR — usa API_BASE do helper
   const apiBase = API_BASE || '';
   const qrUrl = createdId ? `${apiBase}/v1/reservations/${createdId}/qrcode` : '';
 
-  // dados p/ boarding pass (usa detail se disponível)
-  const unitLabel =
-    UNIDADES.find(u => u.id === unidade)?.label ??
-    createdDetail?.unit ??
-    '—';
+  // dados p/ boarding pass (locais)
+  const unitLabel = units.find(u => u.id === unidade)?.name ?? '—';
+  const areaName = areas.find(a => a.id === areaId)?.name ?? '—';
 
-  const areaName =
-    AREAS.find(a => a.id === areaId)?.nome ??
-    createdDetail?.area ??
-    '—';
+  const dateStr = data ? dayjs(data).format('DD/MM/YYYY') : '--/--/----';
+  const timeStr = hora || '--:--';
+  const peopleNum = typeof total === 'number' ? total : 0;
+  const kidsNum = typeof criancas === 'number' ? criancas : 0;
 
-  const dateStr = createdDetail?.reservationDate
-    ? dayjs(createdDetail.reservationDate).format('DD/MM/YYYY')
-    : (typeof data === 'object' && data ? dayjs(data).format('DD/MM/YYYY') : '--/--/----');
-
-  const timeStr = createdDetail?.reservationDate
-    ? dayjs(createdDetail.reservationDate).format('HH:mm')
-    : (hora || '--:--');
-
-  const peopleNum = createdDetail?.people ?? (typeof total === 'number' ? total : 0);
-  const kidsNum = createdDetail?.kids ?? (typeof criancas === 'number' ? criancas : 0);
-
+  /* ===================== UI ===================== */
   return (
     <DatesProvider settings={{ locale: 'pt-br' }}>
       <Box style={{ background: '#ffffff', minHeight: '100dvh' }}>
-        {/* Overlay de carregamento (confirmar reserva) */}
         <LoadingOverlay visible={sending} />
 
-        {/* HEADER (fluído, sem sticky) */}
+        {/* HEADER */}
         <Container size={480} px="md" style={{ marginTop: '64px', marginBottom: 12 }}>
-          <Anchor
-            component={Link}
-            href="/"
-            c="dimmed"
-            size="sm"
-            mt={4}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
+          <Anchor component={Link} href="/" c="dimmed" size="sm" mt={4} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <IconArrowLeft size={16} />
             Voltar
           </Anchor>
@@ -586,10 +651,7 @@ export default function ReservarMane() {
               order={2}
               ta="center"
               fw={400}
-              style={{
-                fontFamily: '"Alfa Slab One", system-ui, sans-serif',
-                color: '#146C2E',
-              }}
+              style={{ fontFamily: '"Alfa Slab One", system-ui, sans-serif', color: '#146C2E' }}
             >
               Mané Mercado Reservas
             </Title>
@@ -598,40 +660,25 @@ export default function ReservarMane() {
               Águas Claras & Arena Brasília
             </Text>
 
-            {/* ===== Cabeçalho de etapa + Ícone + Progresso ===== */}
             <Card radius="md" p="sm" style={{ width: '100%', maxWidth: 460, background: '#fff', border: 'none' }} shadow="sm">
-
               <Stack gap={6} align="stretch">
-                {/* Selo com ícone grande */}
                 <Box
                   aria-hidden
                   style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 9999,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '3px solid var(--mantine-color-green-5)',
-                    background: '#EFFFF3',
-                    margin: '0 auto 4px',
+                    width: 64, height: 64, borderRadius: 9999,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: '3px solid var(--mantine-color-green-5)', background: '#EFFFF3', margin: '0 auto 4px',
                   }}
                 >
                   {stepIconFor(step)}
                 </Box>
 
-                <Text size="xs" c="dimmed" ta="center">
-                  {step < 3 ? `Etapa ${step + 1} de 3` : ''}
-                </Text>
-                {/* ===== Cabeçalho de etapa + Ícone + Progresso ===== */}
+                <Text size="xs" c="dimmed" ta="center">{step < 3 ? `Etapa ${step + 1} de 3` : ''}</Text>
+
                 {step < 3 ? (
                   <>
-                    <Title order={5} ta="center" fw={400}>
-                      {STEP_META[step].title}
-                    </Title>
-                    <Text size="sm" c="dimmed" ta="center">
-                      {STEP_META[step].desc}
-                    </Text>
+                    <Title order={5} ta="center" fw={400}>{['Reserva', 'Área', 'Cadastro'][step]}</Title>
+                    <Text size="sm" c="dimmed" ta="center">{['Unidade, pessoas e horário', 'Escolha onde quer sentar', 'Dados necessários.'][step]}</Text>
                   </>
                 ) : (
                   <>
@@ -641,37 +688,21 @@ export default function ReservarMane() {
                 )}
 
                 <Box mt={6}>
-                  <Progress
-                    value={progress}
-                    color="green"
-                    size="lg"
-                    radius="xl"
-                    striped
-                    animated
-                    styles={{
-                      root: { transition: 'width 300ms ease' },
-                      section: { transition: 'width 500ms ease' },
-                    }}
-                  />
+                  <Progress value={progress} color="green" size="lg" radius="xl" striped animated
+                    styles={{ root: { transition: 'width 300ms ease' }, section: { transition: 'width 500ms ease' } }} />
                 </Box>
               </Stack>
             </Card>
-            {/* ===== Fim cabeçalho ===== */}
           </Stack>
         </Container>
 
         {/* CONTEÚDO */}
-        <Container
-          size={480}
-          px="md"
-          style={{
-            minHeight: '100dvh',
-            paddingTop: 12,
-            paddingLeft: 'calc(env(safe-area-inset-left) + 16px)',
-            paddingRight: 'calc(env(safe-area-inset-right) + 16px)',
-            fontFamily: '"Comfortaa", system-ui, sans-serif',
-          }}
-        >
+        <Container size={480} px="md" style={{
+          minHeight: '100dvh', paddingTop: 12,
+          paddingLeft: 'calc(env(safe-area-inset-left) + 16px)',
+          paddingRight: 'calc(env(safe-area-inset-right) + 16px)',
+          fontFamily: '"Comfortaa", system-ui, sans-serif',
+        }}>
           {/* PASSO 1 */}
           {step === 0 && (stepLoading ? (
             <StepSkeleton />
@@ -681,12 +712,22 @@ export default function ReservarMane() {
                 <Stack gap="md">
                   <Select
                     label="Unidade"
-                    placeholder="Selecione"
-                    data={UNIDADES.map((u) => ({ value: u.id, label: u.label }))}
-                    value={unidade}
-                    onChange={setUnidade}
-                    withAsterisk={false}
+                    placeholder={unitsLoading ? 'Carregando...' : 'Selecione'}
+                    data={units.map((u) => ({ value: u.id, label: u.name }))}
+                    value={unidade}                // começa como null → neutro
+                    onChange={(val) => {
+                      setUnidade(val);
+                      // Ativa imediatamente o Pixel desta unidade ao selecionar
+                      const u = units.find(x => x.id === val);
+                      if (u) setActiveUnitPixelFromUnit({ id: u.id, name: u.name, slug: u.slug });
+                      else if (val) setActiveUnitPixelFromUnit(val);
+                    }}
+                    withAsterisk
                     leftSection={<IconBuildingStore size={16} />}
+                    searchable={false}
+                    nothingFoundMessage={unitsLoading ? 'Carregando...' : 'Nenhuma unidade'}
+                    error={!unidade ? 'Selecione a unidade' : undefined}
+                    allowDeselect={false}
                   />
 
                   <Grid gutter="md">
@@ -758,17 +799,8 @@ export default function ReservarMane() {
                     <Text size="sm" ta="center">
                       <b>Total:</b> {total} pessoa(s) •{' '}
                       <b>Data:</b> {data ? dayjs(data).format('DD/MM') : '--'}/{hora || '--:--'}{' '}
-                      {dateError && (
-                        <Text component="span" c="red">
-                          • {dateError}
-                        </Text>
-                      )}
-                      {timeError && (
-                        <Text component="span" c="red">
-                          {' '}
-                          • {timeError}
-                        </Text>
-                      )}
+                      {dateError && <Text component="span" c="red">• {dateError}</Text>}
+                      {timeError && <Text component="span" c="red"> • {timeError}</Text>}
                     </Text>
                   </Card>
                 </Stack>
@@ -785,16 +817,29 @@ export default function ReservarMane() {
             <StepSkeleton />
           ) : (
             <Stack mt="xs" gap="md">
-              {AREAS.map((a) => (
-                <AreaCard
-                  key={a.id}
-                  foto={a.foto}
-                  titulo={a.nome}
-                  desc={a.desc}
-                  selected={areaId === a.id}
-                  onSelect={() => setAreaId(a.id)}
-                />
-              ))}
+              {areasLoading && <Text size="sm" c="dimmed">Carregando áreas...</Text>}
+              {areasError && <Alert color="red" icon={<IconInfoCircle />}>{areasError}</Alert>}
+              {!areasLoading && !areasError && areas.length === 0 && (
+                <Alert color="yellow" icon={<IconInfoCircle />}>Não há áreas cadastradas para esta unidade.</Alert>
+              )}
+
+              {areas.map((a) => {
+                const left = a.available ?? a.capacity ?? 0;
+                const need = typeof total === 'number' ? total : 0;
+                const disabled = left < need;
+                return (
+                  <AreaCard
+                    key={a.id}
+                    foto={a.photoUrl || FALLBACK_IMG}
+                    titulo={`${a.name}${typeof left === 'number' ? ` • ${left} vagas` : ''}`}
+                    desc={a.description || '—'}
+                    selected={areaId === a.id}
+                    onSelect={() => !disabled && setAreaId(a.id)}
+                    disabled={disabled}
+                    remaining={left}
+                  />
+                );
+              })}
 
               <Group gap="sm">
                 <Button variant="light" radius="md" onClick={() => goToStep(0)} type="button" style={{ flex: 1 }}>
@@ -879,13 +924,10 @@ export default function ReservarMane() {
                     styles={{ input: { height: rem(48) } }}
                     leftSection={<IconCalendar size={16} />}
                     weekendDays={[]}
-
-                    // 👇 facilita escolher anos/meses e abre na década de 1990
                     defaultLevel="decade"
                     defaultDate={new Date(1990, 0, 1)}
                     maxDate={new Date()}
                   />
-
                 </Stack>
               </Card>
 
@@ -897,11 +939,10 @@ export default function ReservarMane() {
 
               <Card withBorder radius="md" p="sm" style={{ background: '#fffdf7' }}>
                 <Text size="sm" ta="center">
-                  <b>Unidade:</b> {UNIDADES.find((u) => u.id === unidade)?.label} • <b>Área:</b>{' '}
-                  {AREAS.find((a) => a.id === areaId)?.nome}
+                  <b>Unidade:</b> {units.find((u) => u.id === unidade)?.name ?? '—'} • <b>Área:</b>{' '}
+                  {areas.find((a) => a.id === areaId)?.name ?? '—'}
                   <br />
-                  <b>Pessoas:</b> {total} • <b>Data/Hora:</b> {data ? dayjs(data).format('DD/MM') : '--'}/
-                  {hora || '--:--'}
+                  <b>Pessoas:</b> {total} • <b>Data/Hora:</b> {data ? dayjs(data).format('DD/MM') : '--'}/{hora || '--:--'}
                 </Text>
               </Card>
 
@@ -926,29 +967,86 @@ export default function ReservarMane() {
 
           {/* PASSO 4 — Boarding Pass */}
           {step === 3 && createdId && (
-            detailLoading ? (
-              <BoardingPassSkeleton />
-            ) : (
-              <BoardingPass
-                id={createdId}
-                code={createdCode ?? createdId}
-                qrUrl={qrUrl}
-                unitLabel={unitLabel}
-                areaName={areaName}
-                dateStr={dateStr}
-                timeStr={timeStr}
-                people={peopleNum}
-                kids={kidsNum}
-                fullName={createdDetail?.fullName ?? fullName}
-                cpf={createdDetail?.cpf ?? cpf}
-                emailHint={email}
-              />
-            )
+            <BoardingPass
+              id={createdId}
+              code={createdCode ?? createdId}
+              qrUrl={qrUrl}
+              unitLabel={unitLabel}
+              areaName={areaName}
+              dateStr={dateStr}
+              timeStr={timeStr}
+              people={peopleNum}
+              kids={kidsNum}
+              fullName={fullName}
+              cpf={cpf}
+              emailHint={email}
+            />
           )}
 
           <Box h={rem(32)} />
         </Container>
       </Box>
     </DatesProvider>
+  );
+}
+
+/* ===================== COMPONENTES AUXILIARES ===================== */
+function SlotTimePicker({
+  value,
+  onChange,
+  label = 'Horário',
+  placeholder = 'Selecionar',
+  error,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  label?: string;
+  placeholder?: string;
+  error?: string | null;
+}) {
+  const [opened, { open, close, toggle }] = useDisclosure(false);
+
+  return (
+    <Popover opened={opened} onChange={(o) => (o ? open() : close())} width={260} position="bottom-start" shadow="md">
+      <Popover.Target>
+        <TextInput
+          label={label}
+          placeholder={placeholder}
+          value={value}
+          readOnly
+          onClick={toggle}
+          leftSection={<IconClockHour4 size={16} />}
+          rightSection={<IconChevronDown size={16} />}
+          size="md"
+          error={error}
+          styles={{ input: { height: '48px', cursor: 'pointer', backgroundColor: '#fff' } }}
+        />
+      </Popover.Target>
+
+      <Popover.Dropdown>
+        <SimpleGrid cols={3} spacing={8}>
+          {ALLOWED_SLOTS.map((slot) => (
+            <UnstyledButton
+              key={slot}
+              onClick={() => {
+                onChange(slot);
+                close();
+              }}
+              style={{
+                padding: '8px 10px',
+                borderRadius: 8,
+                border: value === slot ? '2px solid var(--mantine-color-green-6)' : '1px solid rgba(0,0,0,.12)',
+                background: value === slot ? 'rgba(34,197,94,.08)' : '#fff',
+                fontWeight: 400,
+                fontSize: 14,
+                textAlign: 'center',
+              }}
+            >
+              {slot}
+            </UnstyledButton>
+          ))}
+        </SimpleGrid>
+      </Popover.Dropdown>
+    </Popover>
   );
 }

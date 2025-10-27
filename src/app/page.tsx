@@ -17,7 +17,15 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconCalendarPlus } from '@tabler/icons-react';
 
+// ⬇️ importa o bootstrap do analytics
+import { ensureAnalyticsReady } from '@/lib/analytics';
+
 export default function Home() {
+  // Inicializa fbq/gtag apenas uma vez no client
+  useEffect(() => {
+    ensureAnalyticsReady();
+  }, []);
+
   // Mostra skeleton até hidratar (e um tique a mais para suavizar)
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {

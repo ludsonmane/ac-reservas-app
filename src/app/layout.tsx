@@ -1,9 +1,13 @@
 // src/app/layout.tsx
 import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
+import './globals.css';
+
 import { ColorSchemeScript, MantineProvider, createTheme, rem } from '@mantine/core';
 import { Alfa_Slab_One, Comfortaa } from 'next/font/google';
-import './globals.css';
+import React from 'react';
+import Script from 'next/script';
+import MetaPixelBootstrap from './MetaPixelBootstrap';
 
 export const metadata = {
   title: 'Mané Mercado • Reservas',
@@ -66,11 +70,27 @@ const theme = createTheme({
 });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const GA4 = process.env.NEXT_PUBLIC_GA4_ID;
+
   return (
     <html lang="pt-BR">
       <head>
-        <ColorSchemeScript />
+        <ColorSchemeScript defaultColorScheme="light" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        {/* GA4 base (só se houver ID configurado) */}
+        {GA4 ? (
+          <>
+            <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA4}`} strategy="afterInteractive" />
+            <Script id="ga4" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${GA4}', { debug_mode: ${process.env.NODE_ENV !== 'production' ? 'true' : 'false'} });
+              `}
+            </Script>
+          </>
+        ) : null}
       </head>
       <body
         className={`${alfa.variable} ${comfortaa.variable}`}
@@ -97,8 +117,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               `,
             }}
           />
+          {/* Bootstrap do Meta Pixel (apenas carrega fbq; a INIT por unidade é feita via analytics.ts) */}
+          <MetaPixelBootstrap />
+
           {children}
         </MantineProvider>
+
+        {/* (Opcional) Noscript do Pixel - apenas se quiser um pixel global de fallback
+            Como estamos usando pixel por unidade, normalmente não é necessário. */}
+        {/* <noscript>
+          <img height="1" width="1" style={{ display: 'none' }} alt=""
+            src="https://www.facebook.com/tr?id=SEU_PIXEL_GLOBAL&ev=PageView&noscript=1" />
+        </noscript> */}
       </body>
     </html>
   );
