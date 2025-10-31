@@ -7,8 +7,8 @@ import 'dayjs/locale/pt-br';
 import { DatesProvider, DatePickerInput } from '@mantine/dates';
 import {
   Popover, TextInput, SimpleGrid, UnstyledButton,
-  Container, Group, Button, Title, Text, Card, Grid, Badge,
-  Select, NumberInput, Alert, Stack, Box, rem, Skeleton, Progress, Anchor
+  Container, Group, Button, Title, Text, Card, Grid, Alert,
+  Select, NumberInput, Stack, Box, rem, Skeleton, Progress, Anchor
 } from '@mantine/core';
 import { IconChevronDown, IconArrowLeft } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
@@ -38,9 +38,7 @@ import { apiPost, apiGet, API_BASE } from '@/lib/api';
 
 dayjs.locale('pt-br');
 
-/* ===================== TIPOS ===================== */
 type UnitOption = { id: string; name: string; slug?: string };
-
 type AreaOption = {
   id: string;
   name: string;
@@ -51,7 +49,23 @@ type AreaOption = {
   isAvailable?: boolean;
 };
 
-/* ===================== HELPERS ===================== */
+type SavedReservationLS = {
+  id: string;
+  code: string;
+  qrUrl: string;
+  unitLabel: string;
+  areaName: string;
+  dateStr: string;
+  timeStr: string;
+  people: number;
+  kids?: number;
+  fullName?: string;
+  cpf?: string | null;
+  emailHint?: string | null;
+};
+
+const LS_KEY = 'mane:lastReservation';
+
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1528605248644-14dd04022da1?q=80&w=1600&auto=format&fit=crop';
 
@@ -85,12 +99,10 @@ function joinDateTimeISO(date: Date | null, time: string) {
   return dt.toISOString();
 }
 
-// --- Slots de horário permitidos ---
 const ALLOWED_SLOTS = ['12:00', '12:30', '13:00', '18:00', '18:30', '19:00'];
 function isValidSlot(v: string) { return ALLOWED_SLOTS.includes(v); }
 const SLOT_ERROR_MSG = 'Escolha um horário válido da lista';
 
-/** ====== Regras de data/horário ====== */
 const TODAY_START = dayjs().startOf('day').toDate();
 const OPEN_H = 12, OPEN_M = 0, CLOSE_H = 21, CLOSE_M = 30;
 function isTimeOutsideWindow(hhmm: string) {
@@ -107,13 +119,11 @@ function timeWindowMessage() {
   return `Horário disponível entre ${String(OPEN_H).padStart(2, '0')}:${String(OPEN_M).padStart(2, '0')} e ${String(CLOSE_H).padStart(2, '0')}:${String(CLOSE_M).padStart(2, '0')}`;
 }
 
-/* mapeia onChange do Mantine NumberInput (string|number) -> state (number|'') */
 const numberInputHandler =
   (setter: React.Dispatch<React.SetStateAction<number | ''>>) =>
     (v: string | number) =>
       setter(v === '' ? '' : Number(v));
 
-/* ===================== Loading Overlay ===================== */
 function LoadingOverlay({ visible }: { visible: boolean }) {
   const msgs = useRef([
     'Verificando disponibilidade...',
@@ -167,8 +177,6 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
   );
 }
 
-
-/* ===================== Skeletons ===================== */
 function StepSkeleton() {
   return (
     <Stack mt="xs" gap="md">
@@ -191,37 +199,12 @@ function StepSkeleton() {
   );
 }
 
-function BoardingPassSkeleton() {
-  return (
-    <Card withBorder radius="lg" p="lg" shadow="md" mt="sm" style={{ background: '#FBF5E9' }}>
-      <Stack gap="xs" align="center">
-        <Skeleton height={64} circle />
-        <Skeleton height={20} width={160} />
-        <Skeleton height={28} width={200} radius="sm" />
-        <Skeleton height={14} width="100%" />
-        <Card withBorder radius="md" p="md" style={{ width: '100%', background: '#fff' }}>
-          <Grid gutter="md" align="center">
-            <Grid.Col span={6}><Skeleton height={40} /></Grid.Col>
-            <Grid.Col span={6}><Skeleton height={40} /></Grid.Col>
-          </Grid>
-          <Skeleton height={30} mt="sm" />
-          <Skeleton height={18} mt="xs" />
-          <Skeleton height={12} mt="md" />
-          <Skeleton height={168} radius="md" mt="md" />
-        </Card>
-      </Stack>
-    </Card>
-  );
-}
-
-/* ===== Ícone grande da etapa ===== */
 function stepIconFor(n: number) {
   if (n === 0) return <IconCalendar size={28} />;
   if (n === 1) return <IconMapPin size={28} />;
   return <IconUser size={28} />;
 }
 
-/* ===================== COMPONENTE AreaCard ===================== */
 function AreaCard({
   foto,
   titulo,
@@ -306,14 +289,18 @@ function AreaCard({
   );
 }
 
-/* ===================== PÁGINA ===================== */
 export default function ReservarMane() {
-  // Passos
   const [step, setStep] = useState(0);
   const [stepLoading, setStepLoading] = useState(false);
-
-  // Progresso animado do cabeçalho
   const [progress, setProgress] = useState(0);
+
+  const bootedRef = useRef(false);
+  useEffect(() => {
+    if (bootedRef.current) return;
+    ensureAnalyticsReady();
+    bootedRef.current = true;
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -323,14 +310,6 @@ export default function ReservarMane() {
     requestAnimationFrame(() => setProgress(target));
   }, [step]);
 
-  // ✅ Bootstrap GA4/Pixel dentro do componente (uma vez só)
-  const bootedRef = useRef(false);
-  useEffect(() => {
-    if (bootedRef.current) return;
-    ensureAnalyticsReady(); // apenas prepara dataLayer/gtag/fbq (não reinjeta scripts)
-    bootedRef.current = true;
-  }, []);
-
   const goToStep = (n: number) => {
     setStepLoading(true);
     setStep(n);
@@ -338,21 +317,16 @@ export default function ReservarMane() {
     return () => clearTimeout(t);
   };
 
-  /* ---------- UNIDADES ---------- */
   const [units, setUnits] = useState<UnitOption[]>([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
   const [unitsError, setUnitsError] = useState<string | null>(null);
-
-  // ⚠️ começa neutro para forçar escolha:
   const [unidade, setUnidade] = useState<string | null>(null);
 
-  /* ---------- ÁREAS (com disponibilidade) ---------- */
   const [areas, setAreas] = useState<AreaOption[]>([]);
   const [areasLoading, setAreasLoading] = useState(false);
   const [areasError, setAreasError] = useState<string | null>(null);
   const [areaId, setAreaId] = useState<string | null>(null);
 
-  /* ---------- Outros estados ---------- */
   const [adultos, setAdultos] = useState<number | ''>(2);
   const [criancas, setCriancas] = useState<number | ''>(0);
   const [data, setData] = useState<Date | null>(null);
@@ -360,27 +334,72 @@ export default function ReservarMane() {
   const [timeError, setTimeError] = useState<string | null>(null);
   const [dateError, setDateError] = useState<string | null>(null);
 
-  // Passo 3 (dados do cliente)
   const [fullName, setFullName] = useState('');
   const [cpf, setCpf] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [birthday, setBirthday] = useState<Date | null>(null);
 
-  // Envio
   const [sending, setSending] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  /* ---------- Progresso / validações (ANTES do efeito que usa `total`) ---------- */
   const total = useMemo(() => {
     const a = typeof adultos === 'number' ? adultos : 0;
     const c = typeof criancas === 'number' ? criancas : 0;
     return Math.max(1, Math.min(20, a + c));
   }, [adultos, criancas]);
 
-  /* ---------- Carregar UNIDADES ao montar ---------- */
+  // 🔐 check de reserva ativa no localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    (async () => {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      let saved: SavedReservationLS | null = null;
+      try {
+        saved = JSON.parse(raw) as SavedReservationLS;
+      } catch {
+        localStorage.removeItem(LS_KEY);
+        return;
+      }
+      if (!saved?.id) {
+        localStorage.removeItem(LS_KEY);
+        return;
+      }
+
+      try {
+        const res = await fetch(
+          `${API_BASE || ''}/v1/reservations/${saved.id}/status`,
+          { cache: 'no-store' }
+        );
+        if (!res.ok) {
+          // someu → libera
+          localStorage.removeItem(LS_KEY);
+          return;
+        }
+        const data = await res.json();
+        const status = String(data.status || '').toUpperCase();
+        const stillActive = ['PENDING', 'CONFIRMED', 'AWAITING_CHECKIN'].includes(status);
+        if (stillActive) {
+          // joga direto pro boarding pass
+          setCreatedId(saved.id);
+          setCreatedCode(saved.code);
+          // preenche visuais
+          setUnidade(null); // não precisa mais
+          setAreaId(null);
+          setStep(3);
+        } else {
+          localStorage.removeItem(LS_KEY);
+        }
+      } catch {
+        // se der erro, não travar
+      }
+    })();
+  }, []);
+
+  // carregar unidades
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -395,8 +414,6 @@ export default function ReservarMane() {
         }));
         if (!alive) return;
         setUnits(normalized);
-        // ❌ NÃO auto-seleciona unidade; começa neutro
-        // setUnidade((curr) => curr ?? (normalized[0]?.id ?? null));
       } catch (e: any) {
         if (!alive) return;
         setUnitsError(e?.message || 'Falha ao carregar unidades.');
@@ -409,19 +426,16 @@ export default function ReservarMane() {
     return () => { alive = false; };
   }, []);
 
-  /* ---------- Ativa o Pixel da UNIDADE sempre que a unidade mudar ---------- */
   useEffect(() => {
     if (!unidade || units.length === 0) return;
     const unitObj = units.find(u => u.id === unidade);
     if (unitObj) {
       setActiveUnitPixelFromUnit({ id: unitObj.id, name: unitObj.name, slug: unitObj.slug });
     } else {
-      // fallback: tenta com o próprio id (pode estar mapeado no analytics.ts)
       setActiveUnitPixelFromUnit(unidade);
     }
   }, [unidade, units]);
 
-  /* ---------- Disponibilidade por PERÍODO: recarrega quando unidade/data/hora/total mudam ---------- */
   const ymd = useMemo(() => (data ? dayjs(data).format('YYYY-MM-DD') : ''), [data]);
 
   useEffect(() => {
@@ -429,7 +443,6 @@ export default function ReservarMane() {
 
     if (!unidade) { setAreas([]); setAreaId(null); return; }
 
-    // sem data/hora → lista estática (áreas ativas da unidade)
     if (!ymd || !hora) {
       (async () => {
         setAreasLoading(true);
@@ -460,7 +473,6 @@ export default function ReservarMane() {
       return () => { alive = false; };
     }
 
-    // com data+hora → disponibilidade por período
     (async () => {
       setAreasLoading(true);
       setAreasError(null);
@@ -481,7 +493,6 @@ export default function ReservarMane() {
         if (!alive) return;
         setAreas(normalized);
 
-        // se a área atual não tem vagas suficientes, ajustar para a primeira que tenha
         setAreaId((curr) => {
           const need = typeof total === 'number' ? total : 0;
           const chosen = normalized.find(x => x.id === curr);
@@ -579,7 +590,6 @@ export default function ReservarMane() {
         payload
       );
 
-      // ======= 🔔 DISPARO DE ANALYTICS =======
       const unitObj = units.find(u => u.id === unidade);
       const unitLabel = unitObj?.name || unitObj?.slug || unidade || '';
       const areaObj = areas.find(a => a.id === areaId);
@@ -595,11 +605,31 @@ export default function ReservarMane() {
         status: res.status || 'AWAITING_CHECKIN',
         source: 'site',
       });
-      // =======================================
 
       setCreatedId(res.id);
       setCreatedCode(res.reservationCode);
       goToStep(3);
+
+      // ✅ salva no localStorage pra travar visitas futuras
+      if (typeof window !== 'undefined') {
+        const apiBase = API_BASE || '';
+        const qrUrl = `${apiBase}/v1/reservations/${res.id}/qrcode`;
+        const lsPayload: SavedReservationLS = {
+          id: res.id,
+          code: res.reservationCode,
+          qrUrl,
+          unitLabel,
+          areaName: areaLabel,
+          dateStr: dayjs(data).format('DD/MM/YYYY'),
+          timeStr: hora,
+          people: typeof total === 'number' ? total : 0,
+          kids: kidsNum,
+          fullName,
+          cpf,
+          emailHint: email,
+        };
+        localStorage.setItem(LS_KEY, JSON.stringify(lsPayload));
+      }
     } catch (e: any) {
       const msg = String(e?.message || '');
       if (msg.includes('NO_CAPACITY') || msg.toLowerCase().includes('capacidade')) {
@@ -613,26 +643,37 @@ export default function ReservarMane() {
     }
   }
 
-  // base API & QR — usa API_BASE do helper
   const apiBase = API_BASE || '';
   const qrUrl = createdId ? `${apiBase}/v1/reservations/${createdId}/qrcode` : '';
 
-  // dados p/ boarding pass (locais)
-  const unitLabel = units.find(u => u.id === unidade)?.name ?? '—';
-  const areaName = areas.find(a => a.id === areaId)?.name ?? '—';
+  // quando vier do LS, a gente não tem unidade/área na mão aqui,
+  // então tenta recuperar do LS de novo:
+  let unitLabel = units.find(u => u.id === unidade)?.name ?? '—';
+  let areaName = areas.find(a => a.id === areaId)?.name ?? '—';
+
+  if (typeof window !== 'undefined' && step === 3 && createdId) {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      try {
+        const saved = JSON.parse(raw) as SavedReservationLS;
+        if (saved?.id === createdId) {
+          unitLabel = saved.unitLabel;
+          areaName = saved.areaName;
+        }
+      } catch { /* ignore */ }
+    }
+  }
 
   const dateStr = data ? dayjs(data).format('DD/MM/YYYY') : '--/--/----';
   const timeStr = hora || '--:--';
   const peopleNum = typeof total === 'number' ? total : 0;
   const kidsNum = typeof criancas === 'number' ? criancas : 0;
 
-  /* ===================== UI ===================== */
   return (
     <DatesProvider settings={{ locale: 'pt-br' }}>
       <Box style={{ background: '#ffffff', minHeight: '100dvh' }}>
         <LoadingOverlay visible={sending} />
 
-        {/* HEADER */}
         <Container size={480} px="md" style={{ marginTop: '64px', marginBottom: 12 }}>
           <Anchor component={Link} href="/" c="dimmed" size="sm" mt={4} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <IconArrowLeft size={16} />
@@ -696,13 +737,17 @@ export default function ReservarMane() {
           </Stack>
         </Container>
 
-        {/* CONTEÚDO */}
-        <Container size={480} px="md" style={{
-          minHeight: '100dvh', paddingTop: 12,
-          paddingLeft: 'calc(env(safe-area-inset-left) + 16px)',
-          paddingRight: 'calc(env(safe-area-inset-right) + 16px)',
-          fontFamily: '"Comfortaa", system-ui, sans-serif',
-        }}>
+        <Container
+          size={480}
+          px="md"
+          style={{
+            minHeight: '100dvh',
+            paddingTop: 12,
+            paddingLeft: 'calc(env(safe-area-inset-left) + 16px)',
+            paddingRight: 'calc(env(safe-area-inset-right) + 16px)',
+            fontFamily: '"Comfortaa", system-ui, sans-serif',
+          }}
+        >
           {/* PASSO 1 */}
           {step === 0 && (stepLoading ? (
             <StepSkeleton />
@@ -714,10 +759,9 @@ export default function ReservarMane() {
                     label="Unidade"
                     placeholder={unitsLoading ? 'Carregando...' : 'Selecione'}
                     data={units.map((u) => ({ value: u.id, label: u.name }))}
-                    value={unidade}                // começa como null → neutro
+                    value={unidade}
                     onChange={(val) => {
                       setUnidade(val);
-                      // Ativa imediatamente o Pixel desta unidade ao selecionar
                       const u = units.find(x => x.id === val);
                       if (u) setActiveUnitPixelFromUnit({ id: u.id, name: u.name, slug: u.slug });
                       else if (val) setActiveUnitPixelFromUnit(val);
@@ -738,7 +782,6 @@ export default function ReservarMane() {
                         max={20}
                         value={adultos}
                         onChange={numberInputHandler(setAdultos)}
-                        withAsterisk={false}
                         leftSection={<IconUsers size={16} />}
                         clampBehavior="strict"
                       />
@@ -750,7 +793,6 @@ export default function ReservarMane() {
                         max={10}
                         value={criancas}
                         onChange={numberInputHandler(setCriancas)}
-                        withAsterisk={false}
                         leftSection={<IconMoodKid size={16} />}
                         clampBehavior="strict"
                       />
@@ -769,7 +811,6 @@ export default function ReservarMane() {
                           const invalid = d ? dayjs(d).isBefore(TODAY_START, 'day') : false;
                           setDateError(invalid ? 'Selecione uma data a partir de hoje' : null);
                         }}
-                        withAsterisk={false}
                         valueFormat="DD/MM/YYYY"
                         leftSection={<IconCalendar size={16} />}
                         allowDeselect={false}
@@ -871,7 +912,6 @@ export default function ReservarMane() {
                     placeholder="Seu nome"
                     value={fullName}
                     onChange={(e) => setFullName(e.currentTarget.value)}
-                    withAsterisk={false}
                     leftSection={<IconUser size={16} />}
                   />
                   <TextInput
@@ -879,7 +919,6 @@ export default function ReservarMane() {
                     placeholder="000.000.000-00"
                     value={cpf}
                     onChange={(e) => setCpf(maskCPF(e.currentTarget.value))}
-                    withAsterisk={false}
                   />
 
                   <Grid gutter="md">
@@ -889,7 +928,6 @@ export default function ReservarMane() {
                         placeholder="seuemail@exemplo.com"
                         value={email}
                         onChange={(e) => setEmail(e.currentTarget.value)}
-                        withAsterisk={false}
                         leftSection={<IconMail size={16} />}
                         error={email.length > 0 && !isValidEmail(email) ? 'Informe um e-mail válido' : null}
                       />
@@ -900,7 +938,6 @@ export default function ReservarMane() {
                         placeholder="(61) 99999-9999"
                         value={phone}
                         onChange={(e) => setPhone(maskPhone(e.currentTarget.value))}
-                        withAsterisk={false}
                         leftSection={<IconPhone size={16} />}
                         error={phone.length > 0 && !isValidPhone(phone) ? 'Informe um telefone válido' : null}
                       />
@@ -990,7 +1027,6 @@ export default function ReservarMane() {
   );
 }
 
-/* ===================== COMPONENTES AUXILIARES ===================== */
 function SlotTimePicker({
   value,
   onChange,
