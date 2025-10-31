@@ -106,7 +106,10 @@ function fmtCountdown(ms: number) {
   const mm = String(minutes).padStart(2, '0');
   const ss = String(seconds).padStart(2, '0');
 
-  return days > 0 ? `${days}d ${hh}:${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+  // 01h 23m 45s
+  const base = `${hh}h ${mm}m ${ss}s`;
+
+  return days > 0 ? `${days}d ${base}` : base;
 }
 
 /** Badge de status para cada prazo */
