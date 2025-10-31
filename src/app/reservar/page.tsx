@@ -8,7 +8,7 @@ import { DatesProvider, DatePickerInput } from '@mantine/dates';
 import {
   Popover, TextInput, SimpleGrid, UnstyledButton,
   Container, Group, Button, Title, Text, Card, Grid, Alert,
-  Select, NumberInput, Stack, Box, rem, Skeleton, Progress, Anchor
+  Select, NumberInput, Stack, Box, rem, Skeleton, Progress, Anchor, Badge
 } from '@mantine/core';
 import { IconChevronDown, IconArrowLeft } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
