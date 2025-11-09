@@ -1017,11 +1017,11 @@ export default function ReservarMane() {
   ========================================================= */
   return (
     <DatesProvider settings={{ locale: 'pt-br' }}>
-      <Box style={{ background: '#ffffff', minHeight: '100dvh' }}>
+      <Box style={{ background: '#ffffff', minHeight: '100dvh' ,   overflowX: 'auto',  }}>
         <LoadingOverlay visible={sending} />
 
         {/* HEADER */}
-        <Container size={580} px="md" style={{ marginTop: '64px', marginBottom: 12 }}>
+        <Container size={580} px="md" style={{ marginTop: '64px', marginBottom: 12, width: '100%', minWidth: rem(580) }}>
           <Anchor
             component={Link}
             href="/"
@@ -1129,7 +1129,7 @@ export default function ReservarMane() {
 
         {/* CONTEÚDO */}
         <Container
-          size={480}
+          size={580}
           px="md"
           style={{
             minHeight: '100dvh',
@@ -1137,6 +1137,7 @@ export default function ReservarMane() {
             paddingLeft: 'calc(env(safe-area-inset-left) + 16px)',
             paddingRight: 'calc(env(safe-area-inset-right) + 16px)',
             fontFamily: '"Comfortaa", system-ui, sans-serif',
+            minWidth: rem(580),  
           }}
         >
           {/* se já estiver no boarding, não mostra formulário */}
