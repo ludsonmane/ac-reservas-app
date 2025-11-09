@@ -68,7 +68,7 @@ type AreaOption = {
   photoUrl?: string;
   available?: number;
   isAvailable?: boolean;
-  iconEmoji?: string | null; // 👈 emoji vindo do back/meta
+  iconEmoji?: string | null;
 };
 
 type AreaMeta = {
@@ -79,7 +79,6 @@ type AreaMeta = {
   photoUrl?: string | null;
 };
 
-/** resposta completa da reserva pública (GET /v1/reservations/public/active ou GET /v1/reservations/:id) */
 type ReservationDto = {
   id: string;
   reservationCode: string;
@@ -182,8 +181,8 @@ function timeWindowMessage() {
 /* onChange NumberInput */
 const numberInputHandler =
   (setter: React.Dispatch<React.SetStateAction<number | ''>>) =>
-  (v: string | number) =>
-    setter(v === '' ? '' : Number(v));
+    (v: string | number) =>
+      setter(v === '' ? '' : Number(v));
 
 /* =========================================================
    Loading overlay
@@ -300,7 +299,7 @@ function AreaCard({
   foto,
   titulo,
   desc,
-  icon, // 👈 emoji
+  icon,
   selected,
   onSelect,
   disabled,
@@ -458,6 +457,7 @@ export default function ReservarMane() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [birthday, setBirthday] = useState<Date | null>(null);
+  const [birthdayError, setBirthdayError] = useState<string | null>(null); // 👈 obrigatório
 
   // envio
   const [sending, setSending] = useState(false);
@@ -557,7 +557,7 @@ export default function ReservarMane() {
   }, [unidade, units]);
 
   /* =========================================================
-     2.1) Carregar metadados das áreas por unidade (emoji, descrição, foto)
+     2.1) Carregar metadados das áreas por unidade
   ========================================================= */
   useEffect(() => {
     let alive = true;
@@ -641,7 +641,6 @@ export default function ReservarMane() {
         const qs = new URLSearchParams({ unitId: String(unidade), date: ymd, time: hora }).toString();
         const list = await apiGet<any[]>(`/v1/reservations/public/availability?${qs}`);
 
-        // índice de metadados por id
         const metaMap = areasMeta;
 
         const normalized: AreaOption[] = (list ?? []).map((a: any) => {
@@ -651,8 +650,8 @@ export default function ReservarMane() {
           const desc = String(a.description ?? a.desc ?? a.area?.description ?? meta?.description ?? '').trim();
           const icon =
             (typeof a.iconEmoji === 'string' && a.iconEmoji.trim()) ? a.iconEmoji.trim() :
-            (typeof a.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim() :
-            (meta?.iconEmoji ?? null);
+              (typeof a.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim() :
+                (meta?.iconEmoji ?? null);
 
           return {
             id,
@@ -708,7 +707,11 @@ export default function ReservarMane() {
   const leftChosen = chosen ? chosen.available ?? chosen.capacity ?? 0 : 0;
   const canNext2 = Boolean(areaId) && leftChosen >= (typeof total === 'number' ? total : 0);
 
-  const canFinish = fullName.trim().length >= 3 && onlyDigits(cpf).length === 11 && contactOk;
+  const canFinish =
+    fullName.trim().length >= 3 &&
+    onlyDigits(cpf).length === 11 &&
+    contactOk &&
+    !!birthday; // 👈 aniversário obrigatório
 
   const handleContinueStep1 = () => {
     setError(null);
@@ -747,6 +750,13 @@ export default function ReservarMane() {
       }
       if (!areaId || !unidade) {
         setError('Selecione a unidade e a área.');
+        setSending(false);
+        return;
+      }
+      if (!birthday) {
+        setError(null);
+        setBirthdayError('Obrigatório');
+        goToStep(2);
         setSending(false);
         return;
       }
@@ -929,8 +939,8 @@ export default function ReservarMane() {
   const boardingDateStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('DD/MM/YYYY')
     : data
-    ? dayjs(data).format('DD/MM/YYYY')
-    : '--/--/----';
+      ? dayjs(data).format('DD/MM/YYYY')
+      : '--/--/----';
   const boardingTimeStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('HH:mm')
     : hora || '--:--';
@@ -1268,15 +1278,17 @@ export default function ReservarMane() {
                   </Grid>
 
                   <DatePickerInput
-                    label="Nascimento (opcional)"
+                    label="Nascimento *"
                     placeholder="Selecionar"
                     value={birthday}
                     onChange={(value) => {
                       const d = value as unknown as Date | null;
                       setBirthday(d);
+                      if (d) setBirthdayError(null);
                     }}
                     valueFormat="DD/MM/YYYY"
-                    allowDeselect
+                    required
+                    allowDeselect={false}
                     size="md"
                     styles={{ input: { height: rem(48) } }}
                     leftSection={<IconCalendar size={16} />}
@@ -1284,6 +1296,7 @@ export default function ReservarMane() {
                     defaultLevel="decade"
                     defaultDate={new Date(1990, 0, 1)}
                     maxDate={new Date()}
+                    error={birthdayError || undefined}
                   />
                 </Stack>
               </Card>
