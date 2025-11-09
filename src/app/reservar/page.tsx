@@ -291,6 +291,7 @@ function AreaCard({
   foto,
   titulo,
   desc,
+  icon,               // 👈 novo
   selected,
   onSelect,
   disabled,
@@ -298,7 +299,8 @@ function AreaCard({
 }: {
   foto: string;
   titulo: string;
-  desc: string;
+  desc?: string;
+  icon?: string | null; // 👈 novo
   selected: boolean;
   onSelect: () => void;
   disabled?: boolean;
@@ -365,14 +367,22 @@ function AreaCard({
         <Title order={4} style={{ margin: 0 }}>
           {titulo}
         </Title>
-        <Text size="sm" c="dimmed" mt={4} style={{ lineHeight: 1.35 }}>
-          {desc}
-        </Text>
+
+        {!!desc && (
+          <Text size="sm" c="dimmed" mt={4} style={{ lineHeight: 1.35 }}>
+            {desc}
+          </Text>
+        )}
+
+        {!!icon && (
+          <Text mt={6} style={{ fontSize: 24, lineHeight: 1 }}>
+            {icon}
+          </Text>
+        )}
       </Box>
     </Card>
   );
 }
-
 /* =========================================================
    Página
 ========================================================= */
@@ -629,13 +639,19 @@ export default function ReservarMane() {
       }
       try {
         const list = await apiGet<any[]>(`/v1/areas/public/by-unit/${unidade}`);
-        const meta: AreaOption[] = (list ?? []).map((a: any) => ({
-          id: String(a.id ?? a._id),
-          name: String(a.name ?? a.title ?? ''),
-          description: a.description ?? a.desc ?? '',
-          photoUrl: a.photoUrl ?? a.photo ?? '',
-          iconEmoji: a.iconEmoji ?? a.icon_emoji ?? null,
-        }));
+        const meta: AreaOption[] = (list ?? []).map((a: any) => {
+          const description =
+            (a?.description ?? a?.desc ?? a?.area?.description ?? '') as string;
+          const iconEmojiRaw = a?.iconEmoji ?? a?.icon_emoji ?? a?.area?.iconEmoji ?? a?.area?.icon_emoji;
+
+          return {
+            id: String(a?.id ?? a?._id),
+            name: String(a?.name ?? a?.title ?? ''),
+            description: description?.trim() || '',
+            photoUrl: (a?.photoUrl ?? a?.photo ?? '') || undefined,
+            iconEmoji: typeof iconEmojiRaw === 'string' && iconEmojiRaw.trim() ? iconEmojiRaw.trim() : null,
+          } as AreaOption;
+        });
         if (!alive) return;
         setAreasMeta(meta);
       } catch {
@@ -709,25 +725,21 @@ export default function ReservarMane() {
           (areasMeta ?? []).map((m) => [m.id, m])
         );
 
-        const normalized: AreaOption[] = (list ?? []).map((a: any) => {
-          const id = String(a.id ?? a._id);
-          const meta = metaMap[id];
-          return {
-            id,
-            name: String(a.name ?? a.title ?? meta?.name ?? ''),
-            description: a.description ?? a.desc ?? meta?.description ?? '',
-            photoUrl: a.photoUrl ?? a.photo ?? meta?.photoUrl ?? '',
-            capacity: typeof a.capacity === 'number' ? a.capacity : undefined,
-            available:
-              typeof a.available === 'number'
-                ? a.available
-                : typeof a.remaining === 'number'
-                  ? a.remaining
-                  : undefined,
-            isAvailable: Boolean(a.isAvailable ?? (a.available ?? a.remaining ?? 0) > 0),
-            iconEmoji: a.iconEmoji ?? a.icon_emoji ?? meta?.iconEmoji ?? null, // 👈 merge
-          };
-        });
+        const normalized: AreaOption[] = (list ?? []).map((a: any) => ({
+          id: String(a.id ?? a._id),
+          name: String(a.name ?? a.title ?? ''),
+          description: a.description ?? a.desc ?? a.area?.description ?? '',
+          photoUrl: a.photoUrl ?? a.photo ?? '',
+          capacity: typeof a.capacity === 'number' ? a.capacity : undefined,
+          available:
+            typeof a.available === 'number'
+              ? a.available
+              : typeof a.remaining === 'number'
+                ? a.remaining
+                : undefined,
+          isAvailable: Boolean(a.isAvailable ?? (a.available ?? a.remaining ?? 0) > 0),
+          iconEmoji: a.iconEmoji ?? a.icon_emoji ?? a.area?.iconEmoji ?? a.area?.icon_emoji ?? null,
+        }));
 
         if (!alive) return;
         setAreas(normalized);
@@ -1198,36 +1210,6 @@ export default function ReservarMane() {
                         styles={{ input: { height: rem(48) } }}
                         error={dateError}
                         weekendDays={[]}
-                        // ⭐ pinta dias com disponibilidade para unidade+horário+total (borda verde)
-                        renderDay={(dateParam) => {
-                          // normaliza (Mantine pode enviar Date|string)
-                          const d = dayjs(dateParam as any);
-                          const ymd = d.format('YYYY-MM-DD');
-
-                          // dispara resolução lazy deste dia (apenas se tiver unidade)
-                          requestAvailabilityFor(ymd);
-
-                          const available = !!dateAvailMap[ymd];
-
-                          return (
-                            <div
-                              style={{
-                                width: 36,
-                                height: 36,
-                                display: 'grid',
-                                placeItems: 'center',
-                                borderRadius: 8,
-                                border: available
-                                  ? '2px solid var(--mantine-color-green-6)'
-                                  : '1px solid transparent',
-                                background: 'transparent',
-                                boxSizing: 'border-box',
-                              }}
-                            >
-                              {d.date()}
-                            </div>
-                          );
-                        }}
                       />
                     </Grid.Col>
 
@@ -1280,8 +1262,9 @@ export default function ReservarMane() {
                   <AreaCard
                     key={a.id}
                     foto={a.photoUrl || FALLBACK_IMG}
-                    titulo={`${a.iconEmoji ? a.iconEmoji + ' ' : ''}${a.name}${typeof left === 'number' ? ` • ${left} vagas` : ''}`} // 👈 aqui
+                    titulo={`${a.name}${typeof left === 'number' ? ` • ${left} vagas` : ''}`} // sem emoji aqui
                     desc={a.description || '—'}
+                    icon={a.iconEmoji ?? null}  // 👈 exibe abaixo da descrição
                     selected={areaId === a.id}
                     onSelect={() => !disabled && setAreaId(a.id)}
                     disabled={disabled}
