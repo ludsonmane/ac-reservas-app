@@ -421,6 +421,9 @@ export default function ReservarMane() {
   const [areasError, setAreasError] = useState<string | null>(null);
   const [areaId, setAreaId] = useState<string | null>(null);
 
+  // ⭐ metadados estáticos das áreas (emoji/descrição/foto) por unidade
+  const [areasMeta, setAreasMeta] = useState<AreaOption[]>([]);
+
   // passo 1
   const [adultos, setAdultos] = useState<number | ''>(2);
   const [criancas, setCriancas] = useState<number | ''>(0);
@@ -615,6 +618,37 @@ export default function ReservarMane() {
   }, [unidade, units]);
 
   /* =========================================================
+     2.1) Carregar metadados das áreas por unidade (emoji, descrição, foto)
+  ========================================================= */
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!unidade) {
+        setAreasMeta([]);
+        return;
+      }
+      try {
+        const list = await apiGet<any[]>(`/v1/areas/public/by-unit/${unidade}`);
+        const meta: AreaOption[] = (list ?? []).map((a: any) => ({
+          id: String(a.id ?? a._id),
+          name: String(a.name ?? a.title ?? ''),
+          description: a.description ?? a.desc ?? '',
+          photoUrl: a.photoUrl ?? a.photo ?? '',
+          iconEmoji: a.iconEmoji ?? a.icon_emoji ?? null,
+        }));
+        if (!alive) return;
+        setAreasMeta(meta);
+      } catch {
+        if (!alive) return;
+        setAreasMeta([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [unidade]);
+
+  /* =========================================================
      3) carregar áreas conforme unidade/data/hora
   ========================================================= */
   const ymd = useMemo(() => (data ? dayjs(data).format('YYYY-MM-DD') : ''), [data]);
@@ -662,28 +696,39 @@ export default function ReservarMane() {
       };
     }
 
-    // com data/hora → disponibilidade
+    // com data/hora → disponibilidade + merge de metadados
     (async () => {
       setAreasLoading(true);
       setAreasError(null);
       try {
         const qs = new URLSearchParams({ unitId: String(unidade), date: ymd, time: hora }).toString();
         const list = await apiGet<any[]>(`/v1/reservations/public/availability?${qs}`);
-        const normalized: AreaOption[] = (list ?? []).map((a: any) => ({
-          id: String(a.id ?? a._id),
-          name: String(a.name ?? a.title ?? ''),
-          description: a.description ?? a.desc ?? '',
-          photoUrl: a.photoUrl ?? a.photo ?? '',
-          capacity: typeof a.capacity === 'number' ? a.capacity : undefined,
-          available:
-            typeof a.available === 'number'
-              ? a.available
-              : typeof a.remaining === 'number'
-                ? a.remaining
-                : undefined,
-          isAvailable: Boolean(a.isAvailable ?? (a.available ?? a.remaining ?? 0) > 0),
-          iconEmoji: a.iconEmoji ?? a.icon_emoji ?? null,
-        }));
+
+        // índice de metadados por id
+        const metaMap: Record<string, AreaOption> = Object.fromEntries(
+          (areasMeta ?? []).map((m) => [m.id, m])
+        );
+
+        const normalized: AreaOption[] = (list ?? []).map((a: any) => {
+          const id = String(a.id ?? a._id);
+          const meta = metaMap[id];
+          return {
+            id,
+            name: String(a.name ?? a.title ?? meta?.name ?? ''),
+            description: a.description ?? a.desc ?? meta?.description ?? '',
+            photoUrl: a.photoUrl ?? a.photo ?? meta?.photoUrl ?? '',
+            capacity: typeof a.capacity === 'number' ? a.capacity : undefined,
+            available:
+              typeof a.available === 'number'
+                ? a.available
+                : typeof a.remaining === 'number'
+                  ? a.remaining
+                  : undefined,
+            isAvailable: Boolean(a.isAvailable ?? (a.available ?? a.remaining ?? 0) > 0),
+            iconEmoji: a.iconEmoji ?? a.icon_emoji ?? meta?.iconEmoji ?? null, // 👈 merge
+          };
+        });
+
         if (!alive) return;
         setAreas(normalized);
 
@@ -711,7 +756,7 @@ export default function ReservarMane() {
     return () => {
       alive = false;
     };
-  }, [unidade, ymd, hora, total]);
+  }, [unidade, ymd, hora, total, areasMeta]);
 
   /* =========================================================
      REGRAS de navegação
