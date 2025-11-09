@@ -51,7 +51,7 @@ import {
   IconPhone,
 } from '@tabler/icons-react';
 import NextImage from 'next/image';
-import { apiPost, apiGet, API_BASE } from '@/lib/api';
+import { apiGet, API_BASE } from '@/lib/api';
 
 dayjs.locale('pt-br');
 
@@ -59,6 +59,7 @@ dayjs.locale('pt-br');
    Tipos
 ========================================================= */
 type UnitOption = { id: string; name: string; slug?: string };
+
 type AreaOption = {
   id: string;
   name: string;
@@ -67,7 +68,15 @@ type AreaOption = {
   photoUrl?: string;
   available?: number;
   isAvailable?: boolean;
-  iconEmoji?: string | null; // 👈 novo
+  iconEmoji?: string | null; // 👈 emoji vindo do back/meta
+};
+
+type AreaMeta = {
+  id: string;
+  name: string;
+  description?: string;
+  iconEmoji?: string | null;
+  photoUrl?: string | null;
 };
 
 /** resposta completa da reserva pública (GET /v1/reservations/public/active ou GET /v1/reservations/:id) */
@@ -173,8 +182,8 @@ function timeWindowMessage() {
 /* onChange NumberInput */
 const numberInputHandler =
   (setter: React.Dispatch<React.SetStateAction<number | ''>>) =>
-    (v: string | number) =>
-      setter(v === '' ? '' : Number(v));
+  (v: string | number) =>
+    setter(v === '' ? '' : Number(v));
 
 /* =========================================================
    Loading overlay
@@ -291,7 +300,7 @@ function AreaCard({
   foto,
   titulo,
   desc,
-  icon,               // 👈 novo
+  icon, // 👈 emoji
   selected,
   onSelect,
   disabled,
@@ -300,7 +309,7 @@ function AreaCard({
   foto: string;
   titulo: string;
   desc?: string;
-  icon?: string | null; // 👈 novo
+  icon?: string | null;
   selected: boolean;
   onSelect: () => void;
   disabled?: boolean;
@@ -383,6 +392,7 @@ function AreaCard({
     </Card>
   );
 }
+
 /* =========================================================
    Página
 ========================================================= */
@@ -425,14 +435,14 @@ export default function ReservarMane() {
   const [unitsError, setUnitsError] = useState<string | null>(null);
   const [unidade, setUnidade] = useState<string | null>(null);
 
-  // áreas
+  // áreas (lista atual renderizada)
   const [areas, setAreas] = useState<AreaOption[]>([]);
   const [areasLoading, setAreasLoading] = useState(false);
   const [areasError, setAreasError] = useState<string | null>(null);
   const [areaId, setAreaId] = useState<string | null>(null);
 
   // ⭐ metadados estáticos das áreas (emoji/descrição/foto) por unidade
-  const [areasMeta, setAreasMeta] = useState<AreaOption[]>([]);
+  const [areasMeta, setAreasMeta] = useState<Record<string, AreaMeta>>({});
 
   // passo 1
   const [adultos, setAdultos] = useState<number | ''>(2);
@@ -461,87 +471,6 @@ export default function ReservarMane() {
     const c = typeof criancas === 'number' ? criancas : 0;
     return Math.max(1, Math.min(20, a + c));
   }, [adultos, criancas]);
-
-  // ⭐ Mapa de disponibilidade por data (pintar calendário)
-  const [dateAvailMap, setDateAvailMap] = useState<Record<string, boolean>>({});
-
-  // ===== Lazy availability resolver (consulta por dia quando renderiza) =====
-  const pendingRef = useRef<Set<string>>(new Set());
-  const processingRef = useRef(false);
-
-  const needPeople = typeof total === 'number' ? total : 0;
-  const timesToCheck = useMemo(() => (hora ? [hora] : ALLOWED_SLOTS), [hora]);
-  const apiBaseLazy = API_BASE || '';
-
-  const processQueue = useMemo(() => {
-    return async () => {
-      if (processingRef.current) return;
-      processingRef.current = true;
-      try {
-        while (pendingRef.current.size > 0) {
-          // pega 1 item da fila
-          const it = pendingRef.current.values();
-          const next = it.next();
-          if (next.done) break;
-          const d = String(next.value);
-          pendingRef.current.delete(d);
-
-          let okForTheDay = false;
-          for (const t of timesToCheck) {
-            const qs = new URLSearchParams({ unitId: String(unidade), date: d, time: t }).toString();
-            try {
-              const resp = await fetch(`${apiBaseLazy}/v1/reservations/public/availability?${qs}`, {
-                cache: 'no-store',
-              });
-              if (resp.ok) {
-                const list = (await resp.json()) as any[];
-                const ok =
-                  Array.isArray(list) &&
-                  list.some((a) => {
-                    const left =
-                      typeof a?.available === 'number'
-                        ? a.available
-                        : typeof a?.remaining === 'number'
-                          ? a.remaining
-                          : 0;
-                    return left >= needPeople;
-                  });
-                if (ok) {
-                  okForTheDay = true;
-                  break;
-                }
-              }
-            } catch {
-              // ignora erro e tenta próximo horário
-            }
-            // respiro curto
-            await new Promise((r) => setTimeout(r, 35));
-          }
-
-          setDateAvailMap((prev) => (prev[d] === okForTheDay ? prev : { ...prev, [d]: okForTheDay }));
-          await new Promise((r) => setTimeout(r, 15));
-        }
-      } finally {
-        processingRef.current = false;
-      }
-    };
-  }, [unidade, apiBaseLazy, needPeople, timesToCheck]);
-
-  const requestAvailabilityFor = useMemo(() => {
-    return (ymd: string) => {
-      if (!unidade) return;
-      if (dateAvailMap[ymd] !== undefined) return;
-      if (pendingRef.current.has(ymd)) return;
-      pendingRef.current.add(ymd);
-      setTimeout(() => processQueue(), 0);
-    };
-  }, [unidade, dateAvailMap, processQueue]);
-
-  // opcional: ao mudar filtros principais, limpa resultados antigos
-  useEffect(() => {
-    setDateAvailMap({});
-    pendingRef.current.clear();
-  }, [unidade, hora, total]);
 
   /* =========================================================
      1) Checar LS e API /v1/reservations/public/active
@@ -634,29 +563,33 @@ export default function ReservarMane() {
     let alive = true;
     (async () => {
       if (!unidade) {
-        setAreasMeta([]);
+        setAreasMeta({});
         return;
       }
       try {
         const list = await apiGet<any[]>(`/v1/areas/public/by-unit/${unidade}`);
-        const meta: AreaOption[] = (list ?? []).map((a: any) => {
-          const description =
-            (a?.description ?? a?.desc ?? a?.area?.description ?? '') as string;
-          const iconEmojiRaw = a?.iconEmoji ?? a?.icon_emoji ?? a?.area?.iconEmoji ?? a?.area?.icon_emoji;
-
-          return {
-            id: String(a?.id ?? a?._id),
+        const metaMap: Record<string, AreaMeta> = {};
+        for (const a of list ?? []) {
+          const id = String(a?.id ?? a?._id);
+          const description = String(a?.description ?? a?.desc ?? a?.area?.description ?? '').trim();
+          const iconEmojiRaw =
+            a?.iconEmoji ?? a?.icon_emoji ?? a?.area?.iconEmoji ?? a?.area?.icon_emoji;
+          metaMap[id] = {
+            id,
             name: String(a?.name ?? a?.title ?? ''),
-            description: description?.trim() || '',
-            photoUrl: (a?.photoUrl ?? a?.photo ?? '') || undefined,
-            iconEmoji: typeof iconEmojiRaw === 'string' && iconEmojiRaw.trim() ? iconEmojiRaw.trim() : null,
-          } as AreaOption;
-        });
+            description,
+            photoUrl: (a?.photoUrl ?? a?.photo ?? '') || null,
+            iconEmoji:
+              typeof iconEmojiRaw === 'string' && iconEmojiRaw.trim()
+                ? iconEmojiRaw.trim()
+                : null,
+          };
+        }
         if (!alive) return;
-        setAreasMeta(meta);
+        setAreasMeta(metaMap);
       } catch {
         if (!alive) return;
-        setAreasMeta([]);
+        setAreasMeta({});
       }
     })();
     return () => {
@@ -678,35 +611,23 @@ export default function ReservarMane() {
       return;
     }
 
-    // sem data/hora → lista estática
+    // sem data/hora → usa apenas metadados carregados
     if (!ymd || !hora) {
-      (async () => {
-        setAreasLoading(true);
-        setAreasError(null);
-        try {
-          const list = await apiGet<any[]>(`/v1/areas/public/by-unit/${unidade}`);
-          const normalized: AreaOption[] = (list ?? []).map((a: any) => ({
-            id: String(a.id ?? a._id),
-            name: String(a.name ?? a.title ?? ''),
-            description: a.description ?? a.desc ?? '',
-            photoUrl: a.photoUrl ?? a.photo ?? '',
-            capacity: typeof a.capacity === 'number' ? a.capacity : undefined,
-            available: undefined,
-            isAvailable: undefined,
-            iconEmoji: a.iconEmoji ?? a.icon_emoji ?? null, // 👈 novo
-          }));
-          if (!alive) return;
-          setAreas(normalized);
-          setAreaId((curr) => (normalized.some((x) => x.id === curr) ? curr : null));
-        } catch (e: any) {
-          if (!alive) return;
-          setAreasError(e?.message || 'Falha ao carregar áreas.');
-          setAreas([]);
-          setAreaId(null);
-        } finally {
-          if (alive) setAreasLoading(false);
-        }
-      })();
+      const metaList = Object.values(areasMeta);
+      const normalized: AreaOption[] = metaList.map((m) => ({
+        id: m.id,
+        name: m.name,
+        description: m.description || '',
+        photoUrl: m.photoUrl || undefined,
+        iconEmoji: m.iconEmoji ?? null,
+        capacity: undefined,
+        available: undefined,
+        isAvailable: undefined,
+      }));
+
+      if (!alive) return;
+      setAreas(normalized);
+      setAreaId((curr) => (normalized.some((x) => x.id === curr) ? curr : null));
       return () => {
         alive = false;
       };
@@ -721,25 +642,32 @@ export default function ReservarMane() {
         const list = await apiGet<any[]>(`/v1/reservations/public/availability?${qs}`);
 
         // índice de metadados por id
-        const metaMap: Record<string, AreaOption> = Object.fromEntries(
-          (areasMeta ?? []).map((m) => [m.id, m])
-        );
+        const metaMap = areasMeta;
 
-        const normalized: AreaOption[] = (list ?? []).map((a: any) => ({
-          id: String(a.id ?? a._id),
-          name: String(a.name ?? a.title ?? ''),
-          description: a.description ?? a.desc ?? a.area?.description ?? '',
-          photoUrl: a.photoUrl ?? a.photo ?? '',
-          capacity: typeof a.capacity === 'number' ? a.capacity : undefined,
-          available:
-            typeof a.available === 'number'
-              ? a.available
-              : typeof a.remaining === 'number'
-                ? a.remaining
-                : undefined,
-          isAvailable: Boolean(a.isAvailable ?? (a.available ?? a.remaining ?? 0) > 0),
-          iconEmoji: a.iconEmoji ?? a.icon_emoji ?? a.area?.iconEmoji ?? a.area?.icon_emoji ?? null,
-        }));
+        const normalized: AreaOption[] = (list ?? []).map((a: any) => {
+          const id = String(a.id ?? a._id);
+          const meta = metaMap[id];
+          const photo = (a.photoUrl ?? a.photo ?? meta?.photoUrl ?? '') || undefined;
+          const desc = String(a.description ?? a.desc ?? a.area?.description ?? meta?.description ?? '').trim();
+          const icon =
+            (typeof a.iconEmoji === 'string' && a.iconEmoji.trim()) ? a.iconEmoji.trim() :
+            (typeof a.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim() :
+            (meta?.iconEmoji ?? null);
+
+          return {
+            id,
+            name: String(a.name ?? a.title ?? meta?.name ?? ''),
+            description: desc,
+            photoUrl: photo,
+            capacity: typeof a.capacity === 'number' ? a.capacity : undefined,
+            available:
+              typeof a.available === 'number'
+                ? a.available
+                : (typeof a.remaining === 'number' ? a.remaining : undefined),
+            isAvailable: Boolean(a.isAvailable ?? (a.available ?? a.remaining ?? 0) > 0),
+            iconEmoji: icon,
+          };
+        });
 
         if (!alive) return;
         setAreas(normalized);
@@ -830,7 +758,7 @@ export default function ReservarMane() {
       const payload = {
         fullName,
         cpf: onlyDigits(cpf),
-        people: total,
+        people: typeof total === 'number' ? total : 0,
         kids: kidsNum,
         reservationDate: reservationISO!,
         birthdayDate: birthdayISO,
@@ -1001,8 +929,8 @@ export default function ReservarMane() {
   const boardingDateStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('DD/MM/YYYY')
     : data
-      ? dayjs(data).format('DD/MM/YYYY')
-      : '--/--/----';
+    ? dayjs(data).format('DD/MM/YYYY')
+    : '--/--/----';
   const boardingTimeStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('HH:mm')
     : hora || '--:--';
@@ -1017,11 +945,15 @@ export default function ReservarMane() {
   ========================================================= */
   return (
     <DatesProvider settings={{ locale: 'pt-br' }}>
-      <Box style={{ background: '#ffffff', minHeight: '100dvh' ,   overflowX: 'auto',  }}>
+      <Box style={{ background: '#ffffff', minHeight: '100dvh', overflowX: 'auto' }}>
         <LoadingOverlay visible={sending} />
 
         {/* HEADER */}
-        <Container size={580} px="md" style={{ marginTop: '64px', marginBottom: 12, width: '100%', minWidth: rem(580) }}>
+        <Container
+          size={580}
+          px="md"
+          style={{ marginTop: '64px', marginBottom: 12, width: '100%', minWidth: rem(580) }}
+        >
           <Anchor
             component={Link}
             href="/"
@@ -1060,12 +992,7 @@ export default function ReservarMane() {
               Águas Claras &amp; Arena Brasília
             </Text>
 
-            <Card
-              radius="md"
-              p="sm"
-              style={{ width: '100%', maxWidth: 460, background: '#fff', border: 'none' }}
-              shadow="sm"
-            >
+            <Card radius="md" p="sm" style={{ width: '100%', maxWidth: 460, background: '#fff', border: 'none' }} shadow="sm">
               <Stack gap={6} align="stretch">
                 <Box
                   aria-hidden
@@ -1137,10 +1064,10 @@ export default function ReservarMane() {
             paddingLeft: 'calc(env(safe-area-inset-left) + 16px)',
             paddingRight: 'calc(env(safe-area-inset-right) + 16px)',
             fontFamily: '"Comfortaa", system-ui, sans-serif',
-            minWidth: rem(580),  
+            minWidth: rem(580),
           }}
         >
-          {/* se já estiver no boarding, não mostra formulário */}
+          {/* PASSO 1 */}
           {step === 0 && (stepLoading ? (
             <StepSkeleton />
           ) : (
@@ -1245,6 +1172,7 @@ export default function ReservarMane() {
             </Stack>
           ))}
 
+          {/* PASSO 2 */}
           {step === 1 && (stepLoading ? (
             <StepSkeleton />
           ) : (
@@ -1263,9 +1191,9 @@ export default function ReservarMane() {
                   <AreaCard
                     key={a.id}
                     foto={a.photoUrl || FALLBACK_IMG}
-                    titulo={`${a.name}${typeof left === 'number' ? ` • ${left} vagas` : ''}`} // sem emoji aqui
+                    titulo={`${a.name}${typeof left === 'number' ? ` • ${left} vagas` : ''}`}
                     desc={a.description || '—'}
-                    icon={a.iconEmoji ?? null}  // 👈 exibe abaixo da descrição
+                    icon={a.iconEmoji ?? null}
                     selected={areaId === a.id}
                     onSelect={() => !disabled && setAreaId(a.id)}
                     disabled={disabled}
@@ -1292,6 +1220,7 @@ export default function ReservarMane() {
             </Stack>
           ))}
 
+          {/* PASSO 3 */}
           {step === 2 && (stepLoading ? (
             <StepSkeleton />
           ) : (
