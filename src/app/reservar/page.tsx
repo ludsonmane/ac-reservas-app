@@ -55,6 +55,11 @@ import { apiGet, API_BASE } from '@/lib/api';
 
 dayjs.locale('pt-br');
 
+// regra de grupos grandes
+const MAX_PEOPLE_WITHOUT_CONCIERGE = 40;
+const CONCIERGE_WPP_LINK =
+  'https://wa.me/5561982850776?text=Oi%20Concierge!%20Quero%20reservar%20para%20mais%20de%2040%20pessoas.%20Pode%20me%20ajudar%3F';
+
 /* =========================================================
    Tipos
 ========================================================= */
@@ -713,8 +718,19 @@ export default function ReservarMane() {
     contactOk &&
     !!birthday; // 👈 aniversário obrigatório
 
+  // 👇 NOVO: estado do modal Concierge 40+
+  const [showConcierge, setShowConcierge] = useState(false);
+
   const handleContinueStep1 = () => {
     setError(null);
+
+    // 👇 NOVO: trava grupo grande e abre CTA WhatsApp
+    const qty = typeof total === 'number' ? total : 0;
+    if (qty > MAX_PEOPLE_WITHOUT_CONCIERGE) {
+      setShowConcierge(true);
+      return;
+    }
+
     goToStep(1);
   };
 
@@ -1352,6 +1368,44 @@ export default function ReservarMane() {
               cpf={boardingCpf}
               emailHint={boardingEmail}
             />
+          )}
+
+          {/* 👇 NOVO: modal Concierge (bloqueia avanço quando > 40) */}
+          {showConcierge && (
+            <Box
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,.45)',
+                zIndex: 60,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 16,
+              }}
+              role="dialog"
+              aria-modal="true"
+            >
+              <Card withBorder radius="lg" shadow="md" p={0} style={{ width: 480, maxWidth: '100%', overflow: 'hidden' }}>
+                <Box px="md" py="sm" style={{ borderBottom: '1px solid rgba(0,0,0,.08)', background: '#fff' }}>
+                  <Title order={4} fw={500} m={0}>Reserva para grupo grande</Title>
+                </Box>
+                <Box px="md" py="md">
+                  <Text>
+                    Para reservas acima de <b>{MAX_PEOPLE_WITHOUT_CONCIERGE}</b> pessoas, é necessário falar com nosso concierge pelo WhatsApp.
+                  </Text>
+                  <Text size="sm" c="dimmed" mt={6}>
+                    Assim garantimos a melhor organização do espaço e atendimento do seu grupo. 🙂
+                  </Text>
+                </Box>
+                <Group justify="end" gap="sm" px="md" py="sm" style={{ borderTop: '1px solid rgba(0,0,0,.08)', background: '#fff' }}>
+                  <Button variant="default" onClick={() => setShowConcierge(false)}>Fechar</Button>
+                  <Button component="a" href={CONCIERGE_WPP_LINK} target="_blank" rel="noreferrer" color="green">
+                    Abrir WhatsApp (61 98285-0776)
+                  </Button>
+                </Group>
+              </Card>
+            </Box>
           )}
 
           <Box h={rem(32)} />
