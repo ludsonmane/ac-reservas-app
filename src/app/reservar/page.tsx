@@ -183,11 +183,19 @@ function timeWindowMessage() {
   ).padStart(2, '0')} e ${String(CLOSE_H).padStart(2, '0')}:${String(CLOSE_M).padStart(2, '0')}`;
 }
 
+/* regra: data/hora no passado */
+function isPastSelection(date: Date | null, time: string) {
+  if (!date || !time) return false;
+  const [hh, mm] = time.split(':').map(Number);
+  const when = dayjs(date).hour(hh || 0).minute(mm || 0).second(0).millisecond(0);
+  return when.isBefore(dayjs());
+}
+
 /* onChange NumberInput */
 const numberInputHandler =
   (setter: React.Dispatch<React.SetStateAction<number | ''>>) =>
-    (v: string | number) =>
-      setter(v === '' ? '' : Number(v));
+  (v: string | number) =>
+    setter(v === '' ? '' : Number(v));
 
 /* =========================================================
    Loading overlay
@@ -425,7 +433,7 @@ function buildGoogleCalendarUrl({
     dates: `${fmt(startISO)}/${fmt(endISO)}`,
     ctz: timezone,
     details: details || '',
-    conference: 'hangouts', // tenta vir com Meet
+    conference: 'hangouts',
   });
   if (guestEmails.length) params.set('add', guestEmails.join(','));
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
@@ -489,6 +497,7 @@ export default function ReservarMane() {
   const [hora, setHora] = useState<string>('');
   const [timeError, setTimeError] = useState<string | null>(null);
   const [dateError, setDateError] = useState<string | null>(null);
+  const [pastError, setPastError] = useState<string | null>(null); // 👈 novo
 
   // passo 3
   const [fullName, setFullName] = useState('');
@@ -689,8 +698,8 @@ export default function ReservarMane() {
           const desc = String(a.description ?? a.desc ?? a.area?.description ?? meta?.description ?? '').trim();
           const icon =
             (typeof a.iconEmoji === 'string' && a.iconEmoji.trim()) ? a.iconEmoji.trim() :
-              (typeof a.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim() :
-                (meta?.iconEmoji ?? null);
+            (typeof a.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim() :
+            (meta?.iconEmoji ?? null);
 
           return {
             id,
@@ -740,7 +749,7 @@ export default function ReservarMane() {
      REGRAS de navegação
   ========================================================= */
   const contactOk = isValidEmail(email) && isValidPhone(phone);
-  const canNext1 = Boolean(unidade && data && hora && total > 0 && !timeError && !dateError);
+  const canNext1 = Boolean(unidade && data && hora && total > 0 && !timeError && !dateError && !pastError);
 
   const chosen = areas.find((a) => a.id === areaId);
   const leftChosen = chosen ? chosen.available ?? chosen.capacity ?? 0 : 0;
@@ -783,6 +792,12 @@ export default function ReservarMane() {
       }
       if (dayjs(data).isBefore(TODAY_START, 'day')) {
         setError('Data inválida. Selecione uma data a partir de hoje.');
+        goToStep(0);
+        setSending(false);
+        return;
+      }
+      if (isPastSelection(data, hora)) {
+        setError('Esse horário já passou. Selecione um horário no futuro.');
         goToStep(0);
         setSending(false);
         return;
@@ -990,8 +1005,8 @@ export default function ReservarMane() {
   const boardingDateStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('DD/MM/YYYY')
     : data
-      ? dayjs(data).format('DD/MM/YYYY')
-      : '--/--/----';
+    ? dayjs(data).format('DD/MM/YYYY')
+    : '--/--/----';
   const boardingTimeStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('HH:mm')
     : hora || '--:--';
@@ -1394,6 +1409,14 @@ export default function ReservarMane() {
                           setData(d);
                           const invalid = d ? dayjs(d).isBefore(TODAY_START, 'day') : false;
                           setDateError(invalid ? 'Selecione uma data a partir de hoje' : null);
+
+                          // regra: horário no passado (hoje com horário anterior ao atual)
+                          setPastError(() => {
+                            if (!d || !hora) return null;
+                            return isPastSelection(d, hora)
+                              ? 'Esse horário já passou. Escolha um horário futuro.'
+                              : null;
+                          });
                         }}
                         valueFormat="DD/MM/YYYY"
                         leftSection={<IconCalendar size={16} />}
@@ -1412,10 +1435,18 @@ export default function ReservarMane() {
                         onChange={(val) => {
                           setHora(val);
                           setTimeError(val && !isValidSlot(val) ? SLOT_ERROR_MSG : null);
+
+                          // regra: horário no passado (hoje com horário anterior ao atual)
+                          setPastError(() => {
+                            if (!data || !val) return null;
+                            return isPastSelection(data, val)
+                              ? 'Esse horário já passou. Escolha um horário futuro.'
+                              : null;
+                          });
                         }}
                         label="Horário"
                         placeholder="Selecionar"
-                        error={timeError}
+                        error={timeError || pastError}
                       />
                     </Grid.Col>
                   </Grid>
@@ -1425,9 +1456,17 @@ export default function ReservarMane() {
                       <b>Total:</b> {total} pessoa(s) • <b>Data:</b>{' '}
                       {data ? dayjs(data).format('DD/MM') : '--'}/{hora || '--:--'}{' '}
                       {dateError && <Text component="span" c="red">• {dateError}</Text>}
-                      {timeError && <Text component="span" c="red"> • {timeError}</Text>}
+                      {(timeError || pastError) && (
+                        <Text component="span" c="red"> • {pastError || timeError}</Text>
+                      )}
                     </Text>
                   </Card>
+
+                  {(pastError || timeError || dateError) && (
+                    <Alert color={pastError ? 'red' : 'yellow'} icon={<IconInfoCircle />}>
+                      {pastError || timeError || dateError}
+                    </Alert>
+                  )}
                 </Stack>
               </Card>
 
