@@ -1003,11 +1003,17 @@ export default function ReservarMane() {
 
   /* =========================================================
      Compartilhar com a lista (estado e UI)
-  ========================================================= */
-  type GuestRow = { name: string; email: string };
+========================================================= */
+  type GuestRow = { clientId: string; name: string; email: string };
+  const mkGuestRow = (): GuestRow => ({
+    clientId: (globalThis.crypto?.randomUUID?.() ?? String(Math.random())),
+    name: '',
+    email: '',
+  });
+
   const [shareOpen, setShareOpen] = useState(false);
   const [guestRows, setGuestRows] = useState<GuestRow[]>(
-    Array.from({ length: 10 }).map(() => ({ name: '', email: '' }))
+    Array.from({ length: 10 }).map(() => mkGuestRow())
   );
   const [savingGuests, setSavingGuests] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -1138,19 +1144,20 @@ export default function ReservarMane() {
           <Box px="md" py="md" style={{ maxHeight: '65vh', overflow: 'auto' }}>
             <Stack gap="xs">
               {guestRows.map((row, idx) => (
-                <Grid key={idx} gutter="sm" align="center">
+                <Grid key={row.clientId} gutter="sm" align="center">
                   <Grid.Col span={6}>
                     <TextInput
                       label={`Nome ${idx + 1}`}
                       placeholder="Nome do convidado"
                       value={row.name}
                       onChange={(e) =>
-                        setGuestRows((r) => {
-                          const copy = [...r];
-                          copy[idx] = { ...copy[idx], name: e.currentTarget.value };
-                          return copy;
-                        })
+                        setGuestRows((prev) =>
+                          prev.map((g) =>
+                            g.clientId === row.clientId ? { ...g, name: e.currentTarget.value } : g
+                          )
+                        )
                       }
+                      autoComplete="off"
                     />
                   </Grid.Col>
                   <Grid.Col span={6}>
@@ -1159,13 +1166,14 @@ export default function ReservarMane() {
                       placeholder="email@exemplo.com"
                       value={row.email}
                       onChange={(e) =>
-                        setGuestRows((r) => {
-                          const copy = [...r];
-                          copy[idx] = { ...copy[idx], email: e.currentTarget.value };
-                          return copy;
-                        })
+                        setGuestRows((prev) =>
+                          prev.map((g) =>
+                            g.clientId === row.clientId ? { ...g, email: e.currentTarget.value } : g
+                          )
+                        )
                       }
                       error={row.email && !isEmail(row.email) ? 'E-mail inválido' : undefined}
+                      autoComplete="off"
                     />
                   </Grid.Col>
                 </Grid>
@@ -1174,7 +1182,7 @@ export default function ReservarMane() {
               <Group justify="center" mt="xs">
                 <Button
                   variant="light"
-                  onClick={() => setGuestRows((r) => [...r, { name: '', email: '' }])}
+                  onClick={() => setGuestRows((prev) => [...prev, mkGuestRow()])}
                 >
                   + Adicionar convidado
                 </Button>
