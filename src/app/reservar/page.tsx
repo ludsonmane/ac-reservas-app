@@ -37,7 +37,7 @@ import {
   setActiveUnitPixelFromUnit,
   trackReservationMade,
 } from '@/lib/analytics';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, memo } from 'react';
 import {
   IconCalendar,
   IconClockHour4,
@@ -194,8 +194,8 @@ function isPastSelection(date: Date | null, time: string) {
 /* onChange NumberInput */
 const numberInputHandler =
   (setter: React.Dispatch<React.SetStateAction<number | ''>>) =>
-  (v: string | number) =>
-    setter(v === '' ? '' : Number(v));
+    (v: string | number) =>
+      setter(v === '' ? '' : Number(v));
 
 /* =========================================================
    Loading overlay
@@ -438,6 +438,69 @@ function buildGoogleCalendarUrl({
   if (guestEmails.length) params.set('add', guestEmails.join(','));
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
+
+/* =========================================================
+   Linha de convidado (fix do foco)
+========================================================= */
+type GuestRow = { clientId: string; name: string; email: string };
+
+const GuestInputRow = memo(function GuestInputRow(props: {
+  row: GuestRow;
+  idx: number;
+  setGuestRows: React.Dispatch<React.SetStateAction<GuestRow[]>>;
+}) {
+  const { row, idx, setGuestRows } = props;
+
+  const updateName = useCallback(
+    (value: string) => {
+      setGuestRows((prev) => {
+        const i = prev.findIndex((g) => g.clientId === row.clientId);
+        if (i === -1) return prev;
+        const next = [...prev];
+        next[i] = { ...next[i], name: value };
+        return next;
+      });
+    },
+    [row.clientId, setGuestRows]
+  );
+
+  const updateEmail = useCallback(
+    (value: string) => {
+      setGuestRows((prev) => {
+        const i = prev.findIndex((g) => g.clientId === row.clientId);
+        if (i === -1) return prev;
+        const next = [...prev];
+        next[i] = { ...next[i], email: value };
+        return next;
+      });
+    },
+    [row.clientId, setGuestRows]
+  );
+
+  return (
+    <Grid gutter="sm" align="center">
+      <Grid.Col span={6}>
+        <TextInput
+          label={`Nome ${idx + 1}`}
+          placeholder="Nome do convidado"
+          value={row.name}
+          onChange={(e) => updateName(e.currentTarget.value)}
+          autoComplete="off"
+        />
+      </Grid.Col>
+      <Grid.Col span={6}>
+        <TextInput
+          label={`E-mail ${idx + 1}`}
+          placeholder="email@exemplo.com"
+          value={row.email}
+          onChange={(e) => updateEmail(e.currentTarget.value)}
+          error={row.email && !isEmail(row.email) ? 'E-mail inválido' : undefined}
+          autoComplete="off"
+        />
+      </Grid.Col>
+    </Grid>
+  );
+});
 
 /* =========================================================
    Página
@@ -698,8 +761,8 @@ export default function ReservarMane() {
           const desc = String(a.description ?? a.desc ?? a.area?.description ?? meta?.description ?? '').trim();
           const icon =
             (typeof a.iconEmoji === 'string' && a.iconEmoji.trim()) ? a.iconEmoji.trim() :
-            (typeof a.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim() :
-            (meta?.iconEmoji ?? null);
+              (typeof a.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim() :
+                (meta?.iconEmoji ?? null);
 
           return {
             id,
@@ -1005,8 +1068,8 @@ export default function ReservarMane() {
   const boardingDateStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('DD/MM/YYYY')
     : data
-    ? dayjs(data).format('DD/MM/YYYY')
-    : '--/--/----';
+      ? dayjs(data).format('DD/MM/YYYY')
+      : '--/--/----';
   const boardingTimeStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('HH:mm')
     : hora || '--:--';
@@ -1019,7 +1082,6 @@ export default function ReservarMane() {
   /* =========================================================
      Compartilhar com a lista (estado e UI)
 ========================================================= */
-  type GuestRow = { clientId: string; name: string; email: string };
   const mkGuestRow = (): GuestRow => ({
     clientId: (globalThis.crypto?.randomUUID?.() ?? String(Math.random())),
     name: '',
@@ -1027,9 +1089,8 @@ export default function ReservarMane() {
   });
 
   const [shareOpen, setShareOpen] = useState(false);
-  const [guestRows, setGuestRows] = useState<GuestRow[]>(
-    Array.from({ length: 10 }).map(() => mkGuestRow())
-  );
+  // 👉 começa com APENAS 1 convidado
+  const [guestRows, setGuestRows] = useState<GuestRow[]>([mkGuestRow()]);
   const [savingGuests, setSavingGuests] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
 
@@ -1152,46 +1213,14 @@ export default function ReservarMane() {
               Compartilhar com a lista
             </Title>
             <Text size="sm" c="dimmed" mt={4}>
-              Adicione os nomes e e-mails de quem você quer convidar. Começamos com 10 campos — você pode adicionar mais.
+              Adicione os nomes e e-mails de quem você quer convidar. Começamos com 1 campo — você pode adicionar mais.
             </Text>
           </Box>
 
           <Box px="md" py="md" style={{ maxHeight: '65vh', overflow: 'auto' }}>
             <Stack gap="xs">
               {guestRows.map((row, idx) => (
-                <Grid key={row.clientId} gutter="sm" align="center">
-                  <Grid.Col span={6}>
-                    <TextInput
-                      label={`Nome ${idx + 1}`}
-                      placeholder="Nome do convidado"
-                      value={row.name}
-                      onChange={(e) =>
-                        setGuestRows((prev) =>
-                          prev.map((g) =>
-                            g.clientId === row.clientId ? { ...g, name: e.currentTarget.value } : g
-                          )
-                        )
-                      }
-                      autoComplete="off"
-                    />
-                  </Grid.Col>
-                  <Grid.Col span={6}>
-                    <TextInput
-                      label={`E-mail ${idx + 1}`}
-                      placeholder="email@exemplo.com"
-                      value={row.email}
-                      onChange={(e) =>
-                        setGuestRows((prev) =>
-                          prev.map((g) =>
-                            g.clientId === row.clientId ? { ...g, email: e.currentTarget.value } : g
-                          )
-                        )
-                      }
-                      error={row.email && !isEmail(row.email) ? 'E-mail inválido' : undefined}
-                      autoComplete="off"
-                    />
-                  </Grid.Col>
-                </Grid>
+                <GuestInputRow key={row.clientId} row={row} idx={idx} setGuestRows={setGuestRows} />
               ))}
 
               <Group justify="center" mt="xs">
