@@ -37,7 +37,7 @@ import {
   setActiveUnitPixelFromUnit,
   trackReservationMade,
 } from '@/lib/analytics';
-import { useEffect, useMemo, useRef, useState, useCallback, memo } from 'react';
+import { useEffect, useMemo, useRef, useState, memo } from 'react';
 import {
   IconCalendar,
   IconClockHour4,
@@ -196,6 +196,26 @@ const numberInputHandler =
   (setter: React.Dispatch<React.SetStateAction<number | ''>>) =>
     (v: string | number) =>
       setter(v === '' ? '' : Number(v));
+
+/* =========================================================
+   Helpers de imagem (normalizar URL da API)
+========================================================= */
+const ASSET_BASE = (API_BASE || '').replace(/\/+$/, '');
+
+function sanitizePhoto(raw?: any): string | undefined {
+  if (!raw) return undefined;
+  const r = String(raw).trim();
+  if (!r || r === 'null' || r === 'undefined' || r === '[object Object]') return undefined;
+  return r;
+}
+
+function resolvePhotoUrl(raw?: any): string | undefined {
+  const s = sanitizePhoto(raw);
+  if (!s) return undefined;
+  if (/^https?:\/\//i.test(s) || s.startsWith('data:')) return s; // já absoluta
+  const path = s.startsWith('/') ? s : `/${s}`;
+  return `${ASSET_BASE}${path}`;
+}
 
 /* =========================================================
    Loading overlay
@@ -661,7 +681,7 @@ export default function ReservarMane() {
   }, [unidade, units]);
 
   /* =========================================================
-     2.1) Carregar metadados das áreas por unidade
+     2.1) Carregar metadados das áreas por unidade (normalizando foto)
   ========================================================= */
   useEffect(() => {
     let alive = true;
@@ -678,11 +698,25 @@ export default function ReservarMane() {
           const description = String(a?.description ?? a?.desc ?? a?.area?.description ?? '').trim();
           const iconEmojiRaw =
             a?.iconEmoji ?? a?.icon_emoji ?? a?.area?.iconEmoji ?? a?.area?.icon_emoji;
+
           metaMap[id] = {
             id,
             name: String(a?.name ?? a?.title ?? ''),
             description,
-            photoUrl: (a?.photoUrl ?? a?.photo ?? '') || null,
+            photoUrl:
+              resolvePhotoUrl(
+                a?.photoUrl ??
+                  a?.photo ??
+                  a?.imageUrl ??
+                  a?.image ??
+                  a?.coverUrl ??
+                  a?.photo_url ??
+                  a?.area?.photoUrl ??
+                  a?.area?.photo ??
+                  a?.area?.imageUrl ??
+                  a?.area?.image ??
+                  a?.area?.coverUrl
+              ) || null,
             iconEmoji:
               typeof iconEmojiRaw === 'string' && iconEmojiRaw.trim()
                 ? iconEmojiRaw.trim()
@@ -702,7 +736,7 @@ export default function ReservarMane() {
   }, [unidade]);
 
   /* =========================================================
-     3) carregar áreas conforme unidade/data/hora
+     3) carregar áreas conforme unidade/data/hora (priorizar foto da disponibilidade)
   ========================================================= */
   const ymd = useMemo(() => (data ? dayjs(data).format('YYYY-MM-DD') : ''), [data]);
 
@@ -750,24 +784,42 @@ export default function ReservarMane() {
         const normalized: AreaOption[] = (list ?? []).map((a: any) => {
           const id = String(a.id ?? a._id);
           const meta = metaMap[id];
-          const photo = (a.photoUrl ?? a.photo ?? meta?.photoUrl ?? '') || undefined;
-          const desc = String(a.description ?? a.desc ?? a.area?.description ?? meta?.description ?? '').trim();
+
+          // prioriza foto da disponibilidade; se não houver, cai para meta; sempre normaliza
+          const rawPhoto =
+            a?.photoUrl ??
+            a?.photo ??
+            a?.imageUrl ??
+            a?.image ??
+            a?.coverUrl ??
+            a?.photo_url ??
+            meta?.photoUrl ??
+            '';
+
+          const photo = resolvePhotoUrl(rawPhoto);
+
+          const desc = String(
+            a?.description ?? a?.desc ?? a?.area?.description ?? meta?.description ?? ''
+          ).trim();
+
           const icon =
-            (typeof a.iconEmoji === 'string' && a.iconEmoji.trim()) ? a.iconEmoji.trim() :
-              (typeof a.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim() :
-                (meta?.iconEmoji ?? null);
+            (typeof a?.iconEmoji === 'string' && a.iconEmoji.trim()) ? a.iconEmoji.trim()
+              : (typeof a?.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim()
+              : (meta?.iconEmoji ?? null);
+
+          // opcional: bust de cache por updatedAt
+          // const photoUrl = photo ? `${photo}?v=${encodeURIComponent(a?.updatedAt ?? a?.updated_at ?? Date.now())}` : undefined;
 
           return {
             id,
-            name: String(a.name ?? a.title ?? meta?.name ?? ''),
+            name: String(a?.name ?? a?.title ?? meta?.name ?? ''),
             description: desc,
-            photoUrl: photo,
-            capacity: typeof a.capacity === 'number' ? a.capacity : undefined,
-            available:
-              typeof a.available === 'number'
-                ? a.available
-                : (typeof a.remaining === 'number' ? a.remaining : undefined),
-            isAvailable: Boolean(a.isAvailable ?? (a.available ?? a.remaining ?? 0) > 0),
+            photoUrl: photo, // ✅ agora vem a do upload normalizada
+            capacity: typeof a?.capacity === 'number' ? a.capacity : undefined,
+            available: typeof a?.available === 'number'
+              ? a.available
+              : (typeof a?.remaining === 'number' ? a.remaining : undefined),
+            isAvailable: Boolean(a?.isAvailable ?? (a?.available ?? a?.remaining ?? 0) > 0),
             iconEmoji: icon,
           };
         });
@@ -1082,8 +1134,7 @@ export default function ReservarMane() {
   });
 
   const [shareOpen, setShareOpen] = useState(false);
-  // 👉 começa com APENAS 1 convidado
-  const [guestRows, setGuestRows] = useState<GuestRow[]>([mkGuestRow()]);
+  const [guestRows, setGuestRows] = useState<GuestRow[]>([mkGuestRow()]); // começa com 1 convidado
   const [savingGuests, setSavingGuests] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
 
@@ -1214,7 +1265,7 @@ export default function ReservarMane() {
             <Stack gap="xs">
               {guestRows.map((row, idx) => (
                 <GuestInputRow
-                  key={`guest-${idx}`}   // <<-- índice estável
+                  key={`guest-${idx}`}   // índice estável suficiente aqui
                   idx={idx}
                   row={row}
                   setGuestRows={setGuestRows}
@@ -1807,4 +1858,4 @@ function SlotTimePicker({
       </Popover.Dropdown>
     </Popover>
   );
-} 
+}
