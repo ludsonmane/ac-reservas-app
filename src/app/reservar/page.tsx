@@ -195,7 +195,7 @@ const numberInputHandler =
 function LoadingOverlay({ visible }: { visible: boolean }) {
   const msgs = useRef([
     'Verificando disponibilidade...',
-       'Escolhendo setor...',
+    'Escolhendo setor...',
     'Encontrando lugares...',
     'Gerando QR Code...',
     'Finalizando reserva...',
@@ -395,6 +395,40 @@ function AreaCard({
       </Box>
     </Card>
   );
+}
+
+/* =========================================================
+   Helpers novos (Calendar/Email)
+========================================================= */
+function isEmail(v: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+}
+function buildGoogleCalendarUrl({
+  title,
+  startISO,
+  endISO,
+  guestEmails,
+  details,
+  timezone = 'America/Sao_Paulo',
+}: {
+  title: string;
+  startISO: string;
+  endISO: string;
+  guestEmails: string[];
+  details?: string;
+  timezone?: string;
+}) {
+  const fmt = (iso: string) => dayjs(iso).format('YYYYMMDDTHHmmss');
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: title,
+    dates: `${fmt(startISO)}/${fmt(endISO)}`,
+    ctz: timezone,
+    details: details || '',
+    conference: 'hangouts', // tenta vir com Meet
+  });
+  if (guestEmails.length) params.set('add', guestEmails.join(','));
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
 /* =========================================================
@@ -920,7 +954,7 @@ export default function ReservarMane() {
       if (reservationLoaded) {
         setActiveReservation(reservationLoaded);
       } else {
-        const reservationISO = joinDateTimeISO(data, hora)!;
+        const reservationISO2 = joinDateTimeISO(data, hora)!;
         setActiveReservation({
           id: resOk.id,
           reservationCode: resOk.reservationCode,
@@ -928,7 +962,7 @@ export default function ReservarMane() {
           unit: unitLabel,
           areaId: areaId!,
           areaName: areaLabel,
-          reservationDate: reservationISO,
+          reservationDate: reservationISO2,
           people: typeof total === 'number' ? total : 0,
           kids: typeof criancas === 'number' ? criancas : 0,
           fullName,
@@ -966,6 +1000,206 @@ export default function ReservarMane() {
   const boardingFullName = activeReservation?.fullName ?? fullName;
   const boardingCpf = activeReservation?.cpf ?? cpf;
   const boardingEmail = activeReservation?.email ?? email;
+
+  /* =========================================================
+     Compartilhar com a lista (estado e UI)
+  ========================================================= */
+  type GuestRow = { name: string; email: string };
+  const [shareOpen, setShareOpen] = useState(false);
+  const [guestRows, setGuestRows] = useState<GuestRow[]>(
+    Array.from({ length: 10 }).map(() => ({ name: '', email: '' }))
+  );
+  const [savingGuests, setSavingGuests] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+
+  async function handleShareSubmit() {
+    setShareError(null);
+
+    const clearList = guestRows
+      .map((g) => ({ name: g.name.trim(), email: g.email.trim().toLowerCase() }))
+      .filter((g) => g.name || g.email);
+
+    if (clearList.length === 0) {
+      setShareError('Preencha ao menos um convidado.');
+      return;
+    }
+    for (const g of clearList) {
+      if (!g.name) {
+        setShareError('Há convidado sem nome.');
+        return;
+      }
+      if (!isEmail(g.email)) {
+        setShareError(`E-mail inválido encontrado: ${g.email}`);
+        return;
+      }
+    }
+    if (!createdId) {
+      setShareError('ID da reserva não encontrado.');
+      return;
+    }
+
+    setSavingGuests(true);
+    try {
+      const api = API_BASE || '';
+      const GUESTS_ENDPOINT = `${api}/v1/reservations/${createdId}/guests`;
+      const payload = {
+        guests: clearList.map((g) => ({
+          name: g.name,
+          email: g.email,
+          role: 'GUEST' as const,
+        })),
+      };
+
+      const resp = await fetch(GUESTS_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        credentials: 'include',
+      });
+      if (!resp.ok) {
+        const j = await resp.json().catch(() => ({}));
+        throw new Error(j?.message || 'Falha ao salvar convidados.');
+      }
+
+      const who = (activeReservation?.fullName || fullName || '').trim() || 'Cliente';
+      const title = `RESERVA DO ${who.toUpperCase()} NO MANÉ MERCADO`;
+
+      const startISO =
+        activeReservation?.reservationDate ||
+        joinDateTimeISO(data, hora) ||
+        dayjs().add(15, 'minute').toDate().toISOString();
+      const endISO = dayjs(startISO).add(2, 'hour').toDate().toISOString();
+
+      const details = [
+        `Código: ${createdCode || activeReservation?.reservationCode || '-'}`,
+        `Unidade: ${boardingUnitLabel}`,
+        `Área: ${boardingAreaName}`,
+        `Data/Hora: ${boardingDateStr} ${boardingTimeStr}`,
+        `Pessoas: ${boardingPeople} (Crianças: ${boardingKids})`,
+        '',
+        'Gerado pelo sistema de reservas do Mané Mercado.',
+      ].join('\n');
+
+      const calendarUrl = buildGoogleCalendarUrl({
+        title,
+        startISO,
+        endISO,
+        guestEmails: clearList.map((g) => g.email),
+        details,
+        timezone: 'America/Sao_Paulo',
+      });
+
+      if (typeof window !== 'undefined') {
+        window.open(calendarUrl, '_blank', 'noopener,noreferrer');
+      }
+
+      setShareOpen(false);
+      setShareError(null);
+    } catch (e: any) {
+      setShareError(e?.message || 'Erro ao compartilhar convidados.');
+    } finally {
+      setSavingGuests(false);
+    }
+  }
+
+  function ShareListModal() {
+    if (!shareOpen) return null;
+    return (
+      <Box
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,.45)',
+          zIndex: 90,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 16,
+        }}
+        role="dialog"
+        aria-modal="true"
+      >
+        <Card
+          withBorder
+          radius="lg"
+          shadow="lg"
+          p={0}
+          style={{ width: 720, maxWidth: '100%', overflow: 'hidden', background: '#fff' }}
+        >
+          <Box px="md" py="sm" style={{ borderBottom: '1px solid rgba(0,0,0,.08)' }}>
+            <Title order={4} fw={600} m={0}>
+              Compartilhar com a lista
+            </Title>
+            <Text size="sm" c="dimmed" mt={4}>
+              Adicione os nomes e e-mails de quem você quer convidar. Começamos com 10 campos — você pode adicionar mais.
+            </Text>
+          </Box>
+
+          <Box px="md" py="md" style={{ maxHeight: '65vh', overflow: 'auto' }}>
+            <Stack gap="xs">
+              {guestRows.map((row, idx) => (
+                <Grid key={idx} gutter="sm" align="center">
+                  <Grid.Col span={6}>
+                    <TextInput
+                      label={`Nome ${idx + 1}`}
+                      placeholder="Nome do convidado"
+                      value={row.name}
+                      onChange={(e) =>
+                        setGuestRows((r) => {
+                          const copy = [...r];
+                          copy[idx] = { ...copy[idx], name: e.currentTarget.value };
+                          return copy;
+                        })
+                      }
+                    />
+                  </Grid.Col>
+                  <Grid.Col span={6}>
+                    <TextInput
+                      label={`E-mail ${idx + 1}`}
+                      placeholder="email@exemplo.com"
+                      value={row.email}
+                      onChange={(e) =>
+                        setGuestRows((r) => {
+                          const copy = [...r];
+                          copy[idx] = { ...copy[idx], email: e.currentTarget.value };
+                          return copy;
+                        })
+                      }
+                      error={row.email && !isEmail(row.email) ? 'E-mail inválido' : undefined}
+                    />
+                  </Grid.Col>
+                </Grid>
+              ))}
+
+              <Group justify="center" mt="xs">
+                <Button
+                  variant="light"
+                  onClick={() => setGuestRows((r) => [...r, { name: '', email: '' }])}
+                >
+                  + Adicionar convidado
+                </Button>
+              </Group>
+
+              {shareError && (
+                <Alert color="red" icon={<IconInfoCircle />}>
+                  {shareError}
+                </Alert>
+              )}
+            </Stack>
+          </Box>
+
+          <Group justify="end" gap="sm" px="md" py="sm" style={{ borderTop: '1px solid rgba(0,0,0,.08)' }}>
+            <Button variant="default" onClick={() => setShareOpen(false)} disabled={savingGuests}>
+              Cancelar
+            </Button>
+            <Button color="green" onClick={handleShareSubmit} loading={savingGuests}>
+              Salvar & abrir Google Meet
+            </Button>
+          </Group>
+        </Card>
+      </Box>
+    );
+  }
 
   /* =========================================================
      Render
@@ -1349,22 +1583,39 @@ export default function ReservarMane() {
             </Stack>
           ))}
 
-          {/* PASSO 4 — Boarding Pass */}
+          {/* PASSO 4 — Boarding Pass + Compartilhar */}
           {step === 3 && createdId && (
-            <BoardingPass
-              id={createdId}
-              code={createdCode ?? createdId}
-              qrUrl={qrUrl}
-              unitLabel={boardingUnitLabel}
-              areaName={boardingAreaName}
-              dateStr={boardingDateStr}
-              timeStr={boardingTimeStr}
-              people={boardingPeople}
-              kids={boardingKids}
-              fullName={boardingFullName}
-              cpf={boardingCpf}
-              emailHint={boardingEmail}
-            />
+            <>
+              <BoardingPass
+                id={createdId}
+                code={createdCode ?? createdId}
+                qrUrl={qrUrl}
+                unitLabel={boardingUnitLabel}
+                areaName={boardingAreaName}
+                dateStr={boardingDateStr}
+                timeStr={boardingTimeStr}
+                people={boardingPeople}
+                kids={boardingKids}
+                fullName={boardingFullName}
+                cpf={boardingCpf}
+                emailHint={boardingEmail}
+              />
+
+              <Card withBorder radius="lg" shadow="sm" p="md" mt="md" style={{ background: '#FBF5E9' }}>
+                <Stack gap="xs" align="center">
+                  <Title order={5} fw={500}>Compartilhar com a lista</Title>
+                  <Text size="sm" c="dimmed" ta="center">
+                    Convide sua galera por e-mail e já deixe uma reunião do Google pronta para alinharem os detalhes.
+                  </Text>
+                  <Button color="green" radius="md" onClick={() => setShareOpen(true)}>
+                    COMPARTILHAR COM A LISTA
+                  </Button>
+                </Stack>
+              </Card>
+
+              {/* Modal de convidados */}
+              <ShareListModal />
+            </>
           )}
 
           {/* Modal Concierge 40+ */}
