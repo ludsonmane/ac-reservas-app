@@ -195,7 +195,7 @@ const numberInputHandler =
 function LoadingOverlay({ visible }: { visible: boolean }) {
   const msgs = useRef([
     'Verificando disponibilidade...',
-    'Escolhendo setor...',
+       'Escolhendo setor...',
     'Encontrando lugares...',
     'Gerando QR Code...',
     'Finalizando reserva...',
@@ -470,11 +470,11 @@ export default function ReservarMane() {
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // cálculo total
+  // cálculo total (sem teto 👇)
   const total = useMemo(() => {
     const a = typeof adultos === 'number' ? adultos : 0;
     const c = typeof criancas === 'number' ? criancas : 0;
-    return Math.max(1, Math.min(20, a + c));
+    return Math.max(1, a + c);
   }, [adultos, criancas]);
 
   /* =========================================================
@@ -718,13 +718,13 @@ export default function ReservarMane() {
     contactOk &&
     !!birthday; // 👈 aniversário obrigatório
 
-  // 👇 NOVO: estado do modal Concierge 40+
+  // estado do modal Concierge 40+
   const [showConcierge, setShowConcierge] = useState(false);
 
   const handleContinueStep1 = () => {
     setError(null);
 
-    // 👇 NOVO: trava grupo grande e abre CTA WhatsApp
+    // trava grupo grande só no clique de Continuar
     const qty = typeof total === 'number' ? total : 0;
     if (qty > MAX_PEOPLE_WITHOUT_CONCIERGE) {
       setShowConcierge(true);
@@ -920,6 +920,7 @@ export default function ReservarMane() {
       if (reservationLoaded) {
         setActiveReservation(reservationLoaded);
       } else {
+        const reservationISO = joinDateTimeISO(data, hora)!;
         setActiveReservation({
           id: resOk.id,
           reservationCode: resOk.reservationCode,
@@ -927,7 +928,7 @@ export default function ReservarMane() {
           unit: unitLabel,
           areaId: areaId!,
           areaName: areaLabel,
-          reservationDate: reservationISO!,
+          reservationDate: reservationISO,
           people: typeof total === 'number' ? total : 0,
           kids: typeof criancas === 'number' ? criancas : 0,
           fullName,
@@ -1124,22 +1125,18 @@ export default function ReservarMane() {
                       <NumberInput
                         label="Adultos"
                         min={1}
-                        max={20}
                         value={adultos}
                         onChange={numberInputHandler(setAdultos)}
                         leftSection={<IconUsers size={16} />}
-                        clampBehavior="strict"
                       />
                     </Grid.Col>
                     <Grid.Col span={6}>
                       <NumberInput
                         label="Crianças"
                         min={0}
-                        max={10}
                         value={criancas}
                         onChange={numberInputHandler(setCriancas)}
                         leftSection={<IconMoodKid size={16} />}
-                        clampBehavior="strict"
                       />
                     </Grid.Col>
                   </Grid>
@@ -1370,7 +1367,7 @@ export default function ReservarMane() {
             />
           )}
 
-          {/* 👇 NOVO: modal Concierge (bloqueia avanço quando > 40) */}
+          {/* Modal Concierge 40+ */}
           {showConcierge && (
             <Box
               style={{
