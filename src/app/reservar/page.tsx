@@ -328,6 +328,9 @@ function AreaCard({
   remaining?: number;
 }) {
   const [src, setSrc] = useState(foto || FALLBACK_IMG);
+  useEffect(() => {
+    setSrc(foto || FALLBACK_IMG);
+  }, [foto]);
 
   return (
     <Card
