@@ -445,37 +445,27 @@ function buildGoogleCalendarUrl({
 type GuestRow = { clientId: string; name: string; email: string };
 
 const GuestInputRow = memo(function GuestInputRow(props: {
-  row: GuestRow;
   idx: number;
+  row: GuestRow;
   setGuestRows: React.Dispatch<React.SetStateAction<GuestRow[]>>;
 }) {
-  const { row, idx, setGuestRows } = props;
+  const { idx, row, setGuestRows } = props;
 
-  const updateName = useCallback(
-    (value: string) => {
-      setGuestRows((prev) => {
-        const i = prev.findIndex((g) => g.clientId === row.clientId);
-        if (i === -1) return prev;
-        const next = [...prev];
-        next[i] = { ...next[i], name: value };
-        return next;
-      });
-    },
-    [row.clientId, setGuestRows]
-  );
+  const updateName = (value: string) => {
+    setGuestRows((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], name: value };
+      return next;
+    });
+  };
 
-  const updateEmail = useCallback(
-    (value: string) => {
-      setGuestRows((prev) => {
-        const i = prev.findIndex((g) => g.clientId === row.clientId);
-        if (i === -1) return prev;
-        const next = [...prev];
-        next[i] = { ...next[i], email: value };
-        return next;
-      });
-    },
-    [row.clientId, setGuestRows]
-  );
+  const updateEmail = (value: string) => {
+    setGuestRows((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], email: value };
+      return next;
+    });
+  };
 
   return (
     <Grid gutter="sm" align="center">
@@ -1220,7 +1210,12 @@ export default function ReservarMane() {
           <Box px="md" py="md" style={{ maxHeight: '65vh', overflow: 'auto' }}>
             <Stack gap="xs">
               {guestRows.map((row, idx) => (
-                <GuestInputRow key={row.clientId} row={row} idx={idx} setGuestRows={setGuestRows} />
+                <GuestInputRow
+                  key={`guest-${idx}`}   // <<-- índice estável
+                  idx={idx}
+                  row={row}
+                  setGuestRows={setGuestRows}
+                />
               ))}
 
               <Group justify="center" mt="xs">
