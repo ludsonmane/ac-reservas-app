@@ -341,7 +341,6 @@ function AreaCard({
   const [src, setSrc] = useState(foto || FALLBACK_IMG);
 
   useEffect(() => {
-    // atualiza quando a prop mudar (troca de área / disponibilidade)
     setSrc(foto || FALLBACK_IMG);
   }, [foto]);
 
@@ -370,7 +369,7 @@ function AreaCard({
         style={{
           position: 'relative',
           width: '100%',
-          aspectRatio: '16 / 9', // mantém proporção em qualquer tela
+          aspectRatio: '16 / 9',
           background: '#f2f2f2',
         }}
       >
@@ -575,7 +574,7 @@ export default function ReservarMane() {
   const [hora, setHora] = useState<string>('');
   const [timeError, setTimeError] = useState<string | null>(null);
   const [dateError, setDateError] = useState<string | null>(null);
-  const [pastError, setPastError] = useState<string | null>(null); // 👈 novo
+  const [pastError, setPastError] = useState<string | null>(null);
 
   // passo 3
   const [fullName, setFullName] = useState('');
@@ -583,7 +582,7 @@ export default function ReservarMane() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [birthday, setBirthday] = useState<Date | null>(null);
-  const [birthdayError, setBirthdayError] = useState<string | null>(null); // 👈 obrigatório
+  const [birthdayError, setBirthdayError] = useState<string | null>(null);
 
   // envio
   const [sending, setSending] = useState(false);
@@ -591,7 +590,7 @@ export default function ReservarMane() {
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // cálculo total (sem teto 👇)
+  // cálculo total
   const total = useMemo(() => {
     const a = typeof adultos === 'number' ? adultos : 0;
     const c = typeof criancas === 'number' ? criancas : 0;
@@ -744,7 +743,7 @@ export default function ReservarMane() {
         id: m.id,
         name: m.name,
         description: m.description || '',
-        photoUrl: m.photoUrl || undefined, // já normalizada
+        photoUrl: m.photoUrl || undefined,
         iconEmoji: m.iconEmoji ?? null,
         capacity: undefined,
         available: undefined,
@@ -784,7 +783,7 @@ export default function ReservarMane() {
             id,
             name: String(a.name ?? a.title ?? meta?.name ?? ''),
             description: desc,
-            photoUrl: photo, // <<-- sempre prioriza banco (normalizado)
+            photoUrl: photo,
             capacity: typeof a.capacity === 'number' ? a.capacity : undefined,
             available:
               typeof a.available === 'number'
@@ -838,21 +837,18 @@ export default function ReservarMane() {
     fullName.trim().length >= 3 &&
     onlyDigits(cpf).length === 11 &&
     contactOk &&
-    !!birthday; // 👈 aniversário obrigatório
+    !!birthday;
 
   // estado do modal Concierge 40+
   const [showConcierge, setShowConcierge] = useState(false);
 
   const handleContinueStep1 = () => {
     setError(null);
-
-    // trava grupo grande só no clique de Continuar
     const qty = typeof total === 'number' ? total : 0;
     if (qty > MAX_PEOPLE_WITHOUT_CONCIERGE) {
       setShowConcierge(true);
       return;
     }
-
     goToStep(1);
   };
 
@@ -1105,7 +1101,6 @@ export default function ReservarMane() {
   });
 
   const [shareOpen, setShareOpen] = useState(false);
-  // 👉 começa com APENAS 1 convidado
   const [guestRows, setGuestRows] = useState<GuestRow[]>([mkGuestRow()]);
   const [savingGuests, setSavingGuests] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -1237,7 +1232,7 @@ export default function ReservarMane() {
             <Stack gap="xs">
               {guestRows.map((row, idx) => (
                 <GuestInputRow
-                  key={`guest-${idx}`} // índice estável
+                  key={`guest-${idx}`}
                   idx={idx}
                   row={row}
                   setGuestRows={setGuestRows}
@@ -1283,7 +1278,7 @@ export default function ReservarMane() {
         style={{
           background: '#ffffff',
           minHeight: '100dvh',
-          overflowX: 'hidden', // evita scroll lateral
+          overflowX: 'hidden',
         }}
       >
         <LoadingOverlay visible={sending} />
@@ -1475,8 +1470,6 @@ export default function ReservarMane() {
                           setData(d);
                           const invalid = d ? dayjs(d).isBefore(TODAY_START, 'day') : false;
                           setDateError(invalid ? 'Selecione uma data a partir de hoje' : null);
-
-                          // regra: horário no passado (hoje com horário anterior ao atual)
                           setPastError(() => {
                             if (!d || !hora) return null;
                             return isPastSelection(d, hora)
@@ -1493,7 +1486,6 @@ export default function ReservarMane() {
                         error={dateError}
                         weekendDays={[]}
                         closeOnChange
-                        // 👇 posiciona o popover imediatamente abaixo do input (inclusive no mobile)
                         popoverProps={{
                           withinPortal: true,
                           position: 'bottom-start',
@@ -1502,7 +1494,6 @@ export default function ReservarMane() {
                           zIndex: 310,
                         }}
                       />
-
                     </Grid.Col>
 
                     <Grid.Col span={{ base: 12, sm: 6 }}>
@@ -1511,8 +1502,6 @@ export default function ReservarMane() {
                         onChange={(val) => {
                           setHora(val);
                           setTimeError(val && !isValidSlot(val) ? SLOT_ERROR_MSG : null);
-
-                          // regra: horário no passado (hoje com horário anterior ao atual)
                           setPastError(() => {
                             if (!data || !val) return null;
                             return isPastSelection(data, val)
@@ -1667,7 +1656,6 @@ export default function ReservarMane() {
                     defaultDate={new Date(1990, 0, 1)}
                     maxDate={new Date()}
                     error={birthdayError || undefined}
-                    // 👇 garante popover “grudado” ao input (iOS/Android também)
                     popoverProps={{
                       withinPortal: true,
                       position: 'bottom-start',
