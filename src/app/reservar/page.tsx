@@ -205,8 +205,8 @@ function normalizePhotoUrl(url?: string | null): string | undefined {
 /* onChange NumberInput */
 const numberInputHandler =
   (setter: React.Dispatch<React.SetStateAction<number | ''>>) =>
-  (v: string | number) =>
-    setter(v === '' ? '' : Number(v));
+    (v: string | number) =>
+      setter(v === '' ? '' : Number(v));
 
 /* =========================================================
    Loading overlay
@@ -777,8 +777,8 @@ export default function ReservarMane() {
           const desc = String(a.description ?? a.desc ?? a.area?.description ?? meta?.description ?? '').trim();
           const icon =
             (typeof a.iconEmoji === 'string' && a.iconEmoji.trim()) ? a.iconEmoji.trim() :
-            (typeof a.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim() :
-            (meta?.iconEmoji ?? null);
+              (typeof a.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim() :
+                (meta?.iconEmoji ?? null);
 
           return {
             id,
@@ -1084,8 +1084,8 @@ export default function ReservarMane() {
   const boardingDateStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('DD/MM/YYYY')
     : data
-    ? dayjs(data).format('DD/MM/YYYY')
-    : '--/--/----';
+      ? dayjs(data).format('DD/MM/YYYY')
+      : '--/--/----';
   const boardingTimeStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('HH:mm')
     : hora || '--:--';
@@ -1492,7 +1492,17 @@ export default function ReservarMane() {
                         styles={{ input: { height: rem(48) } }}
                         error={dateError}
                         weekendDays={[]}
+                        closeOnChange
+                        // 👇 posiciona o popover imediatamente abaixo do input (inclusive no mobile)
+                        popoverProps={{
+                          withinPortal: true,
+                          position: 'bottom-start',
+                          middlewares: { shift: true, flip: true, inline: true },
+                          offset: 8,
+                          zIndex: 310,
+                        }}
                       />
+
                     </Grid.Col>
 
                     <Grid.Col span={{ base: 12, sm: 6 }}>
@@ -1657,6 +1667,14 @@ export default function ReservarMane() {
                     defaultDate={new Date(1990, 0, 1)}
                     maxDate={new Date()}
                     error={birthdayError || undefined}
+                    // 👇 garante popover “grudado” ao input (iOS/Android também)
+                    popoverProps={{
+                      withinPortal: true,
+                      position: 'bottom-start',
+                      middlewares: { shift: true, flip: true, inline: true },
+                      offset: 8,
+                      zIndex: 310,
+                    }}
                   />
                 </Stack>
               </Card>
@@ -1803,6 +1821,9 @@ function SlotTimePicker({
       shadow="md"
       withinPortal
       keepMounted
+      middlewares={{ shift: true, flip: true, inline: true }}
+      offset={8}
+      zIndex={310}
     >
       <Popover.Target>
         <TextInput
@@ -1849,4 +1870,3 @@ function SlotTimePicker({
     </Popover>
   );
 }
- 
