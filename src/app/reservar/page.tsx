@@ -37,7 +37,7 @@ import {
   setActiveUnitPixelFromUnit,
   trackReservationMade,
 } from '@/lib/analytics';
-import { useEffect, useMemo, useRef, useState, memo } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, memo } from 'react';
 import {
   IconCalendar,
   IconClockHour4,
@@ -125,7 +125,6 @@ const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1528605248644-14dd04022da1?q=80&w=1600&auto=format&fit=crop';
 
 const onlyDigits = (s: string) => s.replace(/\D+/g, '');
-
 function maskCPF(v: string) {
   const d = onlyDigits(v).slice(0, 11);
   const p1 = d.slice(0, 3);
@@ -190,16 +189,6 @@ function isPastSelection(date: Date | null, time: string) {
   const [hh, mm] = time.split(':').map(Number);
   const when = dayjs(date).hour(hh || 0).minute(mm || 0).second(0).millisecond(0);
   return when.isBefore(dayjs());
-}
-
-/* normalizador de URL de foto (usa API_BASE quando vier relativa) */
-function normalizePhotoUrl(url?: string | null): string | undefined {
-  if (!url) return undefined;
-  const s = String(url).trim();
-  if (!s) return undefined;
-  if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:')) return s;
-  const base = API_BASE || '';
-  return `${base}${s.startsWith('/') ? s : `/${s}`}`;
 }
 
 /* onChange NumberInput */
@@ -284,18 +273,18 @@ function StepSkeleton() {
         <Stack gap="md">
           <Skeleton height={44} radius="md" />
           <Grid gutter="md">
-            <Grid.Col span={{ base: 12, sm: 6 }}>
+            <Grid.Col span={6}>
               <Skeleton height={44} radius="md" />
             </Grid.Col>
-            <Grid.Col span={{ base: 12, sm: 6 }}>
+            <Grid.Col span={6}>
               <Skeleton height={44} radius="md" />
             </Grid.Col>
           </Grid>
           <Grid gutter="md">
-            <Grid.Col span={{ base: 12, sm: 6 }}>
+            <Grid.Col span={6}>
               <Skeleton height={48} radius="md" />
             </Grid.Col>
-            <Grid.Col span={{ base: 12, sm: 6 }}>
+            <Grid.Col span={6}>
               <Skeleton height={48} radius="md" />
             </Grid.Col>
           </Grid>
@@ -340,10 +329,6 @@ function AreaCard({
 }) {
   const [src, setSrc] = useState(foto || FALLBACK_IMG);
 
-  useEffect(() => {
-    setSrc(foto || FALLBACK_IMG);
-  }, [foto]);
-
   return (
     <Card
       withBorder
@@ -354,30 +339,22 @@ function AreaCard({
         cursor: disabled ? 'not-allowed' : 'pointer',
         overflow: 'hidden',
         borderColor: selected ? 'var(--mantine-color-green-5)' : 'transparent',
-        boxShadow: selected ? '0 8px 20px rgba(16,185,129,.15)' : '0 2px 10px rgba(0,0,0,.06)',
-        transition: 'transform .12s ease, box-shadow .12s ease',
+        boxShadow: selected ? '0 8px 20px rgba(16, 185, 129, .15)' : '0 2px 10px rgba(0,0,0,.06)',
+        transition: 'transform .15s ease',
         background: disabled ? '#F4F4F4' : '#FBF5E9',
         opacity: disabled ? 0.7 : 1,
-        willChange: 'transform',
       }}
       onMouseEnter={(e) => {
         if (!disabled) e.currentTarget.style.transform = 'translateY(-2px)';
       }}
       onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
     >
-      <Box
-        style={{
-          position: 'relative',
-          width: '100%',
-          aspectRatio: '16 / 9',
-          background: '#f2f2f2',
-        }}
-      >
+      <Box style={{ position: 'relative', height: 160, background: '#f2f2f2' }}>
         <NextImage
           src={src}
           alt={titulo}
           fill
-          sizes="(max-width: 600px) 100vw, 580px"
+          sizes="(max-width: 520px) 100vw, 520px"
           style={{ objectFit: 'cover' }}
           onError={() => setSrc(FALLBACK_IMG)}
           priority={false}
@@ -388,7 +365,6 @@ function AreaCard({
             position: 'absolute',
             inset: 0,
             background: 'linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.45) 100%)',
-            pointerEvents: 'none',
           }}
         />
         {selected && !disabled && (
@@ -493,7 +469,7 @@ const GuestInputRow = memo(function GuestInputRow(props: {
 
   return (
     <Grid gutter="sm" align="center">
-      <Grid.Col span={{ base: 12, sm: 6 }}>
+      <Grid.Col span={6}>
         <TextInput
           label={`Nome ${idx + 1}`}
           placeholder="Nome do convidado"
@@ -502,7 +478,7 @@ const GuestInputRow = memo(function GuestInputRow(props: {
           autoComplete="off"
         />
       </Grid.Col>
-      <Grid.Col span={{ base: 12, sm: 6 }}>
+      <Grid.Col span={6}>
         <TextInput
           label={`E-mail ${idx + 1}`}
           placeholder="email@exemplo.com"
@@ -574,7 +550,7 @@ export default function ReservarMane() {
   const [hora, setHora] = useState<string>('');
   const [timeError, setTimeError] = useState<string | null>(null);
   const [dateError, setDateError] = useState<string | null>(null);
-  const [pastError, setPastError] = useState<string | null>(null);
+  const [pastError, setPastError] = useState<string | null>(null); // 👈 novo
 
   // passo 3
   const [fullName, setFullName] = useState('');
@@ -582,7 +558,7 @@ export default function ReservarMane() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [birthday, setBirthday] = useState<Date | null>(null);
-  const [birthdayError, setBirthdayError] = useState<string | null>(null);
+  const [birthdayError, setBirthdayError] = useState<string | null>(null); // 👈 obrigatório
 
   // envio
   const [sending, setSending] = useState(false);
@@ -590,7 +566,7 @@ export default function ReservarMane() {
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // cálculo total
+  // cálculo total (sem teto 👇)
   const total = useMemo(() => {
     const a = typeof adultos === 'number' ? adultos : 0;
     const c = typeof criancas === 'number' ? criancas : 0;
@@ -703,7 +679,7 @@ export default function ReservarMane() {
             id,
             name: String(a?.name ?? a?.title ?? ''),
             description,
-            photoUrl: (normalizePhotoUrl(a?.photoUrl ?? a?.photo) ?? null),
+            photoUrl: (a?.photoUrl ?? a?.photo ?? '') || null,
             iconEmoji:
               typeof iconEmojiRaw === 'string' && iconEmojiRaw.trim()
                 ? iconEmojiRaw.trim()
@@ -771,8 +747,7 @@ export default function ReservarMane() {
         const normalized: AreaOption[] = (list ?? []).map((a: any) => {
           const id = String(a.id ?? a._id);
           const meta = metaMap[id];
-          const rawPhoto = a.photoUrl ?? a.photo ?? meta?.photoUrl ?? '';
-          const photo = normalizePhotoUrl(rawPhoto) || undefined;
+          const photo = (a.photoUrl ?? a.photo ?? meta?.photoUrl ?? '') || undefined;
           const desc = String(a.description ?? a.desc ?? a.area?.description ?? meta?.description ?? '').trim();
           const icon =
             (typeof a.iconEmoji === 'string' && a.iconEmoji.trim()) ? a.iconEmoji.trim() :
@@ -837,18 +812,21 @@ export default function ReservarMane() {
     fullName.trim().length >= 3 &&
     onlyDigits(cpf).length === 11 &&
     contactOk &&
-    !!birthday;
+    !!birthday; // 👈 aniversário obrigatório
 
   // estado do modal Concierge 40+
   const [showConcierge, setShowConcierge] = useState(false);
 
   const handleContinueStep1 = () => {
     setError(null);
+
+    // trava grupo grande só no clique de Continuar
     const qty = typeof total === 'number' ? total : 0;
     if (qty > MAX_PEOPLE_WITHOUT_CONCIERGE) {
       setShowConcierge(true);
       return;
     }
+
     goToStep(1);
   };
 
@@ -1093,7 +1071,7 @@ export default function ReservarMane() {
 
   /* =========================================================
      Compartilhar com a lista (estado e UI)
-  ========================================================= */
+========================================================= */
   const mkGuestRow = (): GuestRow => ({
     clientId: (globalThis.crypto?.randomUUID?.() ?? String(Math.random())),
     name: '',
@@ -1101,6 +1079,7 @@ export default function ReservarMane() {
   });
 
   const [shareOpen, setShareOpen] = useState(false);
+  // 👉 começa com APENAS 1 convidado
   const [guestRows, setGuestRows] = useState<GuestRow[]>([mkGuestRow()]);
   const [savingGuests, setSavingGuests] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -1232,7 +1211,7 @@ export default function ReservarMane() {
             <Stack gap="xs">
               {guestRows.map((row, idx) => (
                 <GuestInputRow
-                  key={`guest-${idx}`}
+                  key={`guest-${idx}`}   // <<-- índice estável
                   idx={idx}
                   row={row}
                   setGuestRows={setGuestRows}
@@ -1274,25 +1253,14 @@ export default function ReservarMane() {
   ========================================================= */
   return (
     <DatesProvider settings={{ locale: 'pt-br' }}>
-      <Box
-        style={{
-          background: '#ffffff',
-          minHeight: '100dvh',
-          overflowX: 'hidden',
-        }}
-      >
+      <Box style={{ background: '#ffffff', minHeight: '100dvh', overflowX: 'auto' }}>
         <LoadingOverlay visible={sending} />
 
         {/* HEADER */}
         <Container
-          size="xs"
+          size={580}
           px="md"
-          style={{
-            marginTop: 64,
-            marginBottom: 12,
-            width: '100%',
-            maxWidth: 580,
-          }}
+          style={{ marginTop: '64px', marginBottom: 12, width: '100%', minWidth: rem(580) }}
         >
           <Anchor
             component={Link}
@@ -1332,12 +1300,7 @@ export default function ReservarMane() {
               Águas Claras &amp; Arena Brasília
             </Text>
 
-            <Card
-              radius="md"
-              p="sm"
-              style={{ width: '100%', maxWidth: 460, background: '#fff', border: 'none' }}
-              shadow="sm"
-            >
+            <Card radius="md" p="sm" style={{ width: '100%', maxWidth: 460, background: '#fff', border: 'none' }} shadow="sm">
               <Stack gap={6} align="stretch">
                 <Box
                   aria-hidden
@@ -1389,7 +1352,8 @@ export default function ReservarMane() {
                     striped
                     animated
                     styles={{
-                      section: { transition: 'width 300ms ease' },
+                      root: { transition: 'width 300ms ease' },
+                      section: { transition: 'width 500ms ease' },
                     }}
                   />
                 </Box>
@@ -1400,7 +1364,7 @@ export default function ReservarMane() {
 
         {/* CONTEÚDO */}
         <Container
-          size="xs"
+          size={580}
           px="md"
           style={{
             minHeight: '100dvh',
@@ -1408,8 +1372,7 @@ export default function ReservarMane() {
             paddingLeft: 'calc(env(safe-area-inset-left) + 16px)',
             paddingRight: 'calc(env(safe-area-inset-right) + 16px)',
             fontFamily: '"Comfortaa", system-ui, sans-serif',
-            width: '100%',
-            maxWidth: 580,
+            minWidth: rem(580),
           }}
         >
           {/* PASSO 1 */}
@@ -1439,7 +1402,7 @@ export default function ReservarMane() {
                   />
 
                   <Grid gutter="md">
-                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Grid.Col span={6}>
                       <NumberInput
                         label="Adultos"
                         min={1}
@@ -1448,7 +1411,7 @@ export default function ReservarMane() {
                         leftSection={<IconUsers size={16} />}
                       />
                     </Grid.Col>
-                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Grid.Col span={6}>
                       <NumberInput
                         label="Crianças"
                         min={0}
@@ -1460,7 +1423,7 @@ export default function ReservarMane() {
                   </Grid>
 
                   <Grid gutter="md">
-                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Grid.Col span={6}>
                       <DatePickerInput
                         locale="pt-br"
                         label="Data"
@@ -1470,6 +1433,8 @@ export default function ReservarMane() {
                           setData(d);
                           const invalid = d ? dayjs(d).isBefore(TODAY_START, 'day') : false;
                           setDateError(invalid ? 'Selecione uma data a partir de hoje' : null);
+
+                          // regra: horário no passado (hoje com horário anterior ao atual)
                           setPastError(() => {
                             if (!d || !hora) return null;
                             return isPastSelection(d, hora)
@@ -1485,23 +1450,17 @@ export default function ReservarMane() {
                         styles={{ input: { height: rem(48) } }}
                         error={dateError}
                         weekendDays={[]}
-                        closeOnChange
-                        popoverProps={{
-                          withinPortal: true,
-                          position: 'bottom-start',
-                          middlewares: { shift: true, flip: true, inline: true },
-                          offset: 8,
-                          zIndex: 310,
-                        }}
                       />
                     </Grid.Col>
 
-                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Grid.Col span={6}>
                       <SlotTimePicker
                         value={hora}
                         onChange={(val) => {
                           setHora(val);
                           setTimeError(val && !isValidSlot(val) ? SLOT_ERROR_MSG : null);
+
+                          // regra: horário no passado (hoje com horário anterior ao atual)
                           setPastError(() => {
                             if (!data || !val) return null;
                             return isPastSelection(data, val)
@@ -1571,17 +1530,17 @@ export default function ReservarMane() {
                 );
               })}
 
-              <Group gap="sm" grow>
-                <Button fullWidth variant="light" radius="md" onClick={() => goToStep(0)} type="button">
+              <Group gap="sm">
+                <Button variant="light" radius="md" onClick={() => goToStep(0)} type="button" style={{ flex: 1 }}>
                   Voltar
                 </Button>
                 <Button
-                  fullWidth
                   color="green"
                   radius="md"
                   onClick={() => goToStep(2)}
                   disabled={!canNext2}
                   type="button"
+                  style={{ flex: 2 }}
                 >
                   Continuar
                 </Button>
@@ -1656,13 +1615,6 @@ export default function ReservarMane() {
                     defaultDate={new Date(1990, 0, 1)}
                     maxDate={new Date()}
                     error={birthdayError || undefined}
-                    popoverProps={{
-                      withinPortal: true,
-                      position: 'bottom-start',
-                      middlewares: { shift: true, flip: true, inline: true },
-                      offset: 8,
-                      zIndex: 310,
-                    }}
                   />
                 </Stack>
               </Card>
@@ -1683,18 +1635,18 @@ export default function ReservarMane() {
                 </Text>
               </Card>
 
-              <Group gap="sm" grow>
-                <Button fullWidth variant="light" radius="md" onClick={() => goToStep(1)} type="button">
+              <Group gap="sm">
+                <Button variant="light" radius="md" onClick={() => goToStep(1)} type="button" style={{ flex: 1 }}>
                   Voltar
                 </Button>
                 <Button
-                  fullWidth
                   color="green"
                   radius="md"
                   loading={sending}
                   disabled={!canFinish}
                   onClick={confirmarReserva}
                   type="button"
+                  style={{ flex: 2 }}
                 >
                   Confirmar reserva
                 </Button>
@@ -1804,14 +1756,9 @@ function SlotTimePicker({
     <Popover
       opened={opened}
       onChange={(o) => (o ? open() : close())}
-      width="target"
+      width={260}
       position="bottom-start"
       shadow="md"
-      withinPortal
-      keepMounted
-      middlewares={{ shift: true, flip: true, inline: true }}
-      offset={8}
-      zIndex={310}
     >
       <Popover.Target>
         <TextInput
@@ -1824,12 +1771,12 @@ function SlotTimePicker({
           rightSection={<IconChevronDown size={16} />}
           size="md"
           error={error}
-          styles={{ input: { height: 48, cursor: 'pointer', backgroundColor: '#fff' } }}
+          styles={{ input: { height: '48px', cursor: 'pointer', backgroundColor: '#fff' } }}
         />
       </Popover.Target>
 
       <Popover.Dropdown>
-        <SimpleGrid cols={{ base: 3, sm: 6 }} spacing={8}>
+        <SimpleGrid cols={3} spacing={8}>
           {ALLOWED_SLOTS.map((slot) => (
             <UnstyledButton
               key={slot}
@@ -1838,8 +1785,8 @@ function SlotTimePicker({
                 close();
               }}
               style={{
-                padding: '10px 12px',
-                borderRadius: 10,
+                padding: '8px 10px',
+                borderRadius: 8,
                 border:
                   value === slot
                     ? '2px solid var(--mantine-color-green-6)'
@@ -1857,4 +1804,4 @@ function SlotTimePicker({
       </Popover.Dropdown>
     </Popover>
   );
-}
+} 
