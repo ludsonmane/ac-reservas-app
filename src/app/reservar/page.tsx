@@ -5,6 +5,9 @@ import type React from 'react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
 import { DatesProvider, DatePickerInput } from '@mantine/dates';
+import { Merriweather } from 'next/font/google';
+
+
 import {
   Popover,
   TextInput,
@@ -54,7 +57,7 @@ import NextImage from 'next/image';
 import { apiGet, API_BASE } from '@/lib/api';
 
 dayjs.locale('pt-br');
-
+const merri = Merriweather({ subsets: ['latin'], weight: ['700'], variable: '--font-merri' });
 /* =========================================================
    Regras de concierge por unidade
 ========================================================= */
@@ -309,6 +312,10 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
         </Text>
       </Card>
       <style jsx global>{`
+      .mantine-Title-root {
+          font-family: var(--font-merri), serif !important;
+          font-weight: 700 !important;
+        }
         @keyframes spin {
           to {
             transform: rotate(360deg);
@@ -1326,11 +1333,8 @@ export default function ReservarMane() {
   return (
     <DatesProvider settings={{ locale: 'pt-br' }}>
       <Box
-        style={{
-          background: '#ffffff',
-          minHeight: '100dvh',
-          overflowX: 'hidden',
-        }}
+        className={merri.variable}   // << aplica variável da fonte
+        style={{ background: '#ffffff', minHeight: '100dvh', overflowX: 'hidden' }}
       >
         <LoadingOverlay visible={sending} />
 
@@ -1369,7 +1373,7 @@ export default function ReservarMane() {
               order={2}
               ta="center"
               fw={400}
-              style={{ fontFamily: '"Alfa Slab One", system-ui, sans-serif', color: '#146C2E' }}
+              style={{ color: '#146C2E' }}
             >
               Mané Mercado Reservas
             </Title>
@@ -1852,7 +1856,7 @@ function SlotTimePicker({
   const [opened, { open, close, toggle }] = useDisclosure(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  
+
   return (
     <Popover
       opened={opened}
