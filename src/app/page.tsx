@@ -51,10 +51,10 @@ export default function Home() {
           <Image
             src="/images/1.png"
             alt="Mané Mercado"
-            width={160}
-            height={44}
+            width={180}
+            height={80}
             priority
-            style={{ height: 44, width: 'auto' }}
+            style={{ height: 80, width: 'auto' }}
           />
         </Stack>
 

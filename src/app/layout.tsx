@@ -4,7 +4,7 @@ import '@mantine/dates/styles.css';
 import './globals.css';
 
 import { ColorSchemeScript, MantineProvider, createTheme, rem } from '@mantine/core';
-import { Comfortaa } from 'next/font/google';
+import { Alfa_Slab_One, Comfortaa } from 'next/font/google';
 import React from 'react';
 import Script from 'next/script';
 import MetaPixelBootstrap from './MetaPixelBootstrap';
@@ -16,11 +16,10 @@ export const metadata = {
 };
 
 // Alfa Slab One — apenas 400
-
-const merri = Merriweather({
-  weight: ['700'],        // Bold
+const alfa = Alfa_Slab_One({
+  weight: '400',
   subsets: ['latin'],
-  variable: '--font-merri',
+  variable: '--font-alfa',
 });
 
 // Comfortaa para textos
@@ -31,19 +30,39 @@ const comfortaa = Comfortaa({
   display: 'swap',
 });
 
+// Paleta "green" substituída pelo verde institucional (#034c46 como shade 7)
+const maneGreen: string[] = [
+  '#e6f0ef', // 0
+  '#cde2df', // 1
+  '#9cc4bf', // 2
+  '#6aa7a0', // 3
+  '#3a8a81', // 4
+  '#0f6e63', // 5
+  '#04534c', // 6
+  '#034c46', // 7  <- cor principal pedida
+  '#023a36', // 8
+  '#012b29', // 9
+];
+
 const theme = createTheme({
   primaryColor: 'green',
+  primaryShade: { light: 7, dark: 5 },
   defaultRadius: 'md',
+
+  colors: {
+    // sobrescreve a paleta "green" do Mantine
+    green: maneGreen as any,
+  },
 
   // Body: Comfortaa
   fontFamily:
     `var(--font-comfortaa), Comfortaa, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`,
 
-  // Headings: Alfa Slab One (400 SEMPRE)
+  // Headings: Merriweather BLACK (900)
   headings: {
     fontFamily:
-      `var(--font-alfa), Alfa Slab One, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`,
-    fontWeight: '400' as any,
+      `var(--font-merri), Merriweather, serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`,
+    fontWeight: 900 as any,
     sizes: {
       h1: { fontSize: rem(28), lineHeight: '1.15' },
       h2: { fontSize: rem(24), lineHeight: '1.2' },
@@ -54,12 +73,12 @@ const theme = createTheme({
 
   components: {
     Title: {
-      defaultProps: { fw: 400 },
+      defaultProps: { fw: 900 },
       styles: {
         root: {
           fontFamily:
-            'var(--font-alfa), Alfa Slab One, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif',
-          fontWeight: 400,
+            'var(--font-merri), Merriweather, serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif',
+          fontWeight: 900,
         },
       },
     },
@@ -95,7 +114,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         ) : null}
       </head>
       <body
-        className={`${alfa.variable} ${comfortaa.variable}`}
+        className={`${merri.variable} ${comfortaa.variable}`}
         style={{
           background: 'transparent',
           WebkitFontSmoothing: 'antialiased',
@@ -107,15 +126,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             // eslint-disable-next-line react/no-danger
             dangerouslySetInnerHTML={{
               __html: `
+                /* Força Merriweather Black nos títulos */
                 h1, h2, h3, h4 {
-                  font-family: var(--font-alfa), Alfa Slab One, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif !important;
-                  font-weight: 400 !important;
+                  font-family: var(--font-merri), Merriweather, serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif !important;
+                  font-weight: 900 !important;
                   letter-spacing: -0.01em;
                 }
                 html, body {
                   font-family: var(--font-comfortaa), Comfortaa, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
                 }
-                [class*="mantine-Title-root"] { font-weight: 400 !important; }
+                /* Título do Mantine */
+                [class*="mantine-Title-root"] {
+                  font-family: var(--font-merri), Merriweather, serif !important;
+                  font-weight: 900 !important;
+                }
               `,
             }}
           />
@@ -125,8 +149,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
         </MantineProvider>
 
-        {/* (Opcional) Noscript do Pixel - apenas se quiser um pixel global de fallback
-            Como estamos usando pixel por unidade, normalmente não é necessário. */}
+        {/* (Opcional) Noscript do Pixel */}
         {/* <noscript>
           <img height="1" width="1" style={{ display: 'none' }} alt=""
             src="https://www.facebook.com/tr?id=SEU_PIXEL_GLOBAL&ev=PageView&noscript=1" />

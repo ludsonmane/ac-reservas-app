@@ -5,9 +5,6 @@ import type React from 'react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
 import { DatesProvider, DatePickerInput } from '@mantine/dates';
-import { Merriweather } from 'next/font/google';
-
-
 import {
   Popover,
   TextInput,
@@ -57,56 +54,11 @@ import NextImage from 'next/image';
 import { apiGet, API_BASE } from '@/lib/api';
 
 dayjs.locale('pt-br');
-const merri = Merriweather({ subsets: ['latin'], weight: ['700'], variable: '--font-merri' });
-/* =========================================================
-   Regras de concierge por unidade
-========================================================= */
-// limite para encaminhar ao concierge
+
+// regra de grupos grandes
 const MAX_PEOPLE_WITHOUT_CONCIERGE = 40;
-
-// NÚMEROS (apenas dígitos, formato wa.me)
-const WPP_BRASILIA = '5561982850776';
-const WPP_AGUAS = '5561991264768';
-
-// Mensagem padrão (URL-encoded)
-const WPP_MSG =
-  'Oi%20Concierge!%20Quero%20reservar%20para%20mais%20de%2040%20pessoas.%20Pode%20me%20ajudar%3F';
-
-// helpers de unidade → número/link/label
-function normalizeStr(s?: string | null) {
-  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-}
-function unitKindFrom(unit?: { slug?: string; name?: string }) {
-  const slug = normalizeStr(unit?.slug);
-  const name = normalizeStr(unit?.name);
-  const isAguas =
-    (slug && (slug.includes('aguas') || slug.includes('águas'))) ||
-    (name && (name.includes('aguas') || name.includes('águas')));
-  const isBrasilia =
-    (slug && (slug.includes('brasilia') || slug.includes('arena'))) ||
-    (name && (name.includes('brasilia') || name.includes('arena')));
-  if (isAguas) return 'aguas' as const;
-  if (isBrasilia) return 'brasilia' as const;
-  return 'brasilia' as const; // fallback seguro
-}
-function wppNumberForUnit(unit?: { slug?: string; name?: string }) {
-  const kind = unitKindFrom(unit);
-  return kind === 'aguas' ? WPP_AGUAS : WPP_BRASILIA;
-}
-function wppLinkForUnit(unit?: { slug?: string; name?: string }) {
-  const num = wppNumberForUnit(unit);
-  return `https://wa.me/${num}?text=${WPP_MSG}`;
-}
-function formatBR(numDigits: string) {
-  // 5561991122334  -> (61) 99112-2334
-  const d = numDigits.replace(/\D+/g, '');
-  const local = d.replace(/^55/, '');
-  if (local.length < 10) return `+${d}`;
-  const dd = local.slice(0, 2);
-  const rest = local.slice(2);
-  const nine = rest.length === 9 ? rest.slice(0, 5) + '-' + rest.slice(5) : rest.slice(0, 4) + '-' + rest.slice(4);
-  return `(${dd}) ${nine}`;
-}
+const CONCIERGE_WPP_LINK =
+  'https://wa.me/5561982850776?text=Oi%20Concierge!%20Quero%20reservar%20para%20mais%20de%2040%20pessoas.%20Pode%20me%20ajudar%3F';
 
 /* =========================================================
    Tipos
@@ -167,13 +119,12 @@ type SavedReservationLS = {
 const LS_KEY = 'mane:lastReservation';
 
 /* =========================================================
-   Helpers diversos
+   Helpers
 ========================================================= */
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1528605248644-14dd04022da1?q=80&w=1600&auto=format&fit=crop';
 
 const onlyDigits = (s: string) => s.replace(/\D+/g, '');
-
 function maskCPF(v: string) {
   const d = onlyDigits(v).slice(0, 11);
   const p1 = d.slice(0, 3);
@@ -240,21 +191,70 @@ function isPastSelection(date: Date | null, time: string) {
   return when.isBefore(dayjs());
 }
 
-/* normalizador de URL de foto (usa API_BASE quando vier relativa) */
-function normalizePhotoUrl(url?: string | null): string | undefined {
-  if (!url) return undefined;
-  const s = String(url).trim();
-  if (!s) return undefined;
-  if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:')) return s;
-  const base = API_BASE || '';
-  return `${base}${s.startsWith('/') ? s : `/${s}`}`;
-}
-
 /* onChange NumberInput */
 const numberInputHandler =
   (setter: React.Dispatch<React.SetStateAction<number | ''>>) =>
     (v: string | number) =>
       setter(v === '' ? '' : Number(v));
+
+/* =========================================================
+   Helpers de imagem (normalizar URL da API)
+========================================================= */
+const ASSET_BASE = (API_BASE || '').replace(/\/+$/, '');
+
+function sanitizePhoto(raw?: any): string | undefined {
+  if (raw == null) return undefined;
+  const value =
+    typeof raw === 'object' && 'url' in (raw as any)
+      ? String((raw as any).url ?? '')
+      : String(raw);
+  const r = value.trim();
+  if (!r || r === 'null' || r === 'undefined' || r === '[object Object]') return undefined;
+  return r;
+}
+
+// força https quando a página está em https (evita mixed content)
+function toHttps(u: string) {
+  try {
+    const url = new URL(u);
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.protocol === 'http:') {
+      url.protocol = 'https:';
+      return url.toString();
+    }
+  } catch {
+    // não era absoluta
+  }
+  return u;
+}
+
+function resolvePhotoUrl(raw?: any): string | undefined {
+  let s = sanitizePhoto(raw);
+  if (!s) return undefined;
+
+  // normaliza barras invertidas e espaços
+  s = s.replace(/\\/g, '/').trim();
+
+  // suporta //cdn...
+  if (s.startsWith('//')) return `https:${s}`;
+
+  // absoluta (http/https/data)
+  if (/^https?:\/\//i.test(s) || s.startsWith('data:')) {
+    return toHttps(s);
+  }
+
+  // remove barras extras do começo
+  s = s.replace(/^\/+/, '/');
+
+  // se não tiver base, devolver relativo com /
+  if (!ASSET_BASE) {
+    return s.startsWith('/') ? s : `/${s}`;
+  }
+
+  // evita duplicar base
+  if (s.startsWith(ASSET_BASE)) return toHttps(s);
+
+  return toHttps(`${ASSET_BASE}${s.startsWith('/') ? s : `/${s}`}`);
+}
 
 /* =========================================================
    Loading overlay
@@ -312,10 +312,6 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
         </Text>
       </Card>
       <style jsx global>{`
-      .mantine-Title-root {
-          font-family: var(--font-merri), serif !important;
-          font-weight: 700 !important;
-        }
         @keyframes spin {
           to {
             transform: rotate(360deg);
@@ -336,18 +332,18 @@ function StepSkeleton() {
         <Stack gap="md">
           <Skeleton height={44} radius="md" />
           <Grid gutter="md">
-            <Grid.Col span={{ base: 12, sm: 6 }}>
+            <Grid.Col span={6}>
               <Skeleton height={44} radius="md" />
             </Grid.Col>
-            <Grid.Col span={{ base: 12, sm: 6 }}>
+            <Grid.Col span={6}>
               <Skeleton height={44} radius="md" />
             </Grid.Col>
           </Grid>
           <Grid gutter="md">
-            <Grid.Col span={{ base: 12, sm: 6 }}>
+            <Grid.Col span={6}>
               <Skeleton height={48} radius="md" />
             </Grid.Col>
-            <Grid.Col span={{ base: 12, sm: 6 }}>
+            <Grid.Col span={6}>
               <Skeleton height={48} radius="md" />
             </Grid.Col>
           </Grid>
@@ -391,7 +387,6 @@ function AreaCard({
   remaining?: number;
 }) {
   const [src, setSrc] = useState(foto || FALLBACK_IMG);
-
   useEffect(() => {
     setSrc(foto || FALLBACK_IMG);
   }, [foto]);
@@ -406,41 +401,34 @@ function AreaCard({
         cursor: disabled ? 'not-allowed' : 'pointer',
         overflow: 'hidden',
         borderColor: selected ? 'var(--mantine-color-green-5)' : 'transparent',
-        boxShadow: selected ? '0 8px 20px rgba(16,185,129,.15)' : '0 2px 10px rgba(0,0,0,.06)',
-        transition: 'transform .12s ease, box-shadow .12s ease',
+        boxShadow: selected ? '0 8px 20px rgba(16, 185, 129, .15)' : '0 2px 10px rgba(0,0,0,.06)',
+        transition: 'transform .15s ease',
         background: disabled ? '#F4F4F4' : '#FBF5E9',
         opacity: disabled ? 0.7 : 1,
-        willChange: 'transform',
       }}
       onMouseEnter={(e) => {
         if (!disabled) e.currentTarget.style.transform = 'translateY(-2px)';
       }}
       onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
     >
-      <Box
-        style={{
-          position: 'relative',
-          width: '100%',
-          aspectRatio: '16 / 9',
-          background: '#f2f2f2',
-        }}
-      >
+      <Box style={{ position: 'relative', height: 160, background: '#f2f2f2' }}>
         <NextImage
           src={src}
           alt={titulo}
           fill
-          sizes="(max-width: 600px) 100vw, 580px"
+          sizes="(max-width: 520px) 100vw, 520px"
           style={{ objectFit: 'cover' }}
           onError={() => setSrc(FALLBACK_IMG)}
           priority={false}
           unoptimized
+          referrerPolicy="no-referrer"
+          crossOrigin="anonymous"
         />
         <Box
           style={{
             position: 'absolute',
             inset: 0,
             background: 'linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.45) 100%)',
-            pointerEvents: 'none',
           }}
         />
         {selected && !disabled && (
@@ -516,7 +504,7 @@ function buildGoogleCalendarUrl({
 }
 
 /* =========================================================
-   Linha de convidado
+   Linha de convidado (fix do foco)
 ========================================================= */
 type GuestRow = { clientId: string; name: string; email: string };
 
@@ -545,7 +533,7 @@ const GuestInputRow = memo(function GuestInputRow(props: {
 
   return (
     <Grid gutter="sm" align="center">
-      <Grid.Col span={{ base: 12, sm: 6 }}>
+      <Grid.Col span={6}>
         <TextInput
           label={`Nome ${idx + 1}`}
           placeholder="Nome do convidado"
@@ -554,7 +542,7 @@ const GuestInputRow = memo(function GuestInputRow(props: {
           autoComplete="off"
         />
       </Grid.Col>
-      <Grid.Col span={{ base: 12, sm: 6 }}>
+      <Grid.Col span={6}>
         <TextInput
           label={`E-mail ${idx + 1}`}
           placeholder="email@exemplo.com"
@@ -626,7 +614,7 @@ export default function ReservarMane() {
   const [hora, setHora] = useState<string>('');
   const [timeError, setTimeError] = useState<string | null>(null);
   const [dateError, setDateError] = useState<string | null>(null);
-  const [pastError, setPastError] = useState<string | null>(null);
+  const [pastError, setPastError] = useState<string | null>(null); // 👈 novo
 
   // passo 3
   const [fullName, setFullName] = useState('');
@@ -634,7 +622,7 @@ export default function ReservarMane() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [birthday, setBirthday] = useState<Date | null>(null);
-  const [birthdayError, setBirthdayError] = useState<string | null>(null);
+  const [birthdayError, setBirthdayError] = useState<string | null>(null); // 👈 obrigatório
 
   // envio
   const [sending, setSending] = useState(false);
@@ -642,7 +630,7 @@ export default function ReservarMane() {
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // cálculo total
+  // cálculo total (sem teto 👇)
   const total = useMemo(() => {
     const a = typeof adultos === 'number' ? adultos : 0;
     const c = typeof criancas === 'number' ? criancas : 0;
@@ -734,7 +722,7 @@ export default function ReservarMane() {
   }, [unidade, units]);
 
   /* =========================================================
-     2.1) Carregar metadados das áreas por unidade
+     2.1) Carregar metadados das áreas por unidade (normalizando foto)
   ========================================================= */
   useEffect(() => {
     let alive = true;
@@ -751,11 +739,25 @@ export default function ReservarMane() {
           const description = String(a?.description ?? a?.desc ?? a?.area?.description ?? '').trim();
           const iconEmojiRaw =
             a?.iconEmoji ?? a?.icon_emoji ?? a?.area?.iconEmoji ?? a?.area?.icon_emoji;
+
           metaMap[id] = {
             id,
             name: String(a?.name ?? a?.title ?? ''),
             description,
-            photoUrl: (normalizePhotoUrl(a?.photoUrl ?? a?.photo) ?? null),
+            photoUrl:
+              resolvePhotoUrl(
+                a?.photoUrl ??
+                  a?.photo ??
+                  a?.imageUrl ??
+                  a?.image ??
+                  a?.coverUrl ??
+                  a?.photo_url ??
+                  a?.area?.photoUrl ??
+                  a?.area?.photo ??
+                  a?.area?.imageUrl ??
+                  a?.area?.image ??
+                  a?.area?.coverUrl
+              ) || null,
             iconEmoji:
               typeof iconEmojiRaw === 'string' && iconEmojiRaw.trim()
                 ? iconEmojiRaw.trim()
@@ -775,7 +777,7 @@ export default function ReservarMane() {
   }, [unidade]);
 
   /* =========================================================
-     3) carregar áreas conforme unidade/data/hora
+     3) carregar áreas conforme unidade/data/hora (priorizar foto da disponibilidade)
   ========================================================= */
   const ymd = useMemo(() => (data ? dayjs(data).format('YYYY-MM-DD') : ''), [data]);
 
@@ -823,25 +825,39 @@ export default function ReservarMane() {
         const normalized: AreaOption[] = (list ?? []).map((a: any) => {
           const id = String(a.id ?? a._id);
           const meta = metaMap[id];
-          const rawPhoto = a.photoUrl ?? a.photo ?? meta?.photoUrl ?? '';
-          const photo = normalizePhotoUrl(rawPhoto) || undefined;
-          const desc = String(a.description ?? a.desc ?? a.area?.description ?? meta?.description ?? '').trim();
+
+          // prioriza foto da disponibilidade; se não houver, cai para meta; sempre normaliza
+          const rawPhoto =
+            a?.photoUrl ??
+            a?.photo ??
+            a?.imageUrl ??
+            a?.image ??
+            a?.coverUrl ??
+            a?.photo_url ??
+            meta?.photoUrl ??
+            '';
+
+          const photo = resolvePhotoUrl(rawPhoto);
+
+          const desc = String(
+            a?.description ?? a?.desc ?? a?.area?.description ?? meta?.description ?? ''
+          ).trim();
+
           const icon =
-            (typeof a.iconEmoji === 'string' && a.iconEmoji.trim()) ? a.iconEmoji.trim() :
-              (typeof a.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim() :
-                (meta?.iconEmoji ?? null);
+            (typeof a?.iconEmoji === 'string' && a.iconEmoji.trim()) ? a.iconEmoji.trim()
+              : (typeof a?.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim()
+              : (meta?.iconEmoji ?? null);
 
           return {
             id,
-            name: String(a.name ?? a.title ?? meta?.name ?? ''),
+            name: String(a?.name ?? a?.title ?? meta?.name ?? ''),
             description: desc,
             photoUrl: photo,
-            capacity: typeof a.capacity === 'number' ? a.capacity : undefined,
-            available:
-              typeof a.available === 'number'
-                ? a.available
-                : (typeof a.remaining === 'number' ? a.remaining : undefined),
-            isAvailable: Boolean(a.isAvailable ?? (a.available ?? a.remaining ?? 0) > 0),
+            capacity: typeof a?.capacity === 'number' ? a.capacity : undefined,
+            available: typeof a?.available === 'number'
+              ? a.available
+              : (typeof a?.remaining === 'number' ? a.remaining : undefined),
+            isAvailable: Boolean(a?.isAvailable ?? (a?.available ?? a?.remaining ?? 0) > 0),
             iconEmoji: icon,
           };
         });
@@ -889,18 +905,21 @@ export default function ReservarMane() {
     fullName.trim().length >= 3 &&
     onlyDigits(cpf).length === 11 &&
     contactOk &&
-    !!birthday;
+    !!birthday; // 👈 aniversário obrigatório
 
   // estado do modal Concierge 40+
   const [showConcierge, setShowConcierge] = useState(false);
 
   const handleContinueStep1 = () => {
     setError(null);
+
+    // trava grupo grande só no clique de Continuar
     const qty = typeof total === 'number' ? total : 0;
     if (qty > MAX_PEOPLE_WITHOUT_CONCIERGE) {
       setShowConcierge(true);
       return;
     }
+
     goToStep(1);
   };
 
@@ -1120,7 +1139,7 @@ export default function ReservarMane() {
   }
 
   /* =========================================================
-     Campos do Boarding
+     Construção de campos do Boarding
   ========================================================= */
   const apiBase = API_BASE || '';
   const qrUrl = createdId ? `${apiBase}/v1/reservations/${createdId}/qrcode` : '';
@@ -1143,15 +1162,9 @@ export default function ReservarMane() {
   const boardingCpf = activeReservation?.cpf ?? cpf;
   const boardingEmail = activeReservation?.email ?? email;
 
-  // unidade selecionada (objeto) para decidir concierge
-  const selectedUnit = units.find((u) => u.id === unidade);
-  const conciergeNumber = wppNumberForUnit(selectedUnit);
-  const conciergeLink = wppLinkForUnit(selectedUnit);
-  const conciergeLabel = formatBR(conciergeNumber);
-
   /* =========================================================
-     Compartilhar com a lista
-  ========================================================= */
+     Compartilhar com a lista (estado e UI)
+========================================================= */
   const mkGuestRow = (): GuestRow => ({
     clientId: (globalThis.crypto?.randomUUID?.() ?? String(Math.random())),
     name: '',
@@ -1159,7 +1172,7 @@ export default function ReservarMane() {
   });
 
   const [shareOpen, setShareOpen] = useState(false);
-  const [guestRows, setGuestRows] = useState<GuestRow[]>([mkGuestRow()]);
+  const [guestRows, setGuestRows] = useState<GuestRow[]>([mkGuestRow()]); // começa com 1 convidado
   const [savingGuests, setSavingGuests] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
 
@@ -1290,7 +1303,7 @@ export default function ReservarMane() {
             <Stack gap="xs">
               {guestRows.map((row, idx) => (
                 <GuestInputRow
-                  key={`guest-${idx}`}
+                  key={`guest-${idx}`}   // índice estável suficiente aqui
                   idx={idx}
                   row={row}
                   setGuestRows={setGuestRows}
@@ -1332,22 +1345,14 @@ export default function ReservarMane() {
   ========================================================= */
   return (
     <DatesProvider settings={{ locale: 'pt-br' }}>
-      <Box
-        className={merri.variable}   // << aplica variável da fonte
-        style={{ background: '#ffffff', minHeight: '100dvh', overflowX: 'hidden' }}
-      >
+      <Box style={{ background: '#ffffff', minHeight: '100dvh', overflowX: 'auto' }}>
         <LoadingOverlay visible={sending} />
 
         {/* HEADER */}
         <Container
-          size="xs"
+          size={580}
           px="md"
-          style={{
-            marginTop: 64,
-            marginBottom: 12,
-            width: '100%',
-            maxWidth: 580,
-          }}
+          style={{ marginTop: '64px', marginBottom: 12, width: '100%', minWidth: rem(580) }}
         >
           <Anchor
             component={Link}
@@ -1364,16 +1369,16 @@ export default function ReservarMane() {
             <NextImage
               src="/images/1.png"
               alt="Mané Mercado"
-              width={150}
-              height={40}
-              style={{ height: 40, width: 'auto' }}
+              width={180}
+              height={60}
+              style={{ height: 60, width: 'auto' }}
               priority
             />
             <Title
               order={2}
               ta="center"
               fw={400}
-              style={{ color: '#146C2E' }}
+              style={{ fontFamily: '"Alfa Slab One", system-ui, sans-serif', color: '#146C2E' }}
             >
               Mané Mercado Reservas
             </Title>
@@ -1384,15 +1389,10 @@ export default function ReservarMane() {
               ta="center"
               style={{ fontFamily: '"Comfortaa", system-ui, sans-serif' }}
             >
-              Águas Claras &amp; Arena Brasília
+              Águas Claras &amp; Brasília
             </Text>
 
-            <Card
-              radius="md"
-              p="sm"
-              style={{ width: '100%', maxWidth: 460, background: '#fff', border: 'none' }}
-              shadow="sm"
-            >
+            <Card radius="md" p="sm" style={{ width: '100%', maxWidth: 460, background: '#fff', border: 'none' }} shadow="sm">
               <Stack gap={6} align="stretch">
                 <Box
                   aria-hidden
@@ -1444,7 +1444,8 @@ export default function ReservarMane() {
                     striped
                     animated
                     styles={{
-                      section: { transition: 'width 300ms ease' },
+                      root: { transition: 'width 300ms ease' },
+                      section: { transition: 'width 500ms ease' },
                     }}
                   />
                 </Box>
@@ -1455,7 +1456,7 @@ export default function ReservarMane() {
 
         {/* CONTEÚDO */}
         <Container
-          size="xs"
+          size={580}
           px="md"
           style={{
             minHeight: '100dvh',
@@ -1463,8 +1464,7 @@ export default function ReservarMane() {
             paddingLeft: 'calc(env(safe-area-inset-left) + 16px)',
             paddingRight: 'calc(env(safe-area-inset-right) + 16px)',
             fontFamily: '"Comfortaa", system-ui, sans-serif',
-            width: '100%',
-            maxWidth: 580,
+            minWidth: rem(580),
           }}
         >
           {/* PASSO 1 */}
@@ -1494,7 +1494,7 @@ export default function ReservarMane() {
                   />
 
                   <Grid gutter="md">
-                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Grid.Col span={6}>
                       <NumberInput
                         label="Adultos"
                         min={1}
@@ -1503,7 +1503,7 @@ export default function ReservarMane() {
                         leftSection={<IconUsers size={16} />}
                       />
                     </Grid.Col>
-                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Grid.Col span={6}>
                       <NumberInput
                         label="Crianças"
                         min={0}
@@ -1515,7 +1515,7 @@ export default function ReservarMane() {
                   </Grid>
 
                   <Grid gutter="md">
-                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Grid.Col span={6}>
                       <DatePickerInput
                         locale="pt-br"
                         label="Data"
@@ -1525,6 +1525,8 @@ export default function ReservarMane() {
                           setData(d);
                           const invalid = d ? dayjs(d).isBefore(TODAY_START, 'day') : false;
                           setDateError(invalid ? 'Selecione uma data a partir de hoje' : null);
+
+                          // regra: horário no passado (hoje com horário anterior ao atual)
                           setPastError(() => {
                             if (!d || !hora) return null;
                             return isPastSelection(d, hora)
@@ -1540,23 +1542,17 @@ export default function ReservarMane() {
                         styles={{ input: { height: rem(48) } }}
                         error={dateError}
                         weekendDays={[]}
-                        closeOnChange
-                        popoverProps={{
-                          withinPortal: true,
-                          position: 'bottom-start',
-                          middlewares: { shift: true, flip: true, inline: true },
-                          offset: 8,
-                          zIndex: 310,
-                        }}
                       />
                     </Grid.Col>
 
-                    <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Grid.Col span={6}>
                       <SlotTimePicker
                         value={hora}
                         onChange={(val) => {
                           setHora(val);
                           setTimeError(val && !isValidSlot(val) ? SLOT_ERROR_MSG : null);
+
+                          // regra: horário no passado (hoje com horário anterior ao atual)
                           setPastError(() => {
                             if (!data || !val) return null;
                             return isPastSelection(data, val)
@@ -1626,17 +1622,17 @@ export default function ReservarMane() {
                 );
               })}
 
-              <Group gap="sm" grow>
-                <Button fullWidth variant="light" radius="md" onClick={() => goToStep(0)} type="button">
+              <Group gap="sm">
+                <Button variant="light" radius="md" onClick={() => goToStep(0)} type="button" style={{ flex: 1 }}>
                   Voltar
                 </Button>
                 <Button
-                  fullWidth
                   color="green"
                   radius="md"
                   onClick={() => goToStep(2)}
                   disabled={!canNext2}
                   type="button"
+                  style={{ flex: 2 }}
                 >
                   Continuar
                 </Button>
@@ -1711,13 +1707,6 @@ export default function ReservarMane() {
                     defaultDate={new Date(1990, 0, 1)}
                     maxDate={new Date()}
                     error={birthdayError || undefined}
-                    popoverProps={{
-                      withinPortal: true,
-                      position: 'bottom-start',
-                      middlewares: { shift: true, flip: true, inline: true },
-                      offset: 8,
-                      zIndex: 310,
-                    }}
                   />
                 </Stack>
               </Card>
@@ -1738,18 +1727,18 @@ export default function ReservarMane() {
                 </Text>
               </Card>
 
-              <Group gap="sm" grow>
-                <Button fullWidth variant="light" radius="md" onClick={() => goToStep(1)} type="button">
+              <Group gap="sm">
+                <Button variant="light" radius="md" onClick={() => goToStep(1)} type="button" style={{ flex: 1 }}>
                   Voltar
                 </Button>
                 <Button
-                  fullWidth
                   color="green"
                   radius="md"
                   loading={sending}
                   disabled={!canFinish}
                   onClick={confirmarReserva}
                   type="button"
+                  style={{ flex: 2 }}
                 >
                   Confirmar reserva
                 </Button>
@@ -1822,8 +1811,8 @@ export default function ReservarMane() {
                 </Box>
                 <Group justify="end" gap="sm" px="md" py="sm" style={{ borderTop: '1px solid rgba(0,0,0,.08)', background: '#fff' }}>
                   <Button variant="default" onClick={() => setShowConcierge(false)}>Fechar</Button>
-                  <Button component="a" href={conciergeLink} target="_blank" rel="noreferrer" color="green">
-                    Abrir WhatsApp {conciergeLabel}
+                  <Button component="a" href={CONCIERGE_WPP_LINK} target="_blank" rel="noreferrer" color="green">
+                    Abrir WhatsApp (61 98285-0776)
                   </Button>
                 </Group>
               </Card>
@@ -1838,7 +1827,7 @@ export default function ReservarMane() {
 }
 
 /* =========================================================
-   SlotTimePicker  (grid sem minChildWidth)
+   SlotTimePicker
 ========================================================= */
 function SlotTimePicker({
   value,
@@ -1854,21 +1843,14 @@ function SlotTimePicker({
   error?: string | null;
 }) {
   const [opened, { open, close, toggle }] = useDisclosure(false);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   return (
     <Popover
       opened={opened}
       onChange={(o) => (o ? open() : close())}
-      width={340}
+      width={260}
       position="bottom-start"
       shadow="md"
-      withinPortal
-      keepMounted
-      middlewares={{ shift: true, flip: true, inline: true }}
-      offset={8}
-      zIndex={310}
     >
       <Popover.Target>
         <TextInput
@@ -1881,7 +1863,7 @@ function SlotTimePicker({
           rightSection={<IconChevronDown size={16} />}
           size="md"
           error={error}
-          styles={{ input: { height: 48, cursor: 'pointer', backgroundColor: '#fff' } }}
+          styles={{ input: { height: '48px', cursor: 'pointer', backgroundColor: '#fff' } }}
         />
       </Popover.Target>
 
@@ -1895,8 +1877,8 @@ function SlotTimePicker({
                 close();
               }}
               style={{
-                padding: '10px 12px',
-                borderRadius: 10,
+                padding: '8px 10px',
+                borderRadius: 8,
                 border:
                   value === slot
                     ? '2px solid var(--mantine-color-green-6)'
@@ -1905,8 +1887,6 @@ function SlotTimePicker({
                 fontWeight: 400,
                 fontSize: 14,
                 textAlign: 'center',
-                whiteSpace: 'nowrap',
-                minWidth: 72,
               }}
             >
               {slot}
