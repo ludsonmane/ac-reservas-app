@@ -4,7 +4,7 @@ import '@mantine/dates/styles.css';
 import './globals.css';
 
 import { ColorSchemeScript, MantineProvider, createTheme, rem } from '@mantine/core';
-import { Alfa_Slab_One, Comfortaa } from 'next/font/google';
+import { Merriweather, Comfortaa } from 'next/font/google';
 import React from 'react';
 import Script from 'next/script';
 import MetaPixelBootstrap from './MetaPixelBootstrap';
@@ -14,11 +14,11 @@ export const metadata = {
   description: 'Faça sua reserva no Mané Mercado (Águas Claras / Arena Brasília)',
 };
 
-// Alfa Slab One — apenas 400
-const alfa = Alfa_Slab_One({
-  weight: '400',
+// Merriweather para títulos (Bold)
+const merri = Merriweather({
+  weight: ['700'],
   subsets: ['latin'],
-  variable: '--font-alfa',
+  variable: '--font-merri',
 });
 
 // Comfortaa para textos
@@ -37,11 +37,11 @@ const theme = createTheme({
   fontFamily:
     `var(--font-comfortaa), Comfortaa, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`,
 
-  // Headings: Alfa Slab One (400 SEMPRE)
+  // Headings: Merriweather Bold (700)
   headings: {
     fontFamily:
-      `var(--font-alfa), Alfa Slab One, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`,
-    fontWeight: '400' as any,
+      `var(--font-merri), Merriweather, serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`,
+    fontWeight: 700 as any,
     sizes: {
       h1: { fontSize: rem(28), lineHeight: '1.15' },
       h2: { fontSize: rem(24), lineHeight: '1.2' },
@@ -52,12 +52,12 @@ const theme = createTheme({
 
   components: {
     Title: {
-      defaultProps: { fw: 400 },
+      defaultProps: { fw: 700 },
       styles: {
         root: {
           fontFamily:
-            'var(--font-alfa), Alfa Slab One, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif',
-          fontWeight: 400,
+            'var(--font-merri), Merriweather, serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif',
+          fontWeight: 700,
         },
       },
     },
@@ -93,7 +93,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         ) : null}
       </head>
       <body
-        className={`${alfa.variable} ${comfortaa.variable}`}
+        className={`${merri.variable} ${comfortaa.variable}`}
         style={{
           background: 'transparent',
           WebkitFontSmoothing: 'antialiased',
@@ -106,14 +106,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             dangerouslySetInnerHTML={{
               __html: `
                 h1, h2, h3, h4 {
-                  font-family: var(--font-alfa), Alfa Slab One, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif !important;
-                  font-weight: 400 !important;
+                  font-family: var(--font-merri), Merriweather, serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif !important;
+                  font-weight: 700 !important;
                   letter-spacing: -0.01em;
                 }
                 html, body {
                   font-family: var(--font-comfortaa), Comfortaa, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
                 }
-                [class*="mantine-Title-root"] { font-weight: 400 !important; }
+                [class*="mantine-Title-root"] { font-weight: 700 !important; }
               `,
             }}
           />
