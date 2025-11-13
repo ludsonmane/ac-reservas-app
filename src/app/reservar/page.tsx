@@ -1331,9 +1331,9 @@ export default function ReservarMane() {
             <NextImage
               src="/images/1.png"
               alt="Mané Mercado"
-              width={150}
-              height={40}
-              style={{ height: 40, width: 'auto' }}
+              width={180}
+              height={60}
+              style={{ height: 60, width: 'auto' }}
               priority
             />
             <Title
@@ -1351,7 +1351,7 @@ export default function ReservarMane() {
               ta="center"
               style={{ fontFamily: '"Comfortaa", system-ui, sans-serif' }}
             >
-              Águas Claras &amp; Arena Brasília
+              Águas Claras &amp; Brasília
             </Text>
 
             <Card radius="md" p="sm" style={{ width: '100%', maxWidth: 460, background: '#fff', border: 'none' }} shadow="sm">
