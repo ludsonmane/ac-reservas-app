@@ -203,18 +203,57 @@ const numberInputHandler =
 const ASSET_BASE = (API_BASE || '').replace(/\/+$/, '');
 
 function sanitizePhoto(raw?: any): string | undefined {
-  if (!raw) return undefined;
-  const r = String(raw).trim();
+  if (raw == null) return undefined;
+  const value =
+    typeof raw === 'object' && 'url' in (raw as any)
+      ? String((raw as any).url ?? '')
+      : String(raw);
+  const r = value.trim();
   if (!r || r === 'null' || r === 'undefined' || r === '[object Object]') return undefined;
   return r;
 }
 
+// força https quando a página está em https (evita mixed content)
+function toHttps(u: string) {
+  try {
+    const url = new URL(u);
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.protocol === 'http:') {
+      url.protocol = 'https:';
+      return url.toString();
+    }
+  } catch {
+    // não era absoluta
+  }
+  return u;
+}
+
 function resolvePhotoUrl(raw?: any): string | undefined {
-  const s = sanitizePhoto(raw);
+  let s = sanitizePhoto(raw);
   if (!s) return undefined;
-  if (/^https?:\/\//i.test(s) || s.startsWith('data:')) return s; // já absoluta
-  const path = s.startsWith('/') ? s : `/${s}`;
-  return `${ASSET_BASE}${path}`;
+
+  // normaliza barras invertidas e espaços
+  s = s.replace(/\\/g, '/').trim();
+
+  // suporta //cdn...
+  if (s.startsWith('//')) return `https:${s}`;
+
+  // absoluta (http/https/data)
+  if (/^https?:\/\//i.test(s) || s.startsWith('data:')) {
+    return toHttps(s);
+  }
+
+  // remove barras extras do começo
+  s = s.replace(/^\/+/, '/');
+
+  // se não tiver base, devolver relativo com /
+  if (!ASSET_BASE) {
+    return s.startsWith('/') ? s : `/${s}`;
+  }
+
+  // evita duplicar base
+  if (s.startsWith(ASSET_BASE)) return toHttps(s);
+
+  return toHttps(`${ASSET_BASE}${s.startsWith('/') ? s : `/${s}`}`);
 }
 
 /* =========================================================
@@ -382,6 +421,8 @@ function AreaCard({
           onError={() => setSrc(FALLBACK_IMG)}
           priority={false}
           unoptimized
+          referrerPolicy="no-referrer"
+          crossOrigin="anonymous"
         />
         <Box
           style={{
@@ -807,14 +848,11 @@ export default function ReservarMane() {
               : (typeof a?.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim()
               : (meta?.iconEmoji ?? null);
 
-          // opcional: bust de cache por updatedAt
-          // const photoUrl = photo ? `${photo}?v=${encodeURIComponent(a?.updatedAt ?? a?.updated_at ?? Date.now())}` : undefined;
-
           return {
             id,
             name: String(a?.name ?? a?.title ?? meta?.name ?? ''),
             description: desc,
-            photoUrl: photo, // ✅ agora vem a do upload normalizada
+            photoUrl: photo,
             capacity: typeof a?.capacity === 'number' ? a.capacity : undefined,
             available: typeof a?.available === 'number'
               ? a.available
