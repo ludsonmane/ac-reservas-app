@@ -30,9 +30,29 @@ const comfortaa = Comfortaa({
   display: 'swap',
 });
 
+// Paleta "green" substituída pelo verde institucional (#034c46 como shade 7)
+const maneGreen: string[] = [
+  '#e6f0ef', // 0
+  '#cde2df', // 1
+  '#9cc4bf', // 2
+  '#6aa7a0', // 3
+  '#3a8a81', // 4
+  '#0f6e63', // 5
+  '#04534c', // 6
+  '#034c46', // 7  <- cor principal pedida
+  '#023a36', // 8
+  '#012b29', // 9
+];
+
 const theme = createTheme({
   primaryColor: 'green',
+  primaryShade: { light: 7, dark: 5 },
   defaultRadius: 'md',
+
+  colors: {
+    // sobrescreve a paleta "green" do Mantine
+    green: maneGreen as any,
+  },
 
   // Body: Comfortaa
   fontFamily:
@@ -115,21 +135,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 html, body {
                   font-family: var(--font-comfortaa), Comfortaa, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
                 }
-                /* Alvo direto do componente Mantine Title */
+                /* Título do Mantine */
                 [class*="mantine-Title-root"] {
                   font-family: var(--font-merri), Merriweather, serif !important;
                   font-weight: 900 !important;
                 }
               `,
             }}
-          /> 
+          />
           {/* Bootstrap do Meta Pixel (apenas carrega fbq; a INIT por unidade é feita via analytics.ts) */}
           <MetaPixelBootstrap />
 
           {children}
         </MantineProvider>
 
-        {/* (Opcional) Noscript do Pixel - apenas se quiser um pixel global de fallback */}
+        {/* (Opcional) Noscript do Pixel */}
         {/* <noscript>
           <img height="1" width="1" style={{ display: 'none' }} alt=""
             src="https://www.facebook.com/tr?id=SEU_PIXEL_GLOBAL&ev=PageView&noscript=1" />
