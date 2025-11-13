@@ -122,7 +122,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 }
               `,
             }}
-          />
+          /> 
           {/* Bootstrap do Meta Pixel (apenas carrega fbq; a INIT por unidade é feita via analytics.ts) */}
           <MetaPixelBootstrap />
 
