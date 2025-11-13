@@ -106,9 +106,7 @@ function fmtCountdown(ms: number) {
   const mm = String(minutes).padStart(2, '0');
   const ss = String(seconds).padStart(2, '0');
 
-  // 01h 23m 45s
   const base = `${hh}h ${mm}m ${ss}s`;
-
   return days > 0 ? `${days}d ${base}` : base;
 }
 
@@ -183,10 +181,7 @@ export default function BoardingPass({
           }}
         >
           <IconClock size={16} stroke={1.6} />
-          <Text
-            fw={600}
-            style={{ fontVariantNumeric: 'tabular-nums' }}
-          >
+          <Text fw={600} style={{ fontVariantNumeric: 'tabular-nums' }}>
             {topBarLabel}
           </Text>
 
@@ -231,13 +226,7 @@ export default function BoardingPass({
               {/* Localizador */}
               <Group gap={8} mt={4}>
                 <Text c="dimmed">Localizador:</Text>
-                <Badge
-                  color="green"
-                  size="lg"
-                  radius="sm"
-                  variant="filled"
-                  style={{ letterSpacing: 2 }}
-                >
+                <Badge color="green" size="lg" radius="sm" variant="filled" style={{ letterSpacing: 2 }}>
                   {code}
                 </Badge>
               </Group>
@@ -335,12 +324,12 @@ export default function BoardingPass({
               </Box>
             </Box>
 
-            {/* ====== FAIXA DE COUNTDOWN (dentro do boarding) ====== */}
+            {/* ====== FAIXA DE COUNTDOWN (APENAS 2 COLUNAS) ====== */}
             {reservationAt && (
               <Box
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr',
+                  gridTemplateColumns: '1fr 1fr',
                   gap: 8,
                   border: '1px dashed var(--mantine-color-gray-4)',
                   borderRadius: 10,
@@ -349,42 +338,15 @@ export default function BoardingPass({
                   background: '#FCFEFF',
                 }}
               >
-                {/* Até a reserva */}
-                <Box style={{ textAlign: 'center' }}>
-                  <Text size="xs" c="dimmed">
-                    Para a reserva
-                  </Text>
-                  <Text
-                    fw={800}
-                    style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 0.5 }}
-                  >
-                    {fmtCountdown(msToReservation)}
-                  </Text>
-                  <Badge
-                    size="xs"
-                    color={msToReservation > 0 ? 'blue' : 'gray'}
-                    variant="light"
-                  >
-                    {statusLabel(msToReservation, 'faltam', 'reservada')}
-                  </Badge>
-                </Box>
-
                 {/* Tolerância +15 */}
                 <Box style={{ textAlign: 'center' }}>
                   <Text size="xs" c="dimmed">
                     Tolerância (+15 min)
                   </Text>
-                  <Text
-                    fw={800}
-                    style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 0.5 }}
-                  >
+                  <Text fw={800} style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 0.5 }}>
                     {fmtCountdown(msToTolerance15)}
                   </Text>
-                  <Badge
-                    size="xs"
-                    color={msToTolerance15 > 0 ? 'green' : 'red'}
-                    variant="light"
-                  >
+                  <Badge size="xs" color={msToTolerance15 > 0 ? 'green' : 'red'} variant="light">
                     {statusLabel(msToTolerance15, 'válida', 'encerrada')}
                   </Badge>
                 </Box>
@@ -394,17 +356,10 @@ export default function BoardingPass({
                   <Text size="xs" c="dimmed">
                     Convidados (+45 min)
                   </Text>
-                  <Text
-                    fw={800}
-                    style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 0.5 }}
-                  >
+                  <Text fw={800} style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 0.5 }}>
                     {fmtCountdown(msToGuests45)}
                   </Text>
-                  <Badge
-                    size="xs"
-                    color={msToGuests45 > 0 ? 'teal' : 'gray'}
-                    variant="light"
-                  >
+                  <Badge size="xs" color={msToGuests45 > 0 ? 'teal' : 'gray'} variant="light">
                     {statusLabel(msToGuests45, 'aberto', 'fechado')}
                   </Badge>
                 </Box>
@@ -466,13 +421,7 @@ export default function BoardingPass({
                   {unitAcr}
                 </Title>
 
-                <Group
-                  gap={6}
-                  mt={2}
-                  align="center"
-                  wrap="nowrap"
-                  style={{ minWidth: 0, maxWidth: '100%' }}
-                >
+                <Group gap={6} mt={2} align="center" wrap="nowrap" style={{ minWidth: 0, maxWidth: '100%' }}>
                   <IconBuildingStore size={14} />
                   <Text
                     size="xs"
@@ -536,10 +485,7 @@ export default function BoardingPass({
                     Pessoas
                   </Text>
                 </Group>
-                <Text
-                  fw={700}
-                  style={{ color: '#111', marginTop: 2, lineHeight: 1 }}
-                >
+                <Text fw={700} style={{ color: '#111', marginTop: 2, lineHeight: 1 }}>
                   {people}
                 </Text>
               </Box>
@@ -552,10 +498,7 @@ export default function BoardingPass({
                   </Text>
                 </Group>
 
-                <Text
-                  fw={700}
-                  style={{ color: '#111', marginTop: 2, lineHeight: 1 }}
-                >
+                <Text fw={700} style={{ color: '#111', marginTop: 2, lineHeight: 1 }}>
                   {kids}
                 </Text>
               </Box>
@@ -563,14 +506,8 @@ export default function BoardingPass({
 
             {/* Faixa de furinhos */}
             <Box style={{ position: 'relative', marginTop: rem(6), marginBottom: rem(10) }}>
-              <Box
-                aria-hidden
-                style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 16, background: '#fff', zIndex: 2 }}
-              />
-              <Box
-                aria-hidden
-                style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 16, background: '#fff', zIndex: 2 }}
-              />
+              <Box aria-hidden style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 16, background: '#fff', zIndex: 2 }} />
+              <Box aria-hidden style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 16, background: '#fff', zIndex: 2 }} />
               <Box
                 aria-hidden
                 style={{
@@ -609,13 +546,7 @@ export default function BoardingPass({
 
           {/* rodapé curto somente quando header está visível */}
           {!hideHeader && (
-            <Text
-              size="xs"
-              c="dimmed"
-              ta="center"
-              mt="sm"
-              style={{ maxWidth: rem(460) }}
-            >
+            <Text size="xs" c="dimmed" ta="center" mt="sm" style={{ maxWidth: rem(460) }}>
               Guarde o localizador <b>{code}</b>. Você pode usá-lo para buscar sua reserva rapidamente.
             </Text>
           )}
