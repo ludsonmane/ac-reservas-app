@@ -4,10 +4,11 @@ import '@mantine/dates/styles.css';
 import './globals.css';
 
 import { ColorSchemeScript, MantineProvider, createTheme, rem } from '@mantine/core';
-import { Alfa_Slab_One, Comfortaa } from 'next/font/google';
+import { Comfortaa } from 'next/font/google';
 import React from 'react';
 import Script from 'next/script';
 import MetaPixelBootstrap from './MetaPixelBootstrap';
+import { Merriweather } from 'next/font/google';
 
 export const metadata = {
   title: 'Mané Mercado • Reservas',
@@ -15,10 +16,11 @@ export const metadata = {
 };
 
 // Alfa Slab One — apenas 400
-const alfa = Alfa_Slab_One({
-  weight: '400',
+
+const merri = Merriweather({
+  weight: ['700'],        // Bold
   subsets: ['latin'],
-  variable: '--font-alfa',
+  variable: '--font-merri',
 });
 
 // Comfortaa para textos
