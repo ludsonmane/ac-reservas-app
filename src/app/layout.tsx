@@ -14,11 +14,12 @@ export const metadata = {
   description: 'Faça sua reserva no Mané Mercado (Águas Claras / Arena Brasília)',
 };
 
-// Merriweather para títulos (Bold)
+// Merriweather para títulos — BLACK (900)
 const merri = Merriweather({
-  weight: ['700'],
+  weight: ['900'],
   subsets: ['latin'],
   variable: '--font-merri',
+  display: 'swap',
 });
 
 // Comfortaa para textos
@@ -37,11 +38,11 @@ const theme = createTheme({
   fontFamily:
     `var(--font-comfortaa), Comfortaa, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`,
 
-  // Headings: Merriweather Bold (700)
+  // Headings: Merriweather BLACK (900)
   headings: {
     fontFamily:
       `var(--font-merri), Merriweather, serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`,
-    fontWeight: 700 as any,
+    fontWeight: 900 as any,
     sizes: {
       h1: { fontSize: rem(28), lineHeight: '1.15' },
       h2: { fontSize: rem(24), lineHeight: '1.2' },
@@ -52,12 +53,12 @@ const theme = createTheme({
 
   components: {
     Title: {
-      defaultProps: { fw: 700 },
+      defaultProps: { fw: 900 },
       styles: {
         root: {
           fontFamily:
             'var(--font-merri), Merriweather, serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif',
-          fontWeight: 700,
+          fontWeight: 900,
         },
       },
     },
@@ -105,15 +106,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             // eslint-disable-next-line react/no-danger
             dangerouslySetInnerHTML={{
               __html: `
+                /* Força Merriweather Black nos títulos */
                 h1, h2, h3, h4 {
                   font-family: var(--font-merri), Merriweather, serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif !important;
-                  font-weight: 700 !important;
+                  font-weight: 900 !important;
                   letter-spacing: -0.01em;
                 }
                 html, body {
                   font-family: var(--font-comfortaa), Comfortaa, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
                 }
-                [class*="mantine-Title-root"] { font-weight: 700 !important; }
+                /* Alvo direto do componente Mantine Title */
+                [class*="mantine-Title-root"] {
+                  font-family: var(--font-merri), Merriweather, serif !important;
+                  font-weight: 900 !important;
+                }
               `,
             }}
           />
@@ -123,8 +129,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
         </MantineProvider>
 
-        {/* (Opcional) Noscript do Pixel - apenas se quiser um pixel global de fallback
-            Como estamos usando pixel por unidade, normalmente não é necessário. */}
+        {/* (Opcional) Noscript do Pixel - apenas se quiser um pixel global de fallback */}
         {/* <noscript>
           <img height="1" width="1" style={{ display: 'none' }} alt=""
             src="https://www.facebook.com/tr?id=SEU_PIXEL_GLOBAL&ev=PageView&noscript=1" />
