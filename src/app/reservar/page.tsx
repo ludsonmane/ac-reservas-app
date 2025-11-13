@@ -55,10 +55,55 @@ import { apiGet, API_BASE } from '@/lib/api';
 
 dayjs.locale('pt-br');
 
-// regra de grupos grandes
+/* =========================================================
+   Regras de concierge por unidade
+========================================================= */
+// limite para encaminhar ao concierge
 const MAX_PEOPLE_WITHOUT_CONCIERGE = 40;
-const CONCIERGE_WPP_LINK =
-  'https://wa.me/5561982850776?text=Oi%20Concierge!%20Quero%20reservar%20para%20mais%20de%2040%20pessoas.%20Pode%20me%20ajudar%3F';
+
+// NÚMEROS (apenas dígitos, formato wa.me)
+const WPP_BRASILIA = '5561982850776';
+const WPP_AGUAS = '5561991264768';
+
+// Mensagem padrão (URL-encoded)
+const WPP_MSG =
+  'Oi%20Concierge!%20Quero%20reservar%20para%20mais%20de%2040%20pessoas.%20Pode%20me%20ajudar%3F';
+
+// helpers de unidade → número/link/label
+function normalizeStr(s?: string | null) {
+  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+function unitKindFrom(unit?: { slug?: string; name?: string }) {
+  const slug = normalizeStr(unit?.slug);
+  const name = normalizeStr(unit?.name);
+  const isAguas =
+    (slug && (slug.includes('aguas') || slug.includes('águas'))) ||
+    (name && (name.includes('aguas') || name.includes('águas')));
+  const isBrasilia =
+    (slug && (slug.includes('brasilia') || slug.includes('arena'))) ||
+    (name && (name.includes('brasilia') || name.includes('arena')));
+  if (isAguas) return 'aguas' as const;
+  if (isBrasilia) return 'brasilia' as const;
+  return 'brasilia' as const; // fallback seguro
+}
+function wppNumberForUnit(unit?: { slug?: string; name?: string }) {
+  const kind = unitKindFrom(unit);
+  return kind === 'aguas' ? WPP_AGUAS : WPP_BRASILIA;
+}
+function wppLinkForUnit(unit?: { slug?: string; name?: string }) {
+  const num = wppNumberForUnit(unit);
+  return `https://wa.me/${num}?text=${WPP_MSG}`;
+}
+function formatBR(numDigits: string) {
+  // 5561991122334  -> (61) 99112-2334
+  const d = numDigits.replace(/\D+/g, '');
+  const local = d.replace(/^55/, '');
+  if (local.length < 10) return `+${d}`;
+  const dd = local.slice(0, 2);
+  const rest = local.slice(2);
+  const nine = rest.length === 9 ? rest.slice(0, 5) + '-' + rest.slice(5) : rest.slice(0, 4) + '-' + rest.slice(4);
+  return `(${dd}) ${nine}`;
+}
 
 /* =========================================================
    Tipos
@@ -119,7 +164,7 @@ type SavedReservationLS = {
 const LS_KEY = 'mane:lastReservation';
 
 /* =========================================================
-   Helpers
+   Helpers diversos
 ========================================================= */
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1528605248644-14dd04022da1?q=80&w=1600&auto=format&fit=crop';
@@ -464,7 +509,7 @@ function buildGoogleCalendarUrl({
 }
 
 /* =========================================================
-   Linha de convidado (fix do foco)
+   Linha de convidado
 ========================================================= */
 type GuestRow = { clientId: string; name: string; email: string };
 
@@ -996,7 +1041,7 @@ export default function ReservarMane() {
         unit: unitLabel,
         area: areaLabel,
         status: resOk.status || 'AWAITING_CHECKIN',
-               source: 'site',
+        source: 'site',
       });
 
       let reservationLoaded: ReservationDto | null = null;
@@ -1068,7 +1113,7 @@ export default function ReservarMane() {
   }
 
   /* =========================================================
-     Construção de campos do Boarding
+     Campos do Boarding
   ========================================================= */
   const apiBase = API_BASE || '';
   const qrUrl = createdId ? `${apiBase}/v1/reservations/${createdId}/qrcode` : '';
@@ -1091,8 +1136,14 @@ export default function ReservarMane() {
   const boardingCpf = activeReservation?.cpf ?? cpf;
   const boardingEmail = activeReservation?.email ?? email;
 
+  // unidade selecionada (objeto) para decidir concierge
+  const selectedUnit = units.find((u) => u.id === unidade);
+  const conciergeNumber = wppNumberForUnit(selectedUnit);
+  const conciergeLink = wppLinkForUnit(selectedUnit);
+  const conciergeLabel = formatBR(conciergeNumber);
+
   /* =========================================================
-     Compartilhar com a lista (estado e UI)
+     Compartilhar com a lista
   ========================================================= */
   const mkGuestRow = (): GuestRow => ({
     clientId: (globalThis.crypto?.randomUUID?.() ?? String(Math.random())),
@@ -1762,13 +1813,13 @@ export default function ReservarMane() {
                     Para reservas acima de <b>{MAX_PEOPLE_WITHOUT_CONCIERGE}</b> pessoas, é necessário falar com nosso concierge pelo WhatsApp.
                   </Text>
                   <Text size="sm" c="dimmed" mt={6}>
-                    Assim garantimos a melhor organização do espaço e atendimento do seu grupo. 🙂 
+                    Assim garantimos a melhor organização do espaço e atendimento do seu grupo. 🙂
                   </Text>
                 </Box>
                 <Group justify="end" gap="sm" px="md" py="sm" style={{ borderTop: '1px solid rgba(0,0,0,.08)', background: '#fff' }}>
                   <Button variant="default" onClick={() => setShowConcierge(false)}>Fechar</Button>
-                  <Button component="a" href={CONCIERGE_WPP_LINK} target="_blank" rel="noreferrer" color="green">
-                    Abrir WhatsApp (61 98285-0776)
+                  <Button component="a" href={conciergeLink} target="_blank" rel="noreferrer" color="green">
+                    Abrir WhatsApp {conciergeLabel}
                   </Button>
                 </Group>
               </Card>
@@ -1783,7 +1834,7 @@ export default function ReservarMane() {
 }
 
 /* =========================================================
-   SlotTimePicker  (FIX sem minChildWidth)
+   SlotTimePicker  (grid sem minChildWidth)
 ========================================================= */
 function SlotTimePicker({
   value,
@@ -1806,7 +1857,7 @@ function SlotTimePicker({
     <Popover
       opened={opened}
       onChange={(o) => (o ? open() : close())}
-      width={340} // largura confortável para os chips
+      width={340}
       position="bottom-start"
       shadow="md"
       withinPortal
