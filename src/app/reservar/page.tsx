@@ -1697,7 +1697,7 @@ export default function ReservarMane() {
                   </Grid>
 
                   <DatePickerInput
-                    label="Nascimento *"
+                    label="Nascimento"
                     placeholder="Selecionar"
                     value={birthday}
                     onChange={(value) => {
