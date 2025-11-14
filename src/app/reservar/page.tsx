@@ -37,7 +37,7 @@ import {
   setActiveUnitPixelFromUnit,
   trackReservationMade,
 } from '@/lib/analytics';
-import { useEffect, useMemo, useRef, useState, memo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   IconCalendar,
   IconClockHour4,
@@ -411,7 +411,7 @@ function AreaCard({
       }}
       onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
     >
-      <Box style={{ position: 'relative', height: 160, background: '#f2f2f2' }}>
+      <Box style={{ position: 'relative', height: 'clamp(120px, 32vw, 160px)', background: '#f2f2f2' }}>
         <NextImage
           src={src}
           alt={titulo}
@@ -432,24 +432,60 @@ function AreaCard({
           }}
         />
         {selected && !disabled && (
-          <Badge color="green" variant="filled" style={{ position: 'absolute', top: 10, right: 10 }}>
+          <Badge
+            color="green"
+            variant="filled"
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: 10,
+              fontWeight: 700,
+              boxShadow: '0 6px 18px rgba(0,0,0,.25)',
+            }}
+          >
             Selecionada
           </Badge>
         )}
         {disabled && (
-          <Badge color="red" variant="filled" style={{ position: 'absolute', top: 10, right: 10 }}>
-            Esgotado
+          <Badge
+            color="red"
+            variant="filled"
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: 10,
+              fontWeight: 800,
+              boxShadow: '0 6px 18px rgba(0,0,0,.25)',
+            }}
+          >
+            ESGOTADO
           </Badge>
         )}
         {typeof remaining === 'number' && (
-          <Badge color="green" variant="light" style={{ position: 'absolute', bottom: 10, right: 10 }}>
-            Vagas: {remaining}
-          </Badge>
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 10,
+              right: 10,
+              background: 'rgba(255,255,255,0.96)',
+              color: '#0f5132',
+              fontWeight: 800,
+              fontSize: 'clamp(12px, 3.5vw, 14px)',
+              padding: '6px 10px',
+              borderRadius: 12,
+              border: '2px solid #0f5132',
+              boxShadow: '0 6px 18px rgba(0,0,0,.25)',
+              letterSpacing: '.2px',
+              textTransform: 'uppercase',
+            }}
+          >
+            VAGAS: {remaining}
+          </div>
         )}
       </Box>
 
       <Box p="md">
-        <Title order={4} style={{ margin: 0 }}>
+        <Title order={4} style={{ margin: 0, fontSize: 'clamp(16px, 5vw, 20px)' }}>
           {titulo}
         </Title>
 
@@ -469,6 +505,127 @@ function AreaCard({
   );
 }
 
+/* =========================================================
+   WhatsApp + Poster (canvas)
+========================================================= */
+function buildWhatsappLink(text: string) {
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+}
+
+async function loadImage(src: string, cross: boolean = false) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const im = new Image();
+    if (cross) im.crossOrigin = 'anonymous';
+    im.onload = () => resolve(im);
+    im.onerror = reject;
+    im.src = src;
+  });
+}
+
+function firstAndLastName(full: string) {
+  const parts = (full || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1]}`;
+}
+
+// Gera um poster 1080x1350 (4:5) com logo, nome e dados da reserva.
+// Retorna { blob, fileName, url }
+async function generatePoster({
+  fullName,
+  unitLabel,
+  areaName,      // mantido na assinatura (não usado na arte)
+  dateStr,
+  timeStr,
+  people,
+  kids,
+  qrUrl,
+  logoUrl = '/images/1.png',
+}: {
+  fullName: string;
+  unitLabel: string;
+  areaName: string;
+  dateStr: string;
+  timeStr: string;
+  people: number;
+  kids: number;
+  qrUrl?: string;
+  logoUrl?: string;
+}) {
+  const W = 1080, H = 1350;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d')!;
+
+  // fundo
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#e7ffe7');
+  grad.addColorStop(1, '#e9f7ef');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // moldura
+  ctx.strokeStyle = '#146C2E';
+  ctx.lineWidth = 16;
+  ctx.strokeRect(24, 24, W - 48, H - 48);
+
+  // logo
+  try {
+    const logo = await loadImage(logoUrl);
+    const lw = 420, lh = 140;
+    ctx.drawImage(logo, (W - lw) / 2, 80, lw, lh);
+  } catch { }
+
+  // título
+  ctx.fillStyle = '#146C2E';
+  ctx.font = '700 56px system-ui, Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('RESERVA CONFIRMADA', W / 2, 300);
+
+  // Nome (apenas primeiro + último)
+  const displayName = firstAndLastName(fullName || '');
+  ctx.font = '800 64px system-ui, Arial';
+  ctx.fillText(displayName.toUpperCase(), W / 2, 380);
+
+  // dados
+  ctx.textAlign = 'left';
+  ctx.font = '600 44px system-ui, Arial';
+  const left = 120, top = 470, lh2 = 70;
+  const lines = [
+    `Unidade: ${unitLabel}`,
+    `Data: ${dateStr}`,
+    `Horário: ${timeStr}`,
+    `Pessoas: ${people}${kids ? `  •  Crianças: ${kids}` : ''}`,
+  ];
+  ctx.fillStyle = '#0f5132';
+  lines.forEach((t, i) => ctx.fillText(t, left, top + i * lh2));
+
+  // QR opcional
+  if (qrUrl) {
+    try {
+      const qr = await loadImage(qrUrl, true);
+      const s = 360;
+      ctx.drawImage(qr, W - s - 120, top - 40, s, s);
+      ctx.font = '500 28px system-ui, Arial';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#0f5132';
+      ctx.fillText('Apresente este QR no check-in', W - s / 2 - 120, top + s + 20);
+    } catch { }
+  }
+
+  // rodapé
+  ctx.textAlign = 'center';
+  ctx.font = '500 30px system-ui, Arial';
+  ctx.fillStyle = '#166534';
+  ctx.fillText('Mané Mercado • mane.com.vc', W / 2, H - 60);
+
+  const blob: Blob = await new Promise((r) =>
+    canvas.toBlob((b) => r(b!), 'image/jpeg', 0.92)!
+  );
+  const fileName = `reserva-mane-${Date.now()}.jpg`;
+  const url = URL.createObjectURL(blob);
+  return { blob, fileName, url };
+}
 /* =========================================================
    Helpers novos (Calendar/Email)
 ========================================================= */
@@ -502,59 +659,6 @@ function buildGoogleCalendarUrl({
   if (guestEmails.length) params.set('add', guestEmails.join(','));
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
-
-/* =========================================================
-   Linha de convidado (fix do foco)
-========================================================= */
-type GuestRow = { clientId: string; name: string; email: string };
-
-const GuestInputRow = memo(function GuestInputRow(props: {
-  idx: number;
-  row: GuestRow;
-  setGuestRows: React.Dispatch<React.SetStateAction<GuestRow[]>>;
-}) {
-  const { idx, row, setGuestRows } = props;
-
-  const updateName = (value: string) => {
-    setGuestRows((prev) => {
-      const next = [...prev];
-      next[idx] = { ...next[idx], name: value };
-      return next;
-    });
-  };
-
-  const updateEmail = (value: string) => {
-    setGuestRows((prev) => {
-      const next = [...prev];
-      next[idx] = { ...next[idx], email: value };
-      return next;
-    });
-  };
-
-  return (
-    <Grid gutter="sm" align="center">
-      <Grid.Col span={6}>
-        <TextInput
-          label={`Nome ${idx + 1}`}
-          placeholder="Nome do convidado"
-          value={row.name}
-          onChange={(e) => updateName(e.currentTarget.value)}
-          autoComplete="off"
-        />
-      </Grid.Col>
-      <Grid.Col span={6}>
-        <TextInput
-          label={`E-mail ${idx + 1}`}
-          placeholder="email@exemplo.com"
-          value={row.email}
-          onChange={(e) => updateEmail(e.currentTarget.value)}
-          error={row.email && !isEmail(row.email) ? 'E-mail inválido' : undefined}
-          autoComplete="off"
-        />
-      </Grid.Col>
-    </Grid>
-  );
-});
 
 /* =========================================================
    Página
@@ -629,6 +733,12 @@ export default function ReservarMane() {
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // compartilhamento
+  const [shareBusy, setShareBusy] = useState(false);
+  const [posterUrl, setPosterUrl] = useState<string | null>(null);
+  const [posterBlob, setPosterBlob] = useState<Blob | null>(null);
+  const [posterName, setPosterName] = useState<string | null>(null);
 
   // cálculo total (sem teto 👇)
   const total = useMemo(() => {
@@ -746,17 +856,19 @@ export default function ReservarMane() {
             description,
             photoUrl:
               resolvePhotoUrl(
+                a?.photoUrlAbsolute ??
+                a?.photoPath ??
                 a?.photoUrl ??
-                  a?.photo ??
-                  a?.imageUrl ??
-                  a?.image ??
-                  a?.coverUrl ??
-                  a?.photo_url ??
-                  a?.area?.photoUrl ??
-                  a?.area?.photo ??
-                  a?.area?.imageUrl ??
-                  a?.area?.image ??
-                  a?.area?.coverUrl
+                a?.photo ??
+                a?.imageUrl ??
+                a?.image ??
+                a?.coverUrl ??
+                a?.photo_url ??
+                a?.area?.photoUrl ??
+                a?.area?.photo ??
+                a?.area?.imageUrl ??
+                a?.area?.image ??
+                a?.area?.coverUrl
               ) || null,
             iconEmoji:
               typeof iconEmojiRaw === 'string' && iconEmojiRaw.trim()
@@ -828,6 +940,8 @@ export default function ReservarMane() {
 
           // prioriza foto da disponibilidade; se não houver, cai para meta; sempre normaliza
           const rawPhoto =
+            a?.photoUrlAbsolute ??
+            a?.photoPath ??
             a?.photoUrl ??
             a?.photo ??
             a?.imageUrl ??
@@ -846,7 +960,7 @@ export default function ReservarMane() {
           const icon =
             (typeof a?.iconEmoji === 'string' && a.iconEmoji.trim()) ? a.iconEmoji.trim()
               : (typeof a?.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim()
-              : (meta?.iconEmoji ?? null);
+                : (meta?.iconEmoji ?? null);
 
           return {
             id,
@@ -1163,181 +1277,76 @@ export default function ReservarMane() {
   const boardingEmail = activeReservation?.email ?? email;
 
   /* =========================================================
-     Compartilhar com a lista (estado e UI)
-========================================================= */
-  const mkGuestRow = (): GuestRow => ({
-    clientId: (globalThis.crypto?.randomUUID?.() ?? String(Math.random())),
-    name: '',
-    email: '',
-  });
+     Compartilhar (WhatsApp simples com arte)
+  ========================================================= */
+  const [shareBusyInternal, setShareBusyInternal] = useState(false);
 
-  const [shareOpen, setShareOpen] = useState(false);
-  const [guestRows, setGuestRows] = useState<GuestRow[]>([mkGuestRow()]); // começa com 1 convidado
-  const [savingGuests, setSavingGuests] = useState(false);
-  const [shareError, setShareError] = useState<string | null>(null);
-
-  async function handleShareSubmit() {
-    setShareError(null);
-
-    const clearList = guestRows
-      .map((g) => ({ name: g.name.trim(), email: g.email.trim().toLowerCase() }))
-      .filter((g) => g.name || g.email);
-
-    if (clearList.length === 0) {
-      setShareError('Preencha ao menos um convidado.');
-      return;
-    }
-    for (const g of clearList) {
-      if (!g.name) {
-        setShareError('Há convidado sem nome.');
-        return;
-      }
-      if (!isEmail(g.email)) {
-        setShareError(`E-mail inválido encontrado: ${g.email}`);
-        return;
-      }
-    }
-    if (!createdId) {
-      setShareError('ID da reserva não encontrado.');
-      return;
-    }
-
-    setSavingGuests(true);
+  async function ensurePoster() {
+    if (posterUrl && posterBlob) return { url: posterUrl, blob: posterBlob, name: posterName! };
+    setShareBusy(true);
+    setShareBusyInternal(true);
     try {
-      const api = API_BASE || '';
-      const GUESTS_ENDPOINT = `${api}/v1/reservations/${createdId}/guests`;
-      const payload = {
-        guests: clearList.map((g) => ({
-          name: g.name,
-          email: g.email,
-          role: 'GUEST' as const,
-        })),
-      };
-
-      const resp = await fetch(GUESTS_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        credentials: 'include',
+      const poster = await generatePoster({
+        fullName: boardingFullName || 'Cliente',
+        unitLabel: boardingUnitLabel || '',
+        areaName: boardingAreaName || '',
+        dateStr: boardingDateStr || '',
+        timeStr: boardingTimeStr || '',
+        people: boardingPeople || 0,
+        kids: boardingKids || 0,
+        qrUrl: qrUrl || undefined,
+        logoUrl: '/images/1.png',
       });
-      if (!resp.ok) {
-        const j = await resp.json().catch(() => ({}));
-        throw new Error(j?.message || 'Falha ao salvar convidados.');
-      }
-
-      const who = (activeReservation?.fullName || fullName || '').trim() || 'Cliente';
-      const title = `RESERVA DO ${who.toUpperCase()} NO MANÉ MERCADO`;
-
-      const startISO =
-        activeReservation?.reservationDate ||
-        joinDateTimeISO(data, hora) ||
-        dayjs().add(15, 'minute').toDate().toISOString();
-      const endISO = dayjs(startISO).add(2, 'hour').toDate().toISOString();
-
-      const details = [
-        `Código: ${createdCode || activeReservation?.reservationCode || '-'}`,
-        `Unidade: ${boardingUnitLabel}`,
-        `Área: ${boardingAreaName}`,
-        `Data/Hora: ${boardingDateStr} ${boardingTimeStr}`,
-        `Pessoas: ${boardingPeople} (Crianças: ${boardingKids})`,
-        '',
-        'Gerado pelo sistema de reservas do Mané Mercado.',
-      ].join('\n');
-
-      const calendarUrl = buildGoogleCalendarUrl({
-        title,
-        startISO,
-        endISO,
-        guestEmails: clearList.map((g) => g.email),
-        details,
-        timezone: 'America/Sao_Paulo',
-      });
-
-      if (typeof window !== 'undefined') {
-        window.open(calendarUrl, '_blank', 'noopener,noreferrer');
-      }
-
-      setShareOpen(false);
-      setShareError(null);
-    } catch (e: any) {
-      setShareError(e?.message || 'Erro ao compartilhar convidados.');
+      setPosterUrl(poster.url);
+      setPosterBlob(poster.blob);
+      setPosterName(poster.fileName);
+      return { url: poster.url, blob: poster.blob, name: poster.fileName };
     } finally {
-      setSavingGuests(false);
+      setShareBusy(false);
+      setShareBusyInternal(false);
     }
   }
 
-  function ShareListModal() {
-    if (!shareOpen) return null;
-    return (
-      <Box
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,.45)',
-          zIndex: 90,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 16,
-        }}
-        role="dialog"
-        aria-modal="true"
-      >
-        <Card
-          withBorder
-          radius="lg"
-          shadow="lg"
-          p={0}
-          style={{ width: 720, maxWidth: '100%', overflow: 'hidden', background: '#fff' }}
-        >
-          <Box px="md" py="sm" style={{ borderBottom: '1px solid rgba(0,0,0,.08)' }}>
-            <Title order={4} fw={600} m={0}>
-              Compartilhar com a lista
-            </Title>
-            <Text size="sm" c="dimmed" mt={4}>
-              Adicione os nomes e e-mails de quem você quer convidar. Começamos com 1 campo — você pode adicionar mais.
-            </Text>
-          </Box>
+  async function downloadPoster() {
+    const p = await ensurePoster();
+    const a = document.createElement('a');
+    a.href = p.url;
+    a.download = p.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
 
-          <Box px="md" py="md" style={{ maxHeight: '65vh', overflow: 'auto' }}>
-            <Stack gap="xs">
-              {guestRows.map((row, idx) => (
-                <GuestInputRow
-                  key={`guest-${idx}`}   // índice estável suficiente aqui
-                  idx={idx}
-                  row={row}
-                  setGuestRows={setGuestRows}
-                />
-              ))}
+  async function shareWhatsapp() {
+    const text = [
+      `Minha reserva no Mané Mercado 🎉`,
+      '',
+      `• Unidade: ${boardingUnitLabel}`,
+      `• Área: ${boardingAreaName}`,
+      `• Data: ${boardingDateStr}`,
+      `• Horário: ${boardingTimeStr}`,
+      `• Pessoas: ${boardingPeople}${boardingKids ? ` (Crianças: ${boardingKids})` : ''}`,
+      '',
+      `Vem com a gente!`
+    ].join('\n');
 
-              <Group justify="center" mt="xs">
-                <Button
-                  variant="light"
-                  onClick={() => setGuestRows((prev) => [...prev, mkGuestRow()])}
-                >
-                  + Adicionar convidado
-                </Button>
-              </Group>
+    // tenta Web Share API com arquivo
+    try {
+      const p = await ensurePoster();
+      const file = new File([p.blob], p.name, { type: 'image/jpeg' });
+      // @ts-ignore
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        // @ts-ignore
+        await navigator.share({ text, files: [file] });
+        return;
+      }
+    } catch {
+      // ignora e cai no wa.me
+    }
 
-              {shareError && (
-                <Alert color="red" icon={<IconInfoCircle />}>
-                  {shareError}
-                </Alert>
-              )}
-            </Stack>
-          </Box>
-
-          <Group justify="end" gap="sm" px="md" py="sm" style={{ borderTop: '1px solid rgba(0,0,0,.08)' }}>
-            <Button variant="default" onClick={() => setShareOpen(false)} disabled={savingGuests}>
-              Cancelar
-            </Button>
-            <Button color="green" onClick={handleShareSubmit} loading={savingGuests}>
-              Salvar & abrir Google Meet
-            </Button>
-          </Group>
-        </Card>
-      </Box>
-    );
+    // fallback: abre WhatsApp com o texto (e deixamos botão de baixar a arte ao lado)
+    const wpp = buildWhatsappLink(text);
+    window.open(wpp, '_blank', 'noopener,noreferrer');
   }
 
   /* =========================================================
@@ -1345,14 +1354,14 @@ export default function ReservarMane() {
   ========================================================= */
   return (
     <DatesProvider settings={{ locale: 'pt-br' }}>
-      <Box style={{ background: '#ffffff', minHeight: '100dvh', overflowX: 'auto' }}>
-        <LoadingOverlay visible={sending} />
+      <Box style={{ background: '#ffffff', minHeight: '100dvh' }}>
+        <LoadingOverlay visible={sending || shareBusy} />
 
         {/* HEADER */}
         <Container
-          size={580}
+          size="xs"
           px="md"
-          style={{ marginTop: '64px', marginBottom: 12, width: '100%', minWidth: rem(580) }}
+          style={{ marginTop: '48px', marginBottom: 12, width: '100%' }}
         >
           <Anchor
             component={Link}
@@ -1378,7 +1387,7 @@ export default function ReservarMane() {
               order={2}
               ta="center"
               fw={400}
-              style={{ fontFamily: '"Alfa Slab One", system-ui, sans-serif', color: '#146C2E' }}
+              style={{ fontFamily: '"Alfa Slab One", system-ui, sans-serif', color: '#146C2E', fontSize: 'clamp(20px, 5.6vw, 28px)' }}
             >
               Mané Mercado Reservas
             </Title>
@@ -1456,7 +1465,7 @@ export default function ReservarMane() {
 
         {/* CONTEÚDO */}
         <Container
-          size={580}
+          size="xs"
           px="md"
           style={{
             minHeight: '100dvh',
@@ -1464,7 +1473,7 @@ export default function ReservarMane() {
             paddingLeft: 'calc(env(safe-area-inset-left) + 16px)',
             paddingRight: 'calc(env(safe-area-inset-right) + 16px)',
             fontFamily: '"Comfortaa", system-ui, sans-serif',
-            minWidth: rem(580),
+            width: '100%',
           }}
         >
           {/* PASSO 1 */}
@@ -1766,18 +1775,31 @@ export default function ReservarMane() {
 
               <Card withBorder radius="lg" shadow="sm" p="md" mt="md" style={{ background: '#FBF5E9' }}>
                 <Stack gap="xs" align="center">
-                  <Title order={5} fw={500}>Compartilhar com a lista</Title>
+                  <Title order={5} fw={500}>Compartilhar</Title>
                   <Text size="sm" c="dimmed" ta="center">
-                    Convide sua galera por e-mail e já deixe uma reunião do Google pronta para alinharem os detalhes.
+                    Gere sua arte personalizada e envie no WhatsApp.
                   </Text>
-                  <Button color="green" radius="md" onClick={() => setShareOpen(true)}>
-                    COMPARTILHAR COM A LISTA
-                  </Button>
+
+                  <Group gap="sm" wrap="wrap" justify="center">
+                    <Button variant="default" radius="md" onClick={downloadPoster} disabled={shareBusyInternal}>
+                      Baixar Convite
+                    </Button>
+                    <Button color="green" radius="md" onClick={shareWhatsapp} disabled={shareBusyInternal}>
+                      Enviar no WhatsApp
+                    </Button>
+                  </Group>
+
+                  {posterUrl && (
+                    <Box mt="sm" style={{ width: '100%', maxWidth: 360 }}>
+                      <img
+                        src={posterUrl}
+                        alt="Prévia da arte"
+                        style={{ width: '100%', height: 'auto', borderRadius: 12, border: '1px solid rgba(0,0,0,.08)' }}
+                      />
+                    </Box>
+                  )}
                 </Stack>
               </Card>
-
-              {/* Modal de convidados */}
-              <ShareListModal />
             </>
           )}
 

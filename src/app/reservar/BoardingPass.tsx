@@ -34,10 +34,7 @@ type Props = {
 
 /** remove acentos e baixa */
 function norm(s: string) {
-  return (s || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
+  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 }
 
 /** Código da UNIDADE conforme a regra (MMAC, MMAR, maneSP ...) */
@@ -60,10 +57,7 @@ function unitCode(label: string) {
 
 /** Sigla de 3 letras para a Área (estilo SDU) */
 function areaAcronym(s: string) {
-  const parts = norm(s)
-    .replace(/—|-/g, ' ')
-    .split(/\s+/)
-    .filter(Boolean);
+  const parts = norm(s).replace(/—|-/g, ' ').split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '—';
   if (parts.length === 1) return parts[0].slice(0, 3).toUpperCase();
   const a = (parts[0][0] || '').toUpperCase();
@@ -168,6 +162,7 @@ export default function BoardingPass({
       {/* ====== TOPO COM TIMER ====== */}
       {reservationAt && (
         <Box
+          className="bp-topbar"
           style={{
             display: 'flex',
             justifyContent: 'center',
@@ -176,25 +171,20 @@ export default function BoardingPass({
             background: topBarColor,
             color: '#fff',
             borderRadius: 14,
-            padding: '6px 14px',
+            padding: '8px 14px',
             marginBottom: rem(10),
+            textAlign: 'center',
           }}
         >
           <IconClock size={16} stroke={1.6} />
-          <Text fw={600} style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <Text fw={600} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 'clamp(12px, 2.8vw, 14px)' }}>
             {topBarLabel}
           </Text>
 
           {/* mostra a tolerância também */}
-          {msToTolerance15 > 0 ? (
-            <Badge color="white" variant="outline" size="xs">
-              Tolerância até {fmtCountdown(msToTolerance15)}
-            </Badge>
-          ) : (
-            <Badge color="white" variant="outline" size="xs">
-              Tolerância encerrada
-            </Badge>
-          )}
+          <Badge color="white" variant="outline" size="xs">
+            {msToTolerance15 > 0 ? `Tolerância até ${fmtCountdown(msToTolerance15)}` : 'Tolerância encerrada'}
+          </Badge>
         </Box>
       )}
 
@@ -219,20 +209,20 @@ export default function BoardingPass({
                 <IconQrcode size={34} color="var(--mantine-color-green-6)" />
               </Box>
 
-              <Title order={3} mt="sm" ta="center" fw={700}>
+              <Title order={3} mt="sm" ta="center" fw={700} style={{ fontSize: 'clamp(18px, 6vw, 28px)' }}>
                 Reserva criada!
               </Title>
 
               {/* Localizador */}
-              <Group gap={8} mt={4}>
-                <Text c="dimmed">Localizador:</Text>
+              <Group gap={8} mt={4} wrap="wrap" justify="center">
+                <Text c="dimmed" style={{ fontSize: 'clamp(12px, 3.4vw, 14px)' }}>Localizador:</Text>
                 <Badge color="green" size="lg" radius="sm" variant="filled" style={{ letterSpacing: 2 }}>
                   {code}
                 </Badge>
               </Group>
 
               {/* Aviso de e-mail */}
-              <Text size="sm" ta="center">
+              <Text size="sm" ta="center" style={{ fontSize: 'clamp(12px, 3.6vw, 14px)' }}>
                 Enviamos o <b>código de reserva</b> e o <b>link de consulta</b> para seu e-mail
                 {emailHint ? ` (${emailHint})` : ''}.
               </Text>
@@ -246,6 +236,7 @@ export default function BoardingPass({
             withBorder
             radius="md"
             p="md"
+            className="bp-card"
             style={{
               width: '100%',
               background: '#fff',
@@ -295,12 +286,13 @@ export default function BoardingPass({
 
             {/* Topo: Data / Horário */}
             <Box
+              className="bp-toprow"
               style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                justifyContent: 'space-between',
-                marginBottom: rem(8),
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                alignItems: 'start',
                 gap: 12,
+                marginBottom: rem(8),
               }}
             >
               <Box>
@@ -310,7 +302,7 @@ export default function BoardingPass({
                     Data
                   </Text>
                 </Group>
-                <Text fw={700}>{dateStr}</Text>
+                <Text fw={700} style={{ fontSize: 'clamp(14px, 4.8vw, 16px)' }}>{dateStr}</Text>
               </Box>
 
               <Box style={{ textAlign: 'right' }}>
@@ -320,13 +312,14 @@ export default function BoardingPass({
                     Horário
                   </Text>
                 </Group>
-                <Text fw={700}>{timeStr}</Text>
+                <Text fw={700} style={{ fontSize: 'clamp(14px, 4.8vw, 16px)' }}>{timeStr}</Text>
               </Box>
             </Box>
 
-            {/* ====== FAIXA DE COUNTDOWN (APENAS 2 COLUNAS) ====== */}
+            {/* ====== FAIXA DE COUNTDOWN ====== */}
             {reservationAt && (
               <Box
+                className="bp-countdown"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: '1fr 1fr',
@@ -339,11 +332,22 @@ export default function BoardingPass({
                 }}
               >
                 {/* Tolerância +15 */}
-                <Box style={{ textAlign: 'center' }}>
+                <Box style={{ textAlign: 'center', minWidth: 0 }}>
                   <Text size="xs" c="dimmed">
                     Tolerância (+15 min)
                   </Text>
-                  <Text fw={800} style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 0.5 }}>
+                  <Text
+                    fw={800}
+                    style={{
+                      fontVariantNumeric: 'tabular-nums',
+                      letterSpacing: 0.4,
+                      lineHeight: 1.1,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      fontSize: 'clamp(12px, 3.6vw, 15px)',
+                    }}
+                  >
                     {fmtCountdown(msToTolerance15)}
                   </Text>
                   <Badge size="xs" color={msToTolerance15 > 0 ? 'green' : 'red'} variant="light">
@@ -352,11 +356,22 @@ export default function BoardingPass({
                 </Box>
 
                 {/* Convidados +45 */}
-                <Box style={{ textAlign: 'center' }}>
+                <Box style={{ textAlign: 'center', minWidth: 0 }}>
                   <Text size="xs" c="dimmed">
                     Convidados (+45 min)
                   </Text>
-                  <Text fw={800} style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 0.5 }}>
+                  <Text
+                    fw={800}
+                    style={{
+                      fontVariantNumeric: 'tabular-nums',
+                      letterSpacing: 0.4,
+                      lineHeight: 1.1,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      fontSize: 'clamp(12px, 3.6vw, 15px)',
+                    }}
+                  >
                     {fmtCountdown(msToGuests45)}
                   </Text>
                   <Badge size="xs" color={msToGuests45 > 0 ? 'teal' : 'gray'} variant="light">
@@ -368,54 +383,68 @@ export default function BoardingPass({
 
             {/* Nome / CPF */}
             <Box
+              className="bp-namerow"
               style={{
-                display: 'flex',
-                justifyContent: 'space-between',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
                 gap: 16,
                 marginTop: rem(2),
                 marginBottom: rem(6),
               }}
             >
-              <Box style={{ flex: 1 }}>
+              <Box style={{ minWidth: 0 }}>
                 <Group gap={6} align="center">
                   <IconUser size={14} />
                   <Text size="xs" c="dimmed">
                     Nome
                   </Text>
                 </Group>
-                <Text fw={600}>{fullName || '—'}</Text>
+                <Text
+                  fw={600}
+                  style={{
+                    fontSize: 'clamp(14px, 4.6vw, 16px)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {fullName || '—'}
+                </Text>
               </Box>
-              <Box style={{ flex: 1, textAlign: 'right' }}>
+              <Box style={{ textAlign: 'right', minWidth: 0 }}>
                 <Group gap={6} justify="right" align="center">
                   <IconId size={14} />
                   <Text size="xs" c="dimmed">
                     CPF
                   </Text>
                 </Group>
-                <Text fw={600}>{fmtCPF(cpf)}</Text>
+                <Text fw={600} style={{ fontSize: 'clamp(14px, 4.6vw, 16px)' }}>{fmtCPF(cpf)}</Text>
               </Box>
             </Box>
 
             {/* Faixa principal com códigos */}
             <Box
+              className="bp-coderow"
               style={{
-                display: 'flex',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
                 alignItems: 'baseline',
-                gap: 16,
-                marginTop: rem(4),
-                marginBottom: rem(8),
+                gap: 10,
+                marginTop: rem(2),
+                marginBottom: rem(6),
               }}
             >
-              <Box style={{ flex: 1, textAlign: 'left' }}>
+              <Box style={{ textAlign: 'left', minWidth: 0 }}>
                 <Title
                   order={1}
                   style={{
-                    fontSize: rem(40),
-                    lineHeight: 1,
-                    letterSpacing: 1,
+                    fontSize: 'clamp(16px, 7vw, 22px)',
+                    lineHeight: 1.05,
+                    letterSpacing: 0.5,
                     margin: 0,
                     padding: 0,
                     display: 'inline-block',
+                    fontWeight: 700,
                   }}
                 >
                   {unitAcr}
@@ -441,24 +470,37 @@ export default function BoardingPass({
                 </Group>
               </Box>
 
-              <Box style={{ flex: 1, textAlign: 'right' }}>
+              <Box style={{ textAlign: 'right', minWidth: 0 }}>
                 <Title
                   order={1}
                   style={{
-                    fontSize: rem(40),
-                    lineHeight: 1,
-                    letterSpacing: 1,
+                    fontSize: 'clamp(16px, 7vw, 22px)',
+                    lineHeight: 1.05,
+                    letterSpacing: 0.5,
                     margin: 0,
                     padding: 0,
                     display: 'inline-block',
+                    fontWeight: 700,
                   }}
                 >
                   {areaAcr}
                 </Title>
 
-                <Group gap={6} mt={2} justify="right">
+                <Group gap={6} mt={2} justify="right" wrap="nowrap" style={{ minWidth: 0, maxWidth: '100%' }}>
                   <IconMapPin size={14} />
-                  <Text size="xs" c="dimmed" style={{ marginTop: 2 }}>
+                  <Text
+                    size="xs"
+                    c="dimmed"
+                    style={{
+                      marginTop: 2,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      display: 'block',
+                      maxWidth: '100%',
+                    }}
+                    title={areaName}
+                  >
                     {areaName}
                   </Text>
                 </Group>
@@ -469,28 +511,29 @@ export default function BoardingPass({
 
             {/* Linha de detalhes */}
             <Box
+              className="bp-detailsrow"
               style={{
-                display: 'flex',
-                justifyContent: 'space-between',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
                 gap: 16,
                 paddingInline: 8,
                 marginTop: rem(6),
                 marginBottom: rem(6),
               }}
             >
-              <Box style={{ width: '50%', textAlign: 'center' }}>
+              <Box style={{ textAlign: 'center' }}>
                 <Group gap={6} justify="center" align="center">
                   <IconUsers size={14} />
                   <Text size="xs" c="dimmed">
                     Pessoas
                   </Text>
                 </Group>
-                <Text fw={700} style={{ color: '#111', marginTop: 2, lineHeight: 1 }}>
+                <Text fw={700} style={{ color: '#111', marginTop: 2, lineHeight: 1, fontSize: 'clamp(16px, 5vw, 18px)' }}>
                   {people}
                 </Text>
               </Box>
 
-              <Box style={{ width: '50%', textAlign: 'center' }}>
+              <Box style={{ textAlign: 'center' }}>
                 <Group gap={6} justify="center" align="center">
                   <IconMoodKid size={14} />
                   <Text size="xs" c="dimmed">
@@ -498,7 +541,7 @@ export default function BoardingPass({
                   </Text>
                 </Group>
 
-                <Text fw={700} style={{ color: '#111', marginTop: 2, lineHeight: 1 }}>
+                <Text fw={700} style={{ color: '#111', marginTop: 2, lineHeight: 1, fontSize: 'clamp(16px, 5vw, 18px)' }}>
                   {kids}
                 </Text>
               </Box>
@@ -527,12 +570,13 @@ export default function BoardingPass({
               <img
                 src={`${qrUrl}?t=${Date.now()}`}
                 alt="QR de check-in"
+                className="bp-qr"
                 width={168}
                 height={168}
                 style={{
                   display: 'block',
-                  width: 168,
-                  height: 168,
+                  width: 'clamp(132px, 45vw, 188px)',
+                  height: 'clamp(132px, 45vw, 188px)',
                   objectFit: 'contain',
                   borderRadius: 8,
                   background: 'transparent',
@@ -546,12 +590,33 @@ export default function BoardingPass({
 
           {/* rodapé curto somente quando header está visível */}
           {!hideHeader && (
-            <Text size="xs" c="dimmed" ta="center" mt="sm" style={{ maxWidth: rem(460) }}>
+            <Text size="xs" c="dimmed" ta="center" mt="sm" style={{ maxWidth: rem(520), fontSize: 'clamp(12px, 3.4vw, 14px)' }}>
               Guarde o localizador <b>{code}</b>. Você pode usá-lo para buscar sua reserva rapidamente.
             </Text>
           )}
         </Stack>
       </Card>
+
+      {/* CSS responsivo local */}
+      <style jsx>{`
+        /* Quebra para telas pequenas */
+        @media (max-width: 480px) {
+          .bp-toprow { grid-template-columns: 1fr; row-gap: 8px; }
+          .bp-toprow > :global(div:last-child) { text-align: left !important; }
+          .bp-countdown { grid-template-columns: 1fr; }
+          .bp-namerow { grid-template-columns: 1fr; }
+          .bp-namerow > :global(div:last-child) { text-align: left !important; }
+          .bp-coderow { grid-template-columns: 1fr; row-gap: 10px; }
+          .bp-detailsrow { grid-template-columns: 1fr 1fr; }
+          .bp-card { padding: 12px !important; }
+          .bp-topbar { padding: 8px 10px !important; }
+        }
+
+        /* Telas muito estreitas (<360px): força 1 coluna nos detalhes também */
+        @media (max-width: 360px) {
+          .bp-detailsrow { grid-template-columns: 1fr; }
+        }
+      `}</style>
     </>
   );
 }
