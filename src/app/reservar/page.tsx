@@ -1579,7 +1579,7 @@ export default function ReservarMane() {
                   <Card withBorder radius="md" p="sm" style={{ background: '#fffdf7' }}>
                     <Text size="sm" ta="center">
                       <b>Total:</b> {total} pessoa(s) • <b>Data:</b>{' '}
-                      {data ? dayjs(data).format('DD/MM/YY') : '--'}/{hora || '--:--'}{' '}
+                      {data ? dayjs(data).format('DD/MM/YY') : '--'} - {hora || '--:--'}{' '}
                       {dateError && <Text component="span" c="red">• {dateError}</Text>}
                       {(timeError || pastError) && (
                         <Text component="span" c="red"> • {pastError || timeError}</Text>
