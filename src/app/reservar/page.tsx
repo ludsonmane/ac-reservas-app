@@ -417,7 +417,7 @@ function AreaCard({
           alt={titulo}
           fill
           sizes="(max-width: 520px) 100vw, 520px"
-          style={{ objectFit: 'cover' }}
+          style={{ objectFit: 'cover', objectPosition: 'center center' }}
           onError={() => setSrc(FALLBACK_IMG)}
           priority={false}
           unoptimized
