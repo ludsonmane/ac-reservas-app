@@ -537,7 +537,6 @@ function firstAndLastName(full: string) {
   return `${parts[0]} ${parts[parts.length - 1]}`;
 }
 
-// Poster 1080x1350 (4:5) com QR centralizado horizontalmente
 async function generatePoster({
   fullName,
   unitLabel,
@@ -564,39 +563,33 @@ async function generatePoster({
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d')!;
 
-  // fundo
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, '#e7ffe7');
   grad.addColorStop(1, '#e9f7ef');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  // moldura
   ctx.strokeStyle = '#146C2E';
   ctx.lineWidth = 16;
   ctx.strokeRect(24, 24, W - 48, H - 48);
 
-  // logo
   try {
     const logo = await loadImage(logoUrl);
-    const lw = 360, lh = 140;
+    const lw = 420, lh = 140;
     ctx.drawImage(logo, (W - lw) / 2, 80, lw, lh);
-  } catch { }
+  } catch {}
 
-  // título / nome
   ctx.fillStyle = '#146C2E';
-  ctx.textAlign = 'center';
   ctx.font = '700 56px system-ui, Arial';
+  ctx.textAlign = 'center';
   ctx.fillText('RESERVA CONFIRMADA', W / 2, 300);
 
   const displayName = firstAndLastName(fullName || '');
   ctx.font = '800 64px system-ui, Arial';
   ctx.fillText(displayName.toUpperCase(), W / 2, 380);
 
-  // dados (à esquerda)
   ctx.textAlign = 'left';
   ctx.font = '600 44px system-ui, Arial';
-  ctx.fillStyle = '#0f5132';
   const left = 120, top = 470, lh2 = 70;
   const lines = [
     `Unidade: ${unitLabel}`,
@@ -604,26 +597,23 @@ async function generatePoster({
     `Horário: ${timeStr}`,
     `Pessoas: ${people}${kids ? `  •  Crianças: ${kids}` : ''}`,
   ];
+  ctx.fillStyle = '#0f5132';
   lines.forEach((t, i) => ctx.fillText(t, left, top + i * lh2));
 
-  // QR centralizado (x = (W - s)/2), y ajustado para ficar abaixo dos textos
   if (qrUrl) {
     try {
       const qr = await loadImage(qrUrl, true);
       const s = 360;
-      const qrX = (W - s) / 2;  // ← centralizado
-      const qrY = 720;          // ← altura confortável abaixo dos textos
+      const qrX = W - s - 120;
+      const qrY = Math.min(H - s - 140, top + 180);
       ctx.drawImage(qr, qrX, qrY, s, s);
-
-      // legenda
-      ctx.textAlign = 'center';
       ctx.font = '500 28px system-ui, Arial';
+      ctx.textAlign = 'center';
       ctx.fillStyle = '#0f5132';
       ctx.fillText('Apresente este QR no check-in', qrX + s / 2, qrY + s + 32);
-    } catch { }
+    } catch {}
   }
 
-  // rodapé
   ctx.textAlign = 'center';
   ctx.font = '500 30px system-ui, Arial';
   ctx.fillStyle = '#166534';
@@ -634,9 +624,8 @@ async function generatePoster({
   );
   const fileName = `reserva-mane-${Date.now()}.jpg`;
   const url = URL.createObjectURL(blob);
-  return { blob, fileName, url }; 
+  return { blob, fileName, url };
 }
-
 
 /* =========================================================
    Helpers novos (Calendar/Email)
@@ -1468,7 +1457,7 @@ export default function ReservarMane() {
                       { key: 'PARTICULAR', label: 'Particular', desc: 'Para você e seus convidados.' },
                       { key: 'CONFRATERNIZACAO', label: 'Confraternização', desc: 'Aniversários, formaturas, despedidas...' },
                       { key: 'EMPRESA', label: 'Empresa', desc: 'Eventos corporativos.' },
-                    ] as { key: ReservationType; label: string; desc: string }[]).map(opt => (
+                    ] as {key: ReservationType; label: string; desc: string}[]).map(opt => (
                       <Grid.Col span={12} key={opt.key}>
                         <Card
                           withBorder
@@ -1866,7 +1855,7 @@ export default function ReservarMane() {
                     Para reservas acima de <b>{MAX_PEOPLE_WITHOUT_CONCIERGE}</b> pessoas, é necessário falar com nosso concierge pelo WhatsApp.
                   </Text>
                   <Text size="sm" c="dimmed" mt={6}>
-                    Assim garantimos a melhor organização do espaço e atendimento do seu grupo. 🙂
+                    Assim garantimos a melhor organização do espaço e atendimento do seu grupo. 🙂 
                   </Text>
                 </Box>
                 <Group justify="end" gap="sm" px="md" py="sm" style={{ borderTop: '1px solid rgba(0,0,0,.08)', background: '#fff' }}>
