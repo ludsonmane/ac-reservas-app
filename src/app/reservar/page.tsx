@@ -576,11 +576,13 @@ async function generatePoster({
   ctx.lineWidth = 16;
   ctx.strokeRect(24, 24, W - 48, H - 48);
 
-  // logo
+  // logo (140x60, centralizada)
   try {
     const logo = await loadImage(logoUrl);
-    const lw = 420, lh = 140;
-    ctx.drawImage(logo, (W - lw) / 2, 80, lw, lh);
+    const lw = 140, lh = 60;
+    const lx = (W - lw) / 2;
+    const ly = 90;
+    ctx.drawImage(logo, lx, ly, lw, lh);
   } catch { }
 
   // título / nome
@@ -589,33 +591,27 @@ async function generatePoster({
   ctx.font = '700 56px system-ui, Arial';
   ctx.fillText('RESERVA CONFIRMADA', W / 2, 300);
 
-  const displayName = firstAndLastName(fullName || '');
+  const displayName = (fullName || '').trim().split(/\s+/).filter(Boolean);
+  const firstLast = displayName.length > 1 ? `${displayName[0]} ${displayName.at(-1)}` : (displayName[0] || '');
   ctx.font = '800 64px system-ui, Arial';
-  ctx.fillText(displayName.toUpperCase(), W / 2, 380);
+  ctx.fillText(firstLast.toUpperCase(), W / 2, 380);
 
-  // dados (à esquerda)
+  // dados
   ctx.textAlign = 'left';
   ctx.font = '600 44px system-ui, Arial';
   ctx.fillStyle = '#0f5132';
   const left = 120, top = 470, lh2 = 70;
-  const lines = [
-    `Unidade: ${unitLabel}`,
-    `Data: ${dateStr}`,
-    `Horário: ${timeStr}`,
-    `Pessoas: ${people}${kids ? `  •  Crianças: ${kids}` : ''}`,
-  ];
-  lines.forEach((t, i) => ctx.fillText(t, left, top + i * lh2));
+  [`Unidade: ${unitLabel}`, `Data: ${dateStr}`, `Horário: ${timeStr}`, `Pessoas: ${people}${kids ? `  •  Crianças: ${kids}` : ''}`]
+    .forEach((t, i) => ctx.fillText(t, left, top + i * lh2));
 
-  // QR centralizado (x = (W - s)/2), y ajustado para ficar abaixo dos textos
+  // QR centralizado horizontalmente
   if (qrUrl) {
     try {
       const qr = await loadImage(qrUrl, true);
       const s = 360;
-      const qrX = (W - s) / 2;  // ← centralizado
-      const qrY = 720;          // ← altura confortável abaixo dos textos
+      const qrX = (W - s) / 2;
+      const qrY = 720;
       ctx.drawImage(qr, qrX, qrY, s, s);
-
-      // legenda
       ctx.textAlign = 'center';
       ctx.font = '500 28px system-ui, Arial';
       ctx.fillStyle = '#0f5132';
@@ -634,9 +630,8 @@ async function generatePoster({
   );
   const fileName = `reserva-mane-${Date.now()}.jpg`;
   const url = URL.createObjectURL(blob);
-  return { blob, fileName, url }; 
+  return { blob, fileName, url };
 }
-
 
 /* =========================================================
    Helpers novos (Calendar/Email)
