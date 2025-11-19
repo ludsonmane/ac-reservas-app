@@ -537,6 +537,7 @@ function firstAndLastName(full: string) {
   return `${parts[0]} ${parts[parts.length - 1]}`;
 }
 
+// Poster 1080x1350 (4:5) com QR centralizado horizontalmente
 async function generatePoster({
   fullName,
   unitLabel,
@@ -605,13 +606,13 @@ async function generatePoster({
   ];
   lines.forEach((t, i) => ctx.fillText(t, left, top + i * lh2));
 
-  // QR — posição fixa na região do retângulo vermelho (não sobrepõe textos)
+  // QR centralizado (x = (W - s)/2), y ajustado para ficar abaixo dos textos
   if (qrUrl) {
     try {
       const qr = await loadImage(qrUrl, true);
       const s = 360;
-      const qrX = 220;  // ← ajuste fino horizontal
-      const qrY = 760;  // ← ajuste fino vertical (abaixo da última linha)
+      const qrX = (W - s) / 2;  // ← centralizado
+      const qrY = 720;          // ← altura confortável abaixo dos textos
       ctx.drawImage(qr, qrX, qrY, s, s);
 
       // legenda
@@ -635,6 +636,7 @@ async function generatePoster({
   const url = URL.createObjectURL(blob);
   return { blob, fileName, url };
 }
+
 
 /* =========================================================
    Helpers novos (Calendar/Email)
