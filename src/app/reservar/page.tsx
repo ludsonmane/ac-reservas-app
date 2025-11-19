@@ -55,8 +55,9 @@ import { apiGet, API_BASE } from '@/lib/api';
 
 dayjs.locale('pt-br');
 
-// regra de grupos grandes
+// regra de grupos grandes / mínimos
 const MAX_PEOPLE_WITHOUT_CONCIERGE = 40;
+const MIN_PEOPLE = 8; // 👈 mínimo exigido
 const CONCIERGE_WPP_LINK =
   'https://wa.me/5561982850776?text=Oi%20Concierge!%20Quero%20reservar%20para%20mais%20de%2040%20pessoas.%20Pode%20me%20ajudar%3F';
 
@@ -203,8 +204,8 @@ function isPastSelection(date: Date | null, time: string) {
 /* onChange NumberInput */
 const numberInputHandler =
   (setter: React.Dispatch<React.SetStateAction<number | ''>>) =>
-    (v: string | number) =>
-      setter(v === '' ? '' : Number(v));
+  (v: string | number) =>
+    setter(v === '' ? '' : Number(v));
 
 /* =========================================================
    Helpers de imagem
@@ -537,6 +538,7 @@ function firstAndLastName(full: string) {
   return `${parts[0]} ${parts[parts.length - 1]}`;
 }
 
+// Poster 1080x1350 (4:5) com QR centralizado horizontalmente
 async function generatePoster({
   fullName,
   unitLabel,
@@ -563,33 +565,39 @@ async function generatePoster({
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d')!;
 
+  // fundo
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, '#e7ffe7');
   grad.addColorStop(1, '#e9f7ef');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
+  // moldura
   ctx.strokeStyle = '#146C2E';
   ctx.lineWidth = 16;
   ctx.strokeRect(24, 24, W - 48, H - 48);
 
+  // logo
   try {
     const logo = await loadImage(logoUrl);
-    const lw = 420, lh = 140;
+    const lw = 360, lh = 140;
     ctx.drawImage(logo, (W - lw) / 2, 80, lw, lh);
-  } catch {}
+  } catch { }
 
+  // título / nome
   ctx.fillStyle = '#146C2E';
-  ctx.font = '700 56px system-ui, Arial';
   ctx.textAlign = 'center';
+  ctx.font = '700 56px system-ui, Arial';
   ctx.fillText('RESERVA CONFIRMADA', W / 2, 300);
 
   const displayName = firstAndLastName(fullName || '');
   ctx.font = '800 64px system-ui, Arial';
   ctx.fillText(displayName.toUpperCase(), W / 2, 380);
 
+  // dados (à esquerda)
   ctx.textAlign = 'left';
   ctx.font = '600 44px system-ui, Arial';
+  ctx.fillStyle = '#0f5132';
   const left = 120, top = 470, lh2 = 70;
   const lines = [
     `Unidade: ${unitLabel}`,
@@ -597,23 +605,26 @@ async function generatePoster({
     `Horário: ${timeStr}`,
     `Pessoas: ${people}${kids ? `  •  Crianças: ${kids}` : ''}`,
   ];
-  ctx.fillStyle = '#0f5132';
   lines.forEach((t, i) => ctx.fillText(t, left, top + i * lh2));
 
+  // QR centralizado (x = (W - s)/2), y ajustado para ficar abaixo dos textos
   if (qrUrl) {
     try {
       const qr = await loadImage(qrUrl, true);
       const s = 360;
-      const qrX = W - s - 120;
-      const qrY = Math.min(H - s - 140, top + 180);
+      const qrX = (W - s) / 2;  // centralizado
+      const qrY = 720;          // abaixo dos textos
       ctx.drawImage(qr, qrX, qrY, s, s);
-      ctx.font = '500 28px system-ui, Arial';
+
+      // legenda
       ctx.textAlign = 'center';
+      ctx.font = '500 28px system-ui, Arial';
       ctx.fillStyle = '#0f5132';
       ctx.fillText('Apresente este QR no check-in', qrX + s / 2, qrY + s + 32);
-    } catch {}
+    } catch { }
   }
 
+  // rodapé
   ctx.textAlign = 'center';
   ctx.font = '500 30px system-ui, Arial';
   ctx.fillStyle = '#166534';
@@ -624,8 +635,9 @@ async function generatePoster({
   );
   const fileName = `reserva-mane-${Date.now()}.jpg`;
   const url = URL.createObjectURL(blob);
-  return { blob, fileName, url };
+  return { blob, fileName, url }; 
 }
+
 
 /* =========================================================
    Helpers novos (Calendar/Email)
@@ -735,6 +747,9 @@ export default function ReservarMane() {
     const c = typeof criancas === 'number' ? criancas : 0;
     return Math.max(1, a + c);
   }, [adultos, criancas]);
+
+  // erro de mínimo de pessoas
+  const peopleError = total < MIN_PEOPLE ? `Mínimo de ${MIN_PEOPLE} pessoas` : null;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -986,7 +1001,11 @@ export default function ReservarMane() {
   }, [unidade, ymd, hora, total, areasMeta]);
 
   const contactOk = isValidEmail(email) && isValidPhone(phone);
-  const canNext1 = Boolean(unidade && data && hora && total > 0 && !timeError && !dateError && !pastError);
+
+  // 👇 exige mínimo na etapa 1
+  const canNext1 = Boolean(
+    unidade && data && hora && total >= MIN_PEOPLE && !timeError && !dateError && !pastError
+  );
 
   const chosen = areas.find((a) => a.id === areaId);
   const leftChosen = chosen ? chosen.available ?? chosen.capacity ?? 0 : 0;
@@ -1003,6 +1022,13 @@ export default function ReservarMane() {
   const handleContinueStep1 = () => {
     setError(null);
     const qty = typeof total === 'number' ? total : 0;
+
+    // 👇 trava por mínimo
+    if (qty < MIN_PEOPLE) {
+      setError(`Mínimo de ${MIN_PEOPLE} pessoas para reservar.`);
+      return;
+    }
+
     if (qty > MAX_PEOPLE_WITHOUT_CONCIERGE) {
       setShowConcierge(true);
       return;
@@ -1014,6 +1040,13 @@ export default function ReservarMane() {
     setSending(true);
     setError(null);
     try {
+      // 👇 double check de mínimo
+      if (total < MIN_PEOPLE) {
+        setError(`Mínimo de ${MIN_PEOPLE} pessoas para reservar.`);
+        goToStep(1);
+        setSending(false);
+        return;
+      }
       if (!data || !hora) {
         setError('Selecione data e horário.');
         goToStep(1);
@@ -1240,8 +1273,8 @@ export default function ReservarMane() {
   const boardingDateStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('DD/MM/YYYY')
     : data
-      ? dayjs(data).format('DD/MM/YYYY')
-      : '--/--/----';
+    ? dayjs(data).format('DD/MM/YYYY')
+    : '--/--/----';
   const boardingTimeStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('HH:mm')
     : hora || '--:--';
@@ -1457,7 +1490,7 @@ export default function ReservarMane() {
                       { key: 'PARTICULAR', label: 'Particular', desc: 'Para você e seus convidados.' },
                       { key: 'CONFRATERNIZACAO', label: 'Confraternização', desc: 'Aniversários, formaturas, despedidas...' },
                       { key: 'EMPRESA', label: 'Empresa', desc: 'Eventos corporativos.' },
-                    ] as {key: ReservationType; label: string; desc: string}[]).map(opt => (
+                    ] as { key: ReservationType; label: string; desc: string }[]).map(opt => (
                       <Grid.Col span={12} key={opt.key}>
                         <Card
                           withBorder
@@ -1529,7 +1562,7 @@ export default function ReservarMane() {
                   <Grid gutter="md">
                     <Grid.Col span={6}>
                       <NumberInput
-                        label="Adultos"
+                        label="Adultos (mín. total 8)"
                         min={1}
                         value={adultos}
                         onChange={numberInputHandler(setAdultos)}
@@ -1602,6 +1635,7 @@ export default function ReservarMane() {
                     <Text size="sm" ta="center">
                       <b>Tipo:</b> {RES_TYPE_LABEL[reservationType]} • <b>Total:</b> {total} pessoa(s) • <b>Data:</b>{' '}
                       {data ? dayjs(data).format('DD/MM/YY') : '--'} - {hora || '--:--'}{' '}
+                      {peopleError && <Text component="span" c="red">• {peopleError}</Text>}
                       {dateError && <Text component="span" c="red">• {dateError}</Text>}
                       {(timeError || pastError) && (
                         <Text component="span" c="red"> • {pastError || timeError}</Text>
@@ -1609,9 +1643,9 @@ export default function ReservarMane() {
                     </Text>
                   </Card>
 
-                  {(pastError || timeError || dateError) && (
-                    <Alert color={pastError ? 'red' : 'yellow'} icon={<IconInfoCircle />}>
-                      {pastError || timeError || dateError}
+                  {(peopleError || pastError || timeError || dateError) && (
+                    <Alert color={peopleError ? 'red' : pastError ? 'red' : 'yellow'} icon={<IconInfoCircle />}>
+                      {peopleError || pastError || timeError || dateError}
                     </Alert>
                   )}
                 </Stack>
@@ -1855,7 +1889,7 @@ export default function ReservarMane() {
                     Para reservas acima de <b>{MAX_PEOPLE_WITHOUT_CONCIERGE}</b> pessoas, é necessário falar com nosso concierge pelo WhatsApp.
                   </Text>
                   <Text size="sm" c="dimmed" mt={6}>
-                    Assim garantimos a melhor organização do espaço e atendimento do seu grupo. 🙂 
+                    Assim garantimos a melhor organização do espaço e atendimento do seu grupo. 🙂
                   </Text>
                 </Box>
                 <Group justify="end" gap="sm" px="md" py="sm" style={{ borderTop: '1px solid rgba(0,0,0,.08)', background: '#fff' }}>
