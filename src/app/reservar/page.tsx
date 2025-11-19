@@ -198,8 +198,10 @@ const numberInputHandler =
       setter(v === '' ? '' : Number(v));
 
 /* =========================================================
-   Helpers de imagem (normalizar URL da API)
+   Helpers de imagem
+   - minimalista: prefixa caminho do banco com S3
 ========================================================= */
+const S3_BASE = 'https://mane-reservations-prod.s3.amazonaws.com';
 const ASSET_BASE = (API_BASE || '').replace(/\/+$/, '');
 
 function sanitizePhoto(raw?: any): string | undefined {
@@ -227,6 +229,7 @@ function toHttps(u: string) {
   return u;
 }
 
+/** Mantido para outros usos (relativo -> API_BASE) */
 function resolvePhotoUrl(raw?: any): string | undefined {
   let s = sanitizePhoto(raw);
   if (!s) return undefined;
@@ -254,6 +257,21 @@ function resolvePhotoUrl(raw?: any): string | undefined {
   if (s.startsWith(ASSET_BASE)) return toHttps(s);
 
   return toHttps(`${ASSET_BASE}${s.startsWith('/') ? s : `/${s}`}`);
+}
+
+/** NOVO: relativo -> S3 (preferência para exibição de imagens de áreas) */
+function toS3Url(raw?: any): string | undefined {
+  let s = sanitizePhoto(raw);
+  if (!s) return undefined;
+  s = s.replace(/\\/g, '/').trim();
+
+  // absoluta: usa como está
+  if (s.startsWith('//')) return `https:${s}`;
+  if (/^https?:\/\//i.test(s) || s.startsWith('data:')) return toHttps(s);
+
+  // relativo: prefixa com S3
+  const path = s.startsWith('/') ? s : `/${s}`;
+  return `${S3_BASE}${path}`;
 }
 
 /* =========================================================
@@ -422,7 +440,6 @@ function AreaCard({
           priority={false}
           unoptimized
           referrerPolicy="no-referrer"
-          crossOrigin="anonymous"
         />
         <Box
           style={{
@@ -799,11 +816,10 @@ export default function ReservarMane() {
       setUnitsError(null);
       try {
         const list = await apiGet<any[]>('/v1/units/public/options/list');
-        const normalized: UnitOption[] = (list ?? []).map((u: any) => ({
-          id: String(u.id ?? u._id ?? u.slug ?? u.name),
-          name: String(u.name ?? u.title ?? u.slug ?? ''),
-          slug: u.slug ?? undefined,
-        }));
+        const normalized: UnitOption[] = (list ?? []).map((u: any) => ([
+          String(u.id ?? u._id ?? u.slug ?? u.name),
+          String(u.name ?? u.title ?? u.slug ?? '')
+        ])).map(([id, name]) => ({ id, name }));
         if (!alive) return;
         setUnits(normalized);
       } catch (e: any) {
@@ -832,7 +848,7 @@ export default function ReservarMane() {
   }, [unidade, units]);
 
   /* =========================================================
-     2.1) Carregar metadados das áreas por unidade (normalizando foto)
+     2.1) Carregar metadados das áreas por unidade (normalizando foto via S3)
   ========================================================= */
   useEffect(() => {
     let alive = true;
@@ -850,26 +866,29 @@ export default function ReservarMane() {
           const iconEmojiRaw =
             a?.iconEmoji ?? a?.icon_emoji ?? a?.area?.iconEmoji ?? a?.area?.icon_emoji;
 
+          // pega caminho vindo do banco e converte para URL S3 (ou usa absoluto se já vier)
+          const rawPhoto =
+            a?.photoUrlAbsolute ?? // se a API já devolver absoluto, respeita
+            a?.photoPath ??
+            a?.photoUrl ??
+            a?.photo ??
+            a?.imageUrl ??
+            a?.image ??
+            a?.coverUrl ??
+            a?.photo_url ??
+            a?.area?.photoUrl ??
+            a?.area?.photo ??
+            a?.area?.imageUrl ??
+            a?.area?.image ??
+            a?.area?.coverUrl;
+
+          const photoS3 = toS3Url(rawPhoto) || null;
+
           metaMap[id] = {
             id,
             name: String(a?.name ?? a?.title ?? ''),
             description,
-            photoUrl:
-              resolvePhotoUrl(
-                a?.photoUrlAbsolute ??
-                a?.photoPath ??
-                a?.photoUrl ??
-                a?.photo ??
-                a?.imageUrl ??
-                a?.image ??
-                a?.coverUrl ??
-                a?.photo_url ??
-                a?.area?.photoUrl ??
-                a?.area?.photo ??
-                a?.area?.imageUrl ??
-                a?.area?.image ??
-                a?.area?.coverUrl
-              ) || null,
+            photoUrl: photoS3,
             iconEmoji:
               typeof iconEmojiRaw === 'string' && iconEmojiRaw.trim()
                 ? iconEmojiRaw.trim()
@@ -889,7 +908,7 @@ export default function ReservarMane() {
   }, [unidade]);
 
   /* =========================================================
-     3) carregar áreas conforme unidade/data/hora (priorizar foto da disponibilidade)
+     3) carregar áreas conforme unidade/data/hora (priorizar foto; montar via S3)
   ========================================================= */
   const ymd = useMemo(() => (data ? dayjs(data).format('YYYY-MM-DD') : ''), [data]);
 
@@ -938,9 +957,9 @@ export default function ReservarMane() {
           const id = String(a.id ?? a._id);
           const meta = metaMap[id];
 
-          // prioriza foto da disponibilidade; se não houver, cai para meta; sempre normaliza
+          // prioriza campos da disponibilidade; cai para meta; monta URL via S3
           const rawPhoto =
-            a?.photoUrlAbsolute ??
+            a?.photoUrlAbsolute ?? // se a API já devolver absoluto, respeita
             a?.photoPath ??
             a?.photoUrl ??
             a?.photo ??
@@ -951,7 +970,7 @@ export default function ReservarMane() {
             meta?.photoUrl ??
             '';
 
-          const photo = resolvePhotoUrl(rawPhoto);
+          const photo = toS3Url(rawPhoto) ?? meta?.photoUrl ?? undefined;
 
           const desc = String(
             a?.description ?? a?.desc ?? a?.area?.description ?? meta?.description ?? ''

@@ -1,8 +1,13 @@
 // src/lib/api.ts
 
-// Base da API: configure via .env.local -> NEXT_PUBLIC_API_BASE=http://localhost:4000
+// Base da API: configure via .env.local -> NEXT_PUBLIC_API_BASE=https://api.mane.com.vc
 export const API_BASE =
   (process.env.NEXT_PUBLIC_API_BASE?.trim() || 'http://localhost:4000') as string;
+
+/** Retorna a base sem barra final (p/ montar URLs de assets) */
+export function getBaseUrl() {
+  return (API_BASE || '').replace(/\/+$/, '');
+}
 
 type RequestOpts = RequestInit & {
   /** Tempo máximo da requisição (ms). Default: 20000 */
@@ -15,7 +20,11 @@ type RequestOpts = RequestInit & {
 function toUrl(path: string) {
   if (/^https?:\/\//i.test(path)) return path;
   const p = path.startsWith('/') ? path : `/${path}`;
-  return `${API_BASE}${p}`;
+  return `${getBaseUrl()}${p}`;
+}
+
+function isFormData(body: any): body is FormData {
+  return typeof FormData !== 'undefined' && body instanceof FormData;
 }
 
 async function request<T = any>(path: string, init: RequestOpts = {}): Promise<T> {
@@ -24,17 +33,19 @@ async function request<T = any>(path: string, init: RequestOpts = {}): Promise<T
   const t = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const headers = new Headers(init.headers || {});
+    // Só define JSON quando NÃO for FormData
+    if (!headers.has('Content-Type') && !isFormData(init.body)) {
+      headers.set('Content-Type', 'application/json');
+    }
+
     const res = await fetch(toUrl(path), {
-      // Evita cache agressivo do navegador
       cache: 'no-store',
-      // CORS: para front público, normalmente SEM cookies.
-      // Se sua API usar cookie/sessão, troque para 'include'.
+      // Front público: por padrão não envia cookies entre domínios (same-origin).
+      // Se quiser garantir que não vai nenhum cookie, use noCredentials: true
       credentials: init.noCredentials ? 'omit' : 'same-origin',
       ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(init.headers || {}),
-      },
+      headers,
       signal: controller.signal,
     });
 
@@ -52,6 +63,7 @@ async function request<T = any>(path: string, init: RequestOpts = {}): Promise<T
         payload = {};
       }
     } else {
+      // para casos raros em que a API retorne texto (ex.: health)
       payload = await res.text();
     }
 
@@ -92,14 +104,14 @@ export const apiGet = <T = any>(path: string, init?: RequestOpts) =>
 export const apiPost = <T = any>(path: string, body?: any, init?: RequestOpts) =>
   request<T>(path, {
     method: 'POST',
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined || isFormData(body) ? body : JSON.stringify(body),
     ...(init || {}),
   });
 
 export const apiPut = <T = any>(path: string, body?: any, init?: RequestOpts) =>
   request<T>(path, {
     method: 'PUT',
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined || isFormData(body) ? body : JSON.stringify(body),
     ...(init || {}),
   });
 
@@ -120,6 +132,7 @@ export type AreaStatic = {
   id: string;
   name: string;
   photoUrl: string | null;
+  photoUrlAbsolute?: string | null; // <- preferencial (S3/CDN)
   capacityAfternoon: number | null;
   capacityNight: number | null;
   isActive: boolean;
@@ -133,6 +146,7 @@ export type AreaAvailability = {
   id: string;
   name: string;
   photoUrl?: string | null;
+  photoUrlAbsolute?: string | null; // <- preferencial
   capacityAfternoon?: number | null;
   capacityNight?: number | null;
   isActive: boolean;
