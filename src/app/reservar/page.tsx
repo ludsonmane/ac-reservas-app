@@ -634,7 +634,7 @@ async function generatePoster({
   );
   const fileName = `reserva-mane-${Date.now()}.jpg`;
   const url = URL.createObjectURL(blob);
-  return { blob, fileName, url };
+  return { blob, fileName, url }; 
 }
 
 
