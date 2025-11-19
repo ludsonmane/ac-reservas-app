@@ -101,6 +101,13 @@ type ReservationDto = {
   status: 'AWAITING_CHECKIN' | 'CHECKED_IN' | string;
 };
 
+type ReservationType = 'PARTICULAR' | 'CONFRATERNIZACAO' | 'EMPRESA';
+const RES_TYPE_LABEL: Record<ReservationType, string> = {
+  PARTICULAR: 'Particular',
+  CONFRATERNIZACAO: 'Confraternização',
+  EMPRESA: 'Empresa',
+};
+
 type SavedReservationLS = {
   id: string;
   code: string;
@@ -114,6 +121,7 @@ type SavedReservationLS = {
   fullName?: string;
   cpf?: string | null;
   emailHint?: string | null;
+  reservationType?: ReservationType;
 };
 
 const LS_KEY = 'mane:lastReservation';
@@ -233,43 +241,22 @@ function toHttps(u: string) {
 function resolvePhotoUrl(raw?: any): string | undefined {
   let s = sanitizePhoto(raw);
   if (!s) return undefined;
-
-  // normaliza barras invertidas e espaços
   s = s.replace(/\\/g, '/').trim();
-
-  // suporta //cdn...
   if (s.startsWith('//')) return `https:${s}`;
-
-  // absoluta (http/https/data)
-  if (/^https?:\/\//i.test(s) || s.startsWith('data:')) {
-    return toHttps(s);
-  }
-
-  // remove barras extras do começo
+  if (/^https?:\/\//i.test(s) || s.startsWith('data:')) return toHttps(s);
   s = s.replace(/^\/+/, '/');
-
-  // se não tiver base, devolver relativo com /
-  if (!ASSET_BASE) {
-    return s.startsWith('/') ? s : `/${s}`;
-  }
-
-  // evita duplicar base
+  if (!ASSET_BASE) return s.startsWith('/') ? s : `/${s}`;
   if (s.startsWith(ASSET_BASE)) return toHttps(s);
-
   return toHttps(`${ASSET_BASE}${s.startsWith('/') ? s : `/${s}`}`);
 }
 
-/** NOVO: relativo -> S3 (preferência para exibição de imagens de áreas) */
+/** relativo -> S3 (preferência para exibição de imagens de áreas) */
 function toS3Url(raw?: any): string | undefined {
   let s = sanitizePhoto(raw);
   if (!s) return undefined;
   s = s.replace(/\\/g, '/').trim();
-
-  // absoluta: usa como está
   if (s.startsWith('//')) return `https:${s}`;
   if (/^https?:\/\//i.test(s) || s.startsWith('data:')) return toHttps(s);
-
-  // relativo: prefixa com S3
   const path = s.startsWith('/') ? s : `/${s}`;
   return `${S3_BASE}${path}`;
 }
@@ -377,9 +364,11 @@ function StepSkeleton() {
    Ícone da etapa
 ========================================================= */
 function stepIconFor(n: number) {
-  if (n === 0) return <IconCalendar size={28} />;
-  if (n === 1) return <IconMapPin size={28} />;
-  return <IconUser size={28} />;
+  // 0: Tipo | 1: Reserva | 2: Área | 3: Cadastro | 4: Concluído
+  if (n === 2) return <IconMapPin size={28} />;
+  if (n === 3) return <IconUser size={28} />;
+  // 0 e 1 usam calendário/fluxo
+  return <IconCalendar size={28} />;
 }
 
 /* =========================================================
@@ -547,11 +536,10 @@ function firstAndLastName(full: string) {
 }
 
 // Gera um poster 1080x1350 (4:5) com logo, nome e dados da reserva.
-// Retorna { blob, fileName, url }
 async function generatePoster({
   fullName,
   unitLabel,
-  areaName,      // mantido na assinatura (não usado na arte)
+  areaName,
   dateStr,
   timeStr,
   people,
@@ -621,17 +609,10 @@ async function generatePoster({
   if (qrUrl) {
     try {
       const qr = await loadImage(qrUrl, true);
-
-      // tamanho do QR (mantive 360, ajuste se quiser)
       const s = 360;
-
-      // posição: canto direito, mais para BAIXO
       const qrX = W - s - 120;
-      const qrY = Math.min(H - s - 140, top + 180); // empurra pra baixo e garante que não sai da arte
-
+      const qrY = Math.min(H - s - 140, top + 180);
       ctx.drawImage(qr, qrX, qrY, s, s);
-
-      // legenda logo ABAIXO do QR
       ctx.font = '500 28px system-ui, Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#0f5132';
@@ -690,6 +671,9 @@ function buildGoogleCalendarUrl({
    Página
 ========================================================= */
 export default function ReservarMane() {
+  // novo: tipo de reserva
+  const [reservationType, setReservationType] = useState<ReservationType>('PARTICULAR');
+
   const [step, setStep] = useState(0);
   const [stepLoading, setStepLoading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -705,13 +689,13 @@ export default function ReservarMane() {
     bootedRef.current = true;
   }, []);
 
-  // progresso do header
+  // progresso do header (4 etapas antes do concluído)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    const targets = [33, 66, 100, 100];
-    const target = targets[Math.min(step, 3)];
+    const targets = [20, 40, 60, 80, 100]; // 0..4
+    const target = targets[Math.min(step, 4)];
     requestAnimationFrame(() => setProgress(target));
   }, [step]);
 
@@ -737,22 +721,22 @@ export default function ReservarMane() {
   // ⭐ metadados estáticos das áreas (emoji/descrição/foto) por unidade
   const [areasMeta, setAreasMeta] = useState<Record<string, AreaMeta>>({});
 
-  // passo 1
+  // passo 1 (reserva)
   const [adultos, setAdultos] = useState<number | ''>(2);
   const [criancas, setCriancas] = useState<number | ''>(0);
   const [data, setData] = useState<Date | null>(null);
   const [hora, setHora] = useState<string>('');
   const [timeError, setTimeError] = useState<string | null>(null);
   const [dateError, setDateError] = useState<string | null>(null);
-  const [pastError, setPastError] = useState<string | null>(null); // 👈 novo
+  const [pastError, setPastError] = useState<string | null>(null);
 
-  // passo 3
+  // passo 3 (cadastro)
   const [fullName, setFullName] = useState('');
   const [cpf, setCpf] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [birthday, setBirthday] = useState<Date | null>(null);
-  const [birthdayError, setBirthdayError] = useState<string | null>(null); // 👈 obrigatório
+  const [birthdayError, setBirthdayError] = useState<string | null>(null);
 
   // envio
   const [sending, setSending] = useState(false);
@@ -802,7 +786,7 @@ export default function ReservarMane() {
               setActiveReservation(r);
               setCreatedId(r.id);
               setCreatedCode(r.reservationCode);
-              setStep(3);
+              setStep(4); // agora boarding é o passo 4
               return;
             }
           } else {
@@ -875,9 +859,8 @@ export default function ReservarMane() {
           const iconEmojiRaw =
             a?.iconEmoji ?? a?.icon_emoji ?? a?.area?.iconEmoji ?? a?.area?.icon_emoji;
 
-          // pega caminho vindo do banco e converte para URL S3 (ou usa absoluto se já vier)
           const rawPhoto =
-            a?.photoUrlAbsolute ?? // se a API já devolver absoluto, respeita
+            a?.photoUrlAbsolute ??
             a?.photoPath ??
             a?.photoUrl ??
             a?.photo ??
@@ -966,9 +949,8 @@ export default function ReservarMane() {
           const id = String(a.id ?? a._id);
           const meta = metaMap[id];
 
-          // prioriza campos da disponibilidade; cai para meta; monta URL via S3
           const rawPhoto =
-            a?.photoUrlAbsolute ?? // se a API já devolver absoluto, respeita
+            a?.photoUrlAbsolute ??
             a?.photoPath ??
             a?.photoUrl ??
             a?.photo ??
@@ -1054,15 +1036,12 @@ export default function ReservarMane() {
 
   const handleContinueStep1 = () => {
     setError(null);
-
-    // trava grupo grande só no clique de Continuar
     const qty = typeof total === 'number' ? total : 0;
     if (qty > MAX_PEOPLE_WITHOUT_CONCIERGE) {
       setShowConcierge(true);
       return;
     }
-
-    goToStep(1);
+    goToStep(2); // agora próximo é a seleção de ÁREA
   };
 
   /* =========================================================
@@ -1074,25 +1053,25 @@ export default function ReservarMane() {
     try {
       if (!data || !hora) {
         setError('Selecione data e horário.');
-        goToStep(0);
+        goToStep(1); // data/hora ficam no passo 1 agora
         setSending(false);
         return;
       }
       if (dayjs(data).isBefore(TODAY_START, 'day')) {
         setError('Data inválida. Selecione uma data a partir de hoje.');
-        goToStep(0);
+        goToStep(1);
         setSending(false);
         return;
       }
       if (isPastSelection(data, hora)) {
         setError('Esse horário já passou. Selecione um horário no futuro.');
-        goToStep(0);
+        goToStep(1);
         setSending(false);
         return;
       }
       if (isTimeOutsideWindow(hora)) {
         setError(`Horário indisponível. ${timeWindowMessage()}.`);
-        goToStep(0);
+        goToStep(1);
         setSending(false);
         return;
       }
@@ -1103,13 +1082,14 @@ export default function ReservarMane() {
       }
       if (!areaId || !unidade) {
         setError('Selecione a unidade e a área.');
+        goToStep(2);
         setSending(false);
         return;
       }
       if (!birthday) {
         setError(null);
         setBirthdayError('Obrigatório');
-        goToStep(2);
+        goToStep(3);
         setSending(false);
         return;
       }
@@ -1132,6 +1112,9 @@ export default function ReservarMane() {
         utm_source: 'site',
         utm_campaign: `${unidade}:${areaId}`,
         source: 'site',
+
+        // NOVO: tipo de reserva
+        reservationType,
       };
 
       const resp = await fetch(`${API_BASE || ''}/v1/reservations/public`, {
@@ -1155,8 +1138,7 @@ export default function ReservarMane() {
               setActiveReservation(r);
               setCreatedId(r.id);
               setCreatedCode(r.reservationCode);
-              setStep(3);
-
+              setStep(4); // boarding
               if (typeof window !== 'undefined') {
                 const qrUrl = `${API_BASE || ''}/v1/reservations/${r.id}/qrcode`;
                 const lsPayload: SavedReservationLS = {
@@ -1172,6 +1154,7 @@ export default function ReservarMane() {
                   fullName: r.fullName ?? undefined,
                   cpf: r.cpf ?? undefined,
                   emailHint: r.email ?? undefined,
+                  reservationType,
                 };
                 localStorage.setItem(LS_KEY, JSON.stringify(lsPayload));
               }
@@ -1227,7 +1210,7 @@ export default function ReservarMane() {
 
       setCreatedId(resOk.id);
       setCreatedCode(resOk.reservationCode);
-      setStep(3);
+      setStep(4); // boarding
 
       if (typeof window !== 'undefined') {
         const qrUrl = `${API_BASE || ''}/v1/reservations/${resOk.id}/qrcode`;
@@ -1250,6 +1233,7 @@ export default function ReservarMane() {
           fullName: reservationLoaded?.fullName ?? fullName,
           cpf: reservationLoaded?.cpf ?? cpf,
           emailHint: reservationLoaded?.email ?? email,
+          reservationType,
         };
         localStorage.setItem(LS_KEY, JSON.stringify(lsPayload));
       }
@@ -1358,7 +1342,6 @@ export default function ReservarMane() {
       `Vem com a gente!`
     ].join('\n');
 
-    // tenta Web Share API com arquivo
     try {
       const p = await ensurePoster();
       const file = new File([p.blob], p.name, { type: 'image/jpeg' });
@@ -1372,7 +1355,6 @@ export default function ReservarMane() {
       // ignora e cai no wa.me
     }
 
-    // fallback: abre WhatsApp com o texto (e deixamos botão de baixar a arte ao lado)
     const wpp = buildWhatsappLink(text);
     window.open(wpp, '_blank', 'noopener,noreferrer');
   }
@@ -1449,16 +1431,16 @@ export default function ReservarMane() {
                 </Box>
 
                 <Text size="xs" c="dimmed" ta="center">
-                  {step < 3 ? `Etapa ${step + 1} de 3` : ''}
+                  {step < 4 ? `Etapa ${step + 1} de 4` : ''}
                 </Text>
 
-                {step < 3 ? (
+                {step < 4 ? (
                   <>
                     <Title order={5} ta="center" fw={400}>
-                      {['Reserva', 'Área', 'Cadastro'][step]}
+                      {['Tipo', 'Reserva', 'Área', 'Cadastro'][step]}
                     </Title>
                     <Text size="sm" c="dimmed" ta="center">
-                      {['Unidade, pessoas e horário', 'Escolha onde quer sentar', 'Dados necessários.'][step]}
+                      {['Selecione o tipo de reserva', 'Unidade, pessoas e horário', 'Escolha onde quer sentar', 'Dados necessários.'][step]}
                     </Text>
                   </>
                 ) : (
@@ -1504,8 +1486,62 @@ export default function ReservarMane() {
             width: '100%',
           }}
         >
-          {/* PASSO 1 */}
-          {step === 0 && (stepLoading ? (
+          {/* PASSO 0 — Tipo */}
+          {step === 0 && (
+            <Stack mt="xs" gap="md">
+              <Card withBorder radius="lg" shadow="sm" p="md" style={{ background: '#FBF5E9' }}>
+                <Stack gap="md">
+                  <Text size="sm" c="dimmed">Escolha o tipo de reserva</Text>
+                  <Grid gutter="md">
+                    {([
+                      { key: 'PARTICULAR', label: 'Particular', desc: 'Para você e seus convidados.' },
+                      { key: 'CONFRATERNIZACAO', label: 'Confraternização', desc: 'Aniversários, formaturas, despedidas...' },
+                      { key: 'EMPRESA', label: 'Empresa', desc: 'Eventos corporativos.' },
+                    ] as {key: ReservationType; label: string; desc: string}[]).map(opt => (
+                      <Grid.Col span={12} key={opt.key}>
+                        <Card
+                          withBorder
+                          radius="md"
+                          p="md"
+                          onClick={() => setReservationType(opt.key)}
+                          style={{
+                            cursor: 'pointer',
+                            borderColor: reservationType === opt.key ? 'var(--mantine-color-green-5)' : 'transparent',
+                            background: reservationType === opt.key ? '#EFFFF3' : '#fff',
+                          }}
+                        >
+                          <Group justify="space-between" align="flex-start">
+                            <div>
+                              <Title order={4} fw={600} style={{ margin: 0 }}>{opt.label}</Title>
+                              <Text size="sm" c="dimmed">{opt.desc}</Text>
+                            </div>
+                            {reservationType === opt.key && (
+                              <Badge color="green" variant="filled">Selecionado</Badge>
+                            )}
+                          </Group>
+                        </Card>
+                      </Grid.Col>
+                    ))}
+                  </Grid>
+                </Stack>
+              </Card>
+
+              <Group gap="sm">
+                <Button
+                  color="green"
+                  radius="md"
+                  onClick={() => goToStep(1)}
+                  type="button"
+                  style={{ flex: 1 }}
+                >
+                  Continuar
+                </Button>
+              </Group>
+            </Stack>
+          )}
+
+          {/* PASSO 1 — Reserva (unidade, pessoas, data/hora) */}
+          {step === 1 && (stepLoading ? (
             <StepSkeleton />
           ) : (
             <Stack mt="xs" gap="md">
@@ -1563,7 +1599,6 @@ export default function ReservarMane() {
                           const invalid = d ? dayjs(d).isBefore(TODAY_START, 'day') : false;
                           setDateError(invalid ? 'Selecione uma data a partir de hoje' : null);
 
-                          // regra: horário no passado (hoje com horário anterior ao atual)
                           setPastError(() => {
                             if (!d || !hora) return null;
                             return isPastSelection(d, hora)
@@ -1589,7 +1624,6 @@ export default function ReservarMane() {
                           setHora(val);
                           setTimeError(val && !isValidSlot(val) ? SLOT_ERROR_MSG : null);
 
-                          // regra: horário no passado (hoje com horário anterior ao atual)
                           setPastError(() => {
                             if (!data || !val) return null;
                             return isPastSelection(data, val)
@@ -1606,7 +1640,7 @@ export default function ReservarMane() {
 
                   <Card withBorder radius="md" p="sm" style={{ background: '#fffdf7' }}>
                     <Text size="sm" ta="center">
-                      <b>Total:</b> {total} pessoa(s) • <b>Data:</b>{' '}
+                      <b>Tipo:</b> {RES_TYPE_LABEL[reservationType]} • <b>Total:</b> {total} pessoa(s) • <b>Data:</b>{' '}
                       {data ? dayjs(data).format('DD/MM/YY') : '--'} - {hora || '--:--'}{' '}
                       {dateError && <Text component="span" c="red">• {dateError}</Text>}
                       {(timeError || pastError) && (
@@ -1623,14 +1657,19 @@ export default function ReservarMane() {
                 </Stack>
               </Card>
 
-              <Button color="green" radius="md" disabled={!canNext1} onClick={handleContinueStep1} type="button">
-                Continuar
-              </Button>
+              <Group gap="sm">
+                <Button variant="light" radius="md" onClick={() => goToStep(0)} type="button" style={{ flex: 1 }}>
+                  Voltar
+                </Button>
+                <Button color="green" radius="md" disabled={!canNext1} onClick={handleContinueStep1} type="button" style={{ flex: 2 }}>
+                  Continuar
+                </Button>
+              </Group>
             </Stack>
           ))}
 
-          {/* PASSO 2 */}
-          {step === 1 && (stepLoading ? (
+          {/* PASSO 2 — Área */}
+          {step === 2 && (stepLoading ? (
             <StepSkeleton />
           ) : (
             <Stack mt="xs" gap="md">
@@ -1660,13 +1699,13 @@ export default function ReservarMane() {
               })}
 
               <Group gap="sm">
-                <Button variant="light" radius="md" onClick={() => goToStep(0)} type="button" style={{ flex: 1 }}>
+                <Button variant="light" radius="md" onClick={() => goToStep(1)} type="button" style={{ flex: 1 }}>
                   Voltar
                 </Button>
                 <Button
                   color="green"
                   radius="md"
-                  onClick={() => goToStep(2)}
+                  onClick={() => goToStep(3)}
                   disabled={!canNext2}
                   type="button"
                   style={{ flex: 2 }}
@@ -1677,8 +1716,8 @@ export default function ReservarMane() {
             </Stack>
           ))}
 
-          {/* PASSO 3 */}
-          {step === 2 && (stepLoading ? (
+          {/* PASSO 3 — Cadastro */}
+          {step === 3 && (stepLoading ? (
             <StepSkeleton />
           ) : (
             <Stack mt="xs" gap="md">
@@ -1756,7 +1795,7 @@ export default function ReservarMane() {
 
               <Card withBorder radius="md" p="sm" style={{ background: '#fffdf7' }}>
                 <Text size="sm" ta="center">
-                  <b>Unidade:</b> {units.find((u) => u.id === unidade)?.name ?? '—'} • <b>Área:</b>{' '}
+                  <b>Tipo:</b> {RES_TYPE_LABEL[reservationType]} • <b>Unidade:</b> {units.find((u) => u.id === unidade)?.name ?? '—'} • <b>Área:</b>{' '}
                   {areas.find((a) => a.id === areaId)?.name ?? '—'}
                   <br />
                   <b>Pessoas:</b> {total} • <b>Data/Hora:</b>{' '}
@@ -1765,7 +1804,7 @@ export default function ReservarMane() {
               </Card>
 
               <Group gap="sm">
-                <Button variant="light" radius="md" onClick={() => goToStep(1)} type="button" style={{ flex: 1 }}>
+                <Button variant="light" radius="md" onClick={() => goToStep(2)} type="button" style={{ flex: 1 }}>
                   Voltar
                 </Button>
                 <Button
@@ -1784,7 +1823,7 @@ export default function ReservarMane() {
           ))}
 
           {/* PASSO 4 — Boarding Pass + Compartilhar */}
-          {step === 3 && createdId && (
+          {step === 4 && createdId && (
             <>
               <BoardingPass
                 id={createdId}
