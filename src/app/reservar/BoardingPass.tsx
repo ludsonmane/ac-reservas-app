@@ -245,10 +245,7 @@ export default function BoardingPass({
             }}
           >
             {/* ENTALHES LATERAIS */}
-            <Box
-              aria-hidden
-              style={{ position: 'absolute', top: 'calc(50% - 14px)', left: -3, width: 18, height: 28, background: OUT_BG, zIndex: 2 }}
-            />
+            <Box aria-hidden style={{ position: 'absolute', top: 'calc(50% - 14px)', left: -3, width: 18, height: 28, background: OUT_BG, zIndex: 2 }} />
             <Box
               aria-hidden
               style={{
@@ -264,10 +261,7 @@ export default function BoardingPass({
                 zIndex: 3,
               }}
             />
-            <Box
-              aria-hidden
-              style={{ position: 'absolute', top: 'calc(50% - 14px)', right: -3, width: 18, height: 28, background: OUT_BG, zIndex: 2 }}
-            />
+            <Box aria-hidden style={{ position: 'absolute', top: 'calc(50% - 14px)', right: -3, width: 18, height: 28, background: OUT_BG, zIndex: 2 }} />
             <Box
               aria-hidden
               style={{
@@ -298,9 +292,7 @@ export default function BoardingPass({
               <Box>
                 <Group gap={6} align="center">
                   <IconCalendar size={14} />
-                  <Text size="xs" c="dimmed">
-                    Data
-                  </Text>
+                  <Text size="xs" c="dimmed">Data</Text>
                 </Group>
                 <Text fw={700} style={{ fontSize: 'clamp(14px, 4.8vw, 16px)' }}>{dateStr}</Text>
               </Box>
@@ -308,9 +300,7 @@ export default function BoardingPass({
               <Box style={{ textAlign: 'right' }}>
                 <Group gap={6} justify="right" align="center">
                   <IconClockHour4 size={14} />
-                  <Text size="xs" c="dimmed">
-                    Horário
-                  </Text>
+                  <Text size="xs" c="dimmed">Horário</Text>
                 </Group>
                 <Text fw={700} style={{ fontSize: 'clamp(14px, 4.8vw, 16px)' }}>{timeStr}</Text>
               </Box>
@@ -333,21 +323,8 @@ export default function BoardingPass({
               >
                 {/* Tolerância +15 */}
                 <Box style={{ textAlign: 'center', minWidth: 0 }}>
-                  <Text size="xs" c="dimmed">
-                    Tolerância (+15 min)
-                  </Text>
-                  <Text
-                    fw={800}
-                    style={{
-                      fontVariantNumeric: 'tabular-nums',
-                      letterSpacing: 0.4,
-                      lineHeight: 1.1,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      fontSize: 'clamp(12px, 3.6vw, 15px)',
-                    }}
-                  >
+                  <Text size="xs" c="dimmed">Tolerância (+15 min)</Text>
+                  <Text fw={800} style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 0.4, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 'clamp(12px, 3.6vw, 15px)' }}>
                     {fmtCountdown(msToTolerance15)}
                   </Text>
                   <Badge size="xs" color={msToTolerance15 > 0 ? 'green' : 'red'} variant="light">
@@ -357,21 +334,8 @@ export default function BoardingPass({
 
                 {/* Convidados +45 */}
                 <Box style={{ textAlign: 'center', minWidth: 0 }}>
-                  <Text size="xs" c="dimmed">
-                    Convidados (+45 min)
-                  </Text>
-                  <Text
-                    fw={800}
-                    style={{
-                      fontVariantNumeric: 'tabular-nums',
-                      letterSpacing: 0.4,
-                      lineHeight: 1.1,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      fontSize: 'clamp(12px, 3.6vw, 15px)',
-                    }}
-                  >
+                  <Text size="xs" c="dimmed">Convidados (+45 min)</Text>
+                  <Text fw={800} style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 0.4, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 'clamp(12px, 3.6vw, 15px)' }}>
                     {fmtCountdown(msToGuests45)}
                   </Text>
                   <Badge size="xs" color={msToGuests45 > 0 ? 'teal' : 'gray'} variant="light">
@@ -395,28 +359,16 @@ export default function BoardingPass({
               <Box style={{ minWidth: 0 }}>
                 <Group gap={6} align="center">
                   <IconUser size={14} />
-                  <Text size="xs" c="dimmed">
-                    Nome
-                  </Text>
+                  <Text size="xs" c="dimmed">Nome</Text>
                 </Group>
-                <Text
-                  fw={600}
-                  style={{
-                    fontSize: 'clamp(14px, 4.6vw, 16px)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
+                <Text fw={600} style={{ fontSize: 'clamp(14px, 4.6vw, 16px)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {fullName || '—'}
                 </Text>
               </Box>
               <Box style={{ textAlign: 'right', minWidth: 0 }}>
                 <Group gap={6} justify="right" align="center">
                   <IconId size={14} />
-                  <Text size="xs" c="dimmed">
-                    CPF
-                  </Text>
+                  <Text size="xs" c="dimmed">CPF</Text>
                 </Group>
                 <Text fw={600} style={{ fontSize: 'clamp(14px, 4.6vw, 16px)' }}>{fmtCPF(cpf)}</Text>
               </Box>
@@ -435,72 +387,26 @@ export default function BoardingPass({
               }}
             >
               <Box style={{ textAlign: 'left', minWidth: 0 }}>
-                <Title
-                  order={1}
-                  style={{
-                    fontSize: 'clamp(16px, 7vw, 22px)',
-                    lineHeight: 1.05,
-                    letterSpacing: 0.5,
-                    margin: 0,
-                    padding: 0,
-                    display: 'inline-block',
-                    fontWeight: 700,
-                  }}
-                >
+                <Title order={1} style={{ fontSize: 'clamp(16px, 7vw, 22px)', lineHeight: 1.05, letterSpacing: 0.5, margin: 0, padding: 0, display: 'inline-block', fontWeight: 700 }}>
                   {unitAcr}
                 </Title>
 
                 <Group gap={6} mt={2} align="center" wrap="nowrap" style={{ minWidth: 0, maxWidth: '100%' }}>
                   <IconBuildingStore size={14} />
-                  <Text
-                    size="xs"
-                    c="dimmed"
-                    style={{
-                      marginTop: 2,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      display: 'block',
-                      maxWidth: '100%',
-                    }}
-                    title={unitLabel}
-                  >
+                  <Text size="xs" c="dimmed" style={{ marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: '100%' }} title={unitLabel}>
                     {unitLabel}
                   </Text>
                 </Group>
               </Box>
 
               <Box style={{ textAlign: 'right', minWidth: 0 }}>
-                <Title
-                  order={1}
-                  style={{
-                    fontSize: 'clamp(16px, 7vw, 22px)',
-                    lineHeight: 1.05,
-                    letterSpacing: 0.5,
-                    margin: 0,
-                    padding: 0,
-                    display: 'inline-block',
-                    fontWeight: 700,
-                  }}
-                >
+                <Title order={1} style={{ fontSize: 'clamp(16px, 7vw, 22px)', lineHeight: 1.05, letterSpacing: 0.5, margin: 0, padding: 0, display: 'inline-block', fontWeight: 700 }}>
                   {areaAcr}
                 </Title>
 
                 <Group gap={6} mt={2} justify="right" wrap="nowrap" style={{ minWidth: 0, maxWidth: '100%' }}>
                   <IconMapPin size={14} />
-                  <Text
-                    size="xs"
-                    c="dimmed"
-                    style={{
-                      marginTop: 2,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      display: 'block',
-                      maxWidth: '100%',
-                    }}
-                    title={areaName}
-                  >
+                  <Text size="xs" c="dimmed" style={{ marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: '100%' }} title={areaName}>
                     {areaName}
                   </Text>
                 </Group>
@@ -524,9 +430,7 @@ export default function BoardingPass({
               <Box style={{ textAlign: 'center' }}>
                 <Group gap={6} justify="center" align="center">
                   <IconUsers size={14} />
-                  <Text size="xs" c="dimmed">
-                    Pessoas
-                  </Text>
+                  <Text size="xs" c="dimmed">Pessoas</Text>
                 </Group>
                 <Text fw={700} style={{ color: '#111', marginTop: 2, lineHeight: 1, fontSize: 'clamp(16px, 5vw, 18px)' }}>
                   {people}
@@ -536,11 +440,8 @@ export default function BoardingPass({
               <Box style={{ textAlign: 'center' }}>
                 <Group gap={6} justify="center" align="center">
                   <IconMoodKid size={14} />
-                  <Text size="xs" c="dimmed">
-                    Crianças
-                  </Text>
+                  <Text size="xs" c="dimmed">Crianças</Text>
                 </Group>
-
                 <Text fw={700} style={{ color: '#111', marginTop: 2, lineHeight: 1, fontSize: 'clamp(16px, 5vw, 18px)' }}>
                   {kids}
                 </Text>
@@ -565,7 +466,7 @@ export default function BoardingPass({
               />
             </Box>
 
-            {/* QR central */}
+            {/* QR central (abaixo, separado e com legenda) */}
             <Divider my={10} />
 
             <Stack align="center" gap={6} mt={4} mb={4}>
@@ -598,16 +499,16 @@ export default function BoardingPass({
                   }}
                 />
               </Box>
-
               <Text size="xs" c="dimmed">Apresente este QR no check-in</Text>
             </Stack>
+          </Card>
 
-            {/* rodapé curto somente quando header está visível */}
-            {!hideHeader && (
-              <Text size="xs" c="dimmed" ta="center" mt="sm" style={{ maxWidth: rem(520), fontSize: 'clamp(12px, 3.4vw, 14px)' }}>
-                Guarde o localizador <b>{code}</b>. Você pode usá-lo para buscar sua reserva rapidamente.
-              </Text>
-            )}
+          {/* rodapé curto somente quando header está visível */}
+          {!hideHeader && (
+            <Text size="xs" c="dimmed" ta="center" mt="sm" style={{ maxWidth: rem(520), fontSize: 'clamp(12px, 3.4vw, 14px)' }}>
+              Guarde o localizador <b>{code}</b>. Você pode usá-lo para buscar sua reserva rapidamente.
+            </Text>
+          )}
         </Stack>
       </Card>
 
