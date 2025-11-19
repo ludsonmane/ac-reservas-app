@@ -621,12 +621,21 @@ async function generatePoster({
   if (qrUrl) {
     try {
       const qr = await loadImage(qrUrl, true);
+
+      // tamanho do QR (mantive 360, ajuste se quiser)
       const s = 360;
-      ctx.drawImage(qr, W - s - 120, top - 40, s, s);
+
+      // posição: canto direito, mais para BAIXO
+      const qrX = W - s - 120;
+      const qrY = Math.min(H - s - 140, top + 180); // empurra pra baixo e garante que não sai da arte
+
+      ctx.drawImage(qr, qrX, qrY, s, s);
+
+      // legenda logo ABAIXO do QR
       ctx.font = '500 28px system-ui, Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#0f5132';
-      ctx.fillText('Apresente este QR no check-in', W - s / 2 - 120, top + s + 20);
+      ctx.fillText('Apresente este QR no check-in', qrX + s / 2, qrY + s + 32);
     } catch { }
   }
 
