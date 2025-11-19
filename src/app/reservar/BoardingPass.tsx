@@ -566,34 +566,48 @@ export default function BoardingPass({
             </Box>
 
             {/* QR central */}
-            <Box style={{ display: 'flex', justifyContent: 'center', paddingBottom: rem(6) }}>
-              <img
-                src={`${qrUrl}?t=${Date.now()}`}
-                alt="QR de check-in"
-                className="bp-qr"
-                width={168}
-                height={168}
-                style={{
-                  display: 'block',
-                  width: 'clamp(132px, 45vw, 188px)',
-                  height: 'clamp(132px, 45vw, 188px)',
-                  objectFit: 'contain',
-                  borderRadius: 8,
-                  background: 'transparent',
-                }}
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            </Box>
-          </Card>
+            <Divider my={10} />
 
-          {/* rodapé curto somente quando header está visível */}
-          {!hideHeader && (
-            <Text size="xs" c="dimmed" ta="center" mt="sm" style={{ maxWidth: rem(520), fontSize: 'clamp(12px, 3.4vw, 14px)' }}>
-              Guarde o localizador <b>{code}</b>. Você pode usá-lo para buscar sua reserva rapidamente.
-            </Text>
-          )}
+            <Stack align="center" gap={6} mt={4} mb={4}>
+              <Box
+                style={{
+                  padding: 10,
+                  background: '#ffffff',
+                  borderRadius: 12,
+                  border: '2px solid #146C2E',
+                  boxShadow: '0 8px 20px rgba(0,0,0,.08)',
+                }}
+              >
+                <img
+                  src={`${qrUrl}?t=${Date.now()}`}
+                  alt="QR de check-in"
+                  width={188}
+                  height={188}
+                  style={{
+                    display: 'block',
+                    width: 'clamp(148px, 48vw, 200px)',
+                    height: 'clamp(148px, 48vw, 200px)',
+                    objectFit: 'contain',
+                    background: 'transparent',
+                    borderRadius: 8,
+                  }}
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              </Box>
+
+              <Text size="xs" c="dimmed">Apresente este QR no check-in</Text>
+            </Stack>
+
+            {/* rodapé curto somente quando header está visível */}
+            {!hideHeader && (
+              <Text size="xs" c="dimmed" ta="center" mt="sm" style={{ maxWidth: rem(520), fontSize: 'clamp(12px, 3.4vw, 14px)' }}>
+                Guarde o localizador <b>{code}</b>. Você pode usá-lo para buscar sua reserva rapidamente.
+              </Text>
+            )}
         </Stack>
       </Card>
 
