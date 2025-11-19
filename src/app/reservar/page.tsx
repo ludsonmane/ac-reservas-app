@@ -84,6 +84,13 @@ type AreaMeta = {
   photoUrl?: string | null;
 };
 
+type ReservationType = 'PARTICULAR' | 'CONFRATERNIZACAO' | 'EMPRESA';
+const RES_TYPE_LABEL: Record<ReservationType, string> = {
+  PARTICULAR: 'Particular',
+  CONFRATERNIZACAO: 'Confraternização',
+  EMPRESA: 'Empresa',
+};
+
 type ReservationDto = {
   id: string;
   reservationCode: string;
@@ -99,13 +106,7 @@ type ReservationDto = {
   email: string | null;
   phone: string | null;
   status: 'AWAITING_CHECKIN' | 'CHECKED_IN' | string;
-};
-
-type ReservationType = 'PARTICULAR' | 'CONFRATERNIZACAO' | 'EMPRESA';
-const RES_TYPE_LABEL: Record<ReservationType, string> = {
-  PARTICULAR: 'Particular',
-  CONFRATERNIZACAO: 'Confraternização',
-  EMPRESA: 'Empresa',
+  reservationType?: ReservationType | string | null;
 };
 
 type SavedReservationLS = {
@@ -207,7 +208,6 @@ const numberInputHandler =
 
 /* =========================================================
    Helpers de imagem
-   - minimalista: prefixa caminho do banco com S3
 ========================================================= */
 const S3_BASE = 'https://mane-reservations-prod.s3.amazonaws.com';
 const ASSET_BASE = (API_BASE || '').replace(/\/+$/, '');
@@ -223,7 +223,6 @@ function sanitizePhoto(raw?: any): string | undefined {
   return r;
 }
 
-// força https quando a página está em https (evita mixed content)
 function toHttps(u: string) {
   try {
     const url = new URL(u);
@@ -237,7 +236,6 @@ function toHttps(u: string) {
   return u;
 }
 
-/** Mantido para outros usos (relativo -> API_BASE) */
 function resolvePhotoUrl(raw?: any): string | undefined {
   let s = sanitizePhoto(raw);
   if (!s) return undefined;
@@ -250,7 +248,6 @@ function resolvePhotoUrl(raw?: any): string | undefined {
   return toHttps(`${ASSET_BASE}${s.startsWith('/') ? s : `/${s}`}`);
 }
 
-/** relativo -> S3 (preferência para exibição de imagens de áreas) */
 function toS3Url(raw?: any): string | undefined {
   let s = sanitizePhoto(raw);
   if (!s) return undefined;
@@ -367,7 +364,6 @@ function stepIconFor(n: number) {
   // 0: Tipo | 1: Reserva | 2: Área | 3: Cadastro | 4: Concluído
   if (n === 2) return <IconMapPin size={28} />;
   if (n === 3) return <IconUser size={28} />;
-  // 0 e 1 usam calendário/fluxo
   return <IconCalendar size={28} />;
 }
 
@@ -418,7 +414,13 @@ function AreaCard({
       }}
       onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
     >
-      <Box style={{ position: 'relative', height: 'clamp(120px, 32vw, 160px)', background: '#f2f2f2' }}>
+      <Box
+        style={{
+          position: 'relative',
+          height: 'clamp(120px, 32vw, 160px)',
+          background: '#f2f2f2',
+        }}
+      >
         <NextImage
           src={src}
           alt={titulo}
@@ -535,7 +537,6 @@ function firstAndLastName(full: string) {
   return `${parts[0]} ${parts[parts.length - 1]}`;
 }
 
-// Gera um poster 1080x1350 (4:5) com logo, nome e dados da reserva.
 async function generatePoster({
   fullName,
   unitLabel,
@@ -562,37 +563,31 @@ async function generatePoster({
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d')!;
 
-  // fundo
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, '#e7ffe7');
   grad.addColorStop(1, '#e9f7ef');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  // moldura
   ctx.strokeStyle = '#146C2E';
   ctx.lineWidth = 16;
   ctx.strokeRect(24, 24, W - 48, H - 48);
 
-  // logo
   try {
     const logo = await loadImage(logoUrl);
     const lw = 420, lh = 140;
     ctx.drawImage(logo, (W - lw) / 2, 80, lw, lh);
-  } catch { }
+  } catch {}
 
-  // título
   ctx.fillStyle = '#146C2E';
   ctx.font = '700 56px system-ui, Arial';
   ctx.textAlign = 'center';
   ctx.fillText('RESERVA CONFIRMADA', W / 2, 300);
 
-  // Nome (apenas primeiro + último)
   const displayName = firstAndLastName(fullName || '');
   ctx.font = '800 64px system-ui, Arial';
   ctx.fillText(displayName.toUpperCase(), W / 2, 380);
 
-  // dados
   ctx.textAlign = 'left';
   ctx.font = '600 44px system-ui, Arial';
   const left = 120, top = 470, lh2 = 70;
@@ -605,7 +600,6 @@ async function generatePoster({
   ctx.fillStyle = '#0f5132';
   lines.forEach((t, i) => ctx.fillText(t, left, top + i * lh2));
 
-  // QR opcional
   if (qrUrl) {
     try {
       const qr = await loadImage(qrUrl, true);
@@ -617,10 +611,9 @@ async function generatePoster({
       ctx.textAlign = 'center';
       ctx.fillStyle = '#0f5132';
       ctx.fillText('Apresente este QR no check-in', qrX + s / 2, qrY + s + 32);
-    } catch { }
+    } catch {}
   }
 
-  // rodapé
   ctx.textAlign = 'center';
   ctx.font = '500 30px system-ui, Arial';
   ctx.fillStyle = '#166534';
@@ -633,12 +626,10 @@ async function generatePoster({
   const url = URL.createObjectURL(blob);
   return { blob, fileName, url };
 }
+
 /* =========================================================
    Helpers novos (Calendar/Email)
 ========================================================= */
-function isEmail(v: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
-}
 function buildGoogleCalendarUrl({
   title,
   startISO,
@@ -671,17 +662,14 @@ function buildGoogleCalendarUrl({
    Página
 ========================================================= */
 export default function ReservarMane() {
-  // novo: tipo de reserva
   const [reservationType, setReservationType] = useState<ReservationType>('PARTICULAR');
 
   const [step, setStep] = useState(0);
   const [stepLoading, setStepLoading] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  // estados de reserva criada/ativa
   const [activeReservation, setActiveReservation] = useState<ReservationDto | null>(null);
 
-  // boot analytics
   const bootedRef = useRef(false);
   useEffect(() => {
     if (bootedRef.current) return;
@@ -689,12 +677,11 @@ export default function ReservarMane() {
     bootedRef.current = true;
   }, []);
 
-  // progresso do header (4 etapas antes do concluído)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    const targets = [20, 40, 60, 80, 100]; // 0..4
+    const targets = [20, 40, 60, 80, 100];
     const target = targets[Math.min(step, 4)];
     requestAnimationFrame(() => setProgress(target));
   }, [step]);
@@ -706,22 +693,18 @@ export default function ReservarMane() {
     return () => clearTimeout(t);
   };
 
-  // unidades
   const [units, setUnits] = useState<UnitOption[]>([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
   const [unitsError, setUnitsError] = useState<string | null>(null);
   const [unidade, setUnidade] = useState<string | null>(null);
 
-  // áreas (lista atual renderizada)
   const [areas, setAreas] = useState<AreaOption[]>([]);
   const [areasLoading, setAreasLoading] = useState(false);
   const [areasError, setAreasError] = useState<string | null>(null);
   const [areaId, setAreaId] = useState<string | null>(null);
 
-  // ⭐ metadados estáticos das áreas (emoji/descrição/foto) por unidade
   const [areasMeta, setAreasMeta] = useState<Record<string, AreaMeta>>({});
 
-  // passo 1 (reserva)
   const [adultos, setAdultos] = useState<number | ''>(2);
   const [criancas, setCriancas] = useState<number | ''>(0);
   const [data, setData] = useState<Date | null>(null);
@@ -730,7 +713,6 @@ export default function ReservarMane() {
   const [dateError, setDateError] = useState<string | null>(null);
   const [pastError, setPastError] = useState<string | null>(null);
 
-  // passo 3 (cadastro)
   const [fullName, setFullName] = useState('');
   const [cpf, setCpf] = useState('');
   const [email, setEmail] = useState('');
@@ -738,28 +720,22 @@ export default function ReservarMane() {
   const [birthday, setBirthday] = useState<Date | null>(null);
   const [birthdayError, setBirthdayError] = useState<string | null>(null);
 
-  // envio
   const [sending, setSending] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // compartilhamento
   const [shareBusy, setShareBusy] = useState(false);
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [posterBlob, setPosterBlob] = useState<Blob | null>(null);
   const [posterName, setPosterName] = useState<string | null>(null);
 
-  // cálculo total (sem teto 👇)
   const total = useMemo(() => {
     const a = typeof adultos === 'number' ? adultos : 0;
     const c = typeof criancas === 'number' ? criancas : 0;
     return Math.max(1, a + c);
   }, [adultos, criancas]);
 
-  /* =========================================================
-     1) Checar LS e API /v1/reservations/public/active
-  ========================================================= */
   useEffect(() => {
     if (typeof window === 'undefined') return;
     (async () => {
@@ -774,6 +750,10 @@ export default function ReservarMane() {
         }
       }
 
+      if (saved?.reservationType) {
+        setReservationType(saved.reservationType);
+      }
+
       if (saved?.id) {
         try {
           const resp = await fetch(
@@ -786,7 +766,8 @@ export default function ReservarMane() {
               setActiveReservation(r);
               setCreatedId(r.id);
               setCreatedCode(r.reservationCode);
-              setStep(4); // agora boarding é o passo 4
+              if (r.reservationType) setReservationType(r.reservationType as ReservationType);
+              setStep(4);
               return;
             }
           } else {
@@ -799,9 +780,6 @@ export default function ReservarMane() {
     })();
   }, []);
 
-  /* =========================================================
-     2) Carregar unidades
-  ========================================================= */
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -809,10 +787,12 @@ export default function ReservarMane() {
       setUnitsError(null);
       try {
         const list = await apiGet<any[]>('/v1/units/public/options/list');
-        const normalized: UnitOption[] = (list ?? []).map((u: any) => ([
-          String(u.id ?? u._id ?? u.slug ?? u.name),
-          String(u.name ?? u.title ?? u.slug ?? '')
-        ])).map(([id, name]) => ({ id, name }));
+        const normalized: UnitOption[] = (list ?? [])
+          .map((u: any) => ([
+            String(u.id ?? u._id ?? u.slug ?? u.name),
+            String(u.name ?? u.title ?? u.slug ?? '')
+          ]))
+          .map(([id, name]) => ({ id, name }));
         if (!alive) return;
         setUnits(normalized);
       } catch (e: any) {
@@ -829,7 +809,6 @@ export default function ReservarMane() {
     };
   }, []);
 
-  /* ativa pixel por unidade */
   useEffect(() => {
     if (!unidade || units.length === 0) return;
     const unitObj = units.find((u) => u.id === unidade);
@@ -840,9 +819,6 @@ export default function ReservarMane() {
     }
   }, [unidade, units]);
 
-  /* =========================================================
-     2.1) Carregar metadados das áreas por unidade (normalizando foto via S3)
-  ========================================================= */
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -899,9 +875,6 @@ export default function ReservarMane() {
     };
   }, [unidade]);
 
-  /* =========================================================
-     3) carregar áreas conforme unidade/data/hora (priorizar foto; montar via S3)
-  ========================================================= */
   const ymd = useMemo(() => (data ? dayjs(data).format('YYYY-MM-DD') : ''), [data]);
 
   useEffect(() => {
@@ -913,7 +886,6 @@ export default function ReservarMane() {
       return;
     }
 
-    // sem data/hora → usa apenas metadados carregados
     if (!ymd || !hora) {
       const metaList = Object.values(areasMeta);
       const normalized: AreaOption[] = metaList.map((m) => ({
@@ -935,7 +907,6 @@ export default function ReservarMane() {
       };
     }
 
-    // com data/hora → disponibilidade + merge de metadados
     (async () => {
       setAreasLoading(true);
       setAreasError(null);
@@ -989,7 +960,6 @@ export default function ReservarMane() {
         if (!alive) return;
         setAreas(normalized);
 
-        // ajusta área selecionada conforme vagas
         setAreaId((curr) => {
           const need = typeof total === 'number' ? total : 0;
           const chosen = normalized.find((x) => x.id === curr);
@@ -1015,9 +985,6 @@ export default function ReservarMane() {
     };
   }, [unidade, ymd, hora, total, areasMeta]);
 
-  /* =========================================================
-     REGRAS de navegação
-  ========================================================= */
   const contactOk = isValidEmail(email) && isValidPhone(phone);
   const canNext1 = Boolean(unidade && data && hora && total > 0 && !timeError && !dateError && !pastError);
 
@@ -1029,9 +996,8 @@ export default function ReservarMane() {
     fullName.trim().length >= 3 &&
     onlyDigits(cpf).length === 11 &&
     contactOk &&
-    !!birthday; // 👈 aniversário obrigatório
+    !!birthday;
 
-  // estado do modal Concierge 40+
   const [showConcierge, setShowConcierge] = useState(false);
 
   const handleContinueStep1 = () => {
@@ -1041,19 +1007,16 @@ export default function ReservarMane() {
       setShowConcierge(true);
       return;
     }
-    goToStep(2); // agora próximo é a seleção de ÁREA
+    goToStep(2);
   };
 
-  /* =========================================================
-     Confirmação da Reserva
-  ========================================================= */
   async function confirmarReserva() {
     setSending(true);
     setError(null);
     try {
       if (!data || !hora) {
         setError('Selecione data e horário.');
-        goToStep(1); // data/hora ficam no passo 1 agora
+        goToStep(1);
         setSending(false);
         return;
       }
@@ -1112,8 +1075,6 @@ export default function ReservarMane() {
         utm_source: 'site',
         utm_campaign: `${unidade}:${areaId}`,
         source: 'site',
-
-        // NOVO: tipo de reserva
         reservationType,
       };
 
@@ -1138,7 +1099,8 @@ export default function ReservarMane() {
               setActiveReservation(r);
               setCreatedId(r.id);
               setCreatedCode(r.reservationCode);
-              setStep(4); // boarding
+              if (r.reservationType) setReservationType(r.reservationType as ReservationType);
+              setStep(4);
               if (typeof window !== 'undefined') {
                 const qrUrl = `${API_BASE || ''}/v1/reservations/${r.id}/qrcode`;
                 const lsPayload: SavedReservationLS = {
@@ -1210,7 +1172,7 @@ export default function ReservarMane() {
 
       setCreatedId(resOk.id);
       setCreatedCode(resOk.reservationCode);
-      setStep(4); // boarding
+      setStep(4);
 
       if (typeof window !== 'undefined') {
         const qrUrl = `${API_BASE || ''}/v1/reservations/${resOk.id}/qrcode`;
@@ -1239,6 +1201,9 @@ export default function ReservarMane() {
       }
 
       if (reservationLoaded) {
+        if (reservationLoaded.reservationType) {
+          setReservationType(reservationLoaded.reservationType as ReservationType);
+        }
         setActiveReservation(reservationLoaded);
       } else {
         const reservationISO2 = joinDateTimeISO(data, hora)!;
@@ -1257,6 +1222,7 @@ export default function ReservarMane() {
           email: email.trim().toLowerCase(),
           phone: onlyDigits(phone),
           status: 'AWAITING_CHECKIN',
+          reservationType,
         });
       }
     } finally {
@@ -1264,9 +1230,6 @@ export default function ReservarMane() {
     }
   }
 
-  /* =========================================================
-     Construção de campos do Boarding
-  ========================================================= */
   const apiBase = API_BASE || '';
   const qrUrl = createdId ? `${apiBase}/v1/reservations/${createdId}/qrcode` : '';
 
@@ -1287,10 +1250,9 @@ export default function ReservarMane() {
   const boardingFullName = activeReservation?.fullName ?? fullName;
   const boardingCpf = activeReservation?.cpf ?? cpf;
   const boardingEmail = activeReservation?.email ?? email;
+  const boardingReservationType =
+    (activeReservation as any)?.reservationType ?? reservationType;
 
-  /* =========================================================
-     Compartilhar (WhatsApp simples com arte)
-  ========================================================= */
   const [shareBusyInternal, setShareBusyInternal] = useState(false);
 
   async function ensurePoster() {
@@ -1338,9 +1300,10 @@ export default function ReservarMane() {
       `• Data: ${boardingDateStr}`,
       `• Horário: ${boardingTimeStr}`,
       `• Pessoas: ${boardingPeople}${boardingKids ? ` (Crianças: ${boardingKids})` : ''}`,
+      boardingReservationType ? `• Tipo: ${RES_TYPE_LABEL[boardingReservationType as ReservationType] || boardingReservationType}` : '',
       '',
       `Vem com a gente!`
-    ].join('\n');
+    ].filter(Boolean).join('\n');
 
     try {
       const p = await ensurePoster();
@@ -1359,9 +1322,6 @@ export default function ReservarMane() {
     window.open(wpp, '_blank', 'noopener,noreferrer');
   }
 
-  /* =========================================================
-     Render
-  ========================================================= */
   return (
     <DatesProvider settings={{ locale: 'pt-br' }}>
       <Box style={{ background: '#ffffff', minHeight: '100dvh' }}>
@@ -1540,7 +1500,7 @@ export default function ReservarMane() {
             </Stack>
           )}
 
-          {/* PASSO 1 — Reserva (unidade, pessoas, data/hora) */}
+          {/* PASSO 1 — Reserva */}
           {step === 1 && (stepLoading ? (
             <StepSkeleton />
           ) : (
@@ -1838,6 +1798,7 @@ export default function ReservarMane() {
                 fullName={boardingFullName}
                 cpf={boardingCpf}
                 emailHint={boardingEmail}
+                reservationType={boardingReservationType as ReservationType}
               />
 
               <Card withBorder radius="lg" shadow="sm" p="md" mt="md" style={{ background: '#FBF5E9' }}>
@@ -1870,7 +1831,6 @@ export default function ReservarMane() {
             </>
           )}
 
-          {/* Modal Concierge 40+ */}
           {showConcierge && (
             <Box
               style={{
@@ -1895,7 +1855,7 @@ export default function ReservarMane() {
                     Para reservas acima de <b>{MAX_PEOPLE_WITHOUT_CONCIERGE}</b> pessoas, é necessário falar com nosso concierge pelo WhatsApp.
                   </Text>
                   <Text size="sm" c="dimmed" mt={6}>
-                    Assim garantimos a melhor organização do espaço e atendimento do seu grupo. 🙂
+                    Assim garantimos a melhor organização do espaço e atendimento do seu grupo. 🙂 
                   </Text>
                 </Box>
                 <Group justify="end" gap="sm" px="md" py="sm" style={{ borderTop: '1px solid rgba(0,0,0,.08)', background: '#fff' }}>

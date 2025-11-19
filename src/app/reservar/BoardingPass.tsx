@@ -30,6 +30,8 @@ type Props = {
   emailHint?: string | null;
   /** quando true, esconde o cabeçalho ("Reserva criada", Localizador e aviso de e-mail) */
   hideHeader?: boolean;
+  /** Tipo de reserva vindo da API: 'PARTICULAR', 'CONFRATERNIZACAO', etc. */
+  reservationType?: string | null;
 };
 
 /** remove acentos e baixa */
@@ -109,6 +111,20 @@ function statusLabel(remainingMs: number, labelWhenOk = 'ativo', labelWhenZero =
   return remainingMs > 0 ? labelWhenOk : labelWhenZero;
 }
 
+/** Label amigável para o tipo de reserva */
+function reservationTypeLabel(raw?: string | null) {
+  if (!raw) return null;
+  const x = String(raw)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .trim().toUpperCase();
+
+  if (['CONFRATERNIZACAO', 'CONFRATERNIZACAO/GRUPO', 'CONFRATERNIZACAO '].includes(x)) return 'Confraternização';
+  if (['EMPRESA', 'CORPORATIVO', 'CORPORATE'].includes(x)) return 'Empresa';
+  if (['PARTICULAR', 'PESSOAL', 'PRIVADO'].includes(x)) return 'Particular';
+  if (['ANIVERSARIO', 'NIVER', 'BIRTHDAY'].includes(x)) return 'Aniversário';
+  return raw; // fallback
+}
+
 export default function BoardingPass({
   code,
   qrUrl,
@@ -122,6 +138,7 @@ export default function BoardingPass({
   cpf,
   emailHint,
   hideHeader = false,
+  reservationType = null,
 }: Props) {
   const OUT_BG = '#FBF5E9'; // fundo externo
 
@@ -447,6 +464,27 @@ export default function BoardingPass({
                 </Text>
               </Box>
             </Box>
+
+            {/* Tipo de Reserva (sempre ANTES dos furinhos/QR) */}
+            {!!reservationTypeLabel(reservationType) && (
+              <Box
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr',
+                  gap: 8,
+                  paddingInline: 8,
+                  marginTop: rem(6),
+                  marginBottom: rem(6),
+                }}
+              >
+                <Box style={{ textAlign: 'center' }}>
+                  <Text size="xs" c="dimmed">Tipo de Reserva</Text>
+                  <Text fw={700} style={{ color: '#111', marginTop: 2, lineHeight: 1, fontSize: 'clamp(16px, 5vw, 18px)' }}>
+                    {reservationTypeLabel(reservationType)}
+                  </Text>
+                </Box>
+              </Box>
+            )}
 
             {/* Faixa de furinhos */}
             <Box style={{ position: 'relative', marginTop: rem(6), marginBottom: rem(10) }}>
