@@ -204,8 +204,8 @@ function isPastSelection(date: Date | null, time: string) {
 /* onChange NumberInput */
 const numberInputHandler =
   (setter: React.Dispatch<React.SetStateAction<number | ''>>) =>
-  (v: string | number) =>
-    setter(v === '' ? '' : Number(v));
+    (v: string | number) =>
+      setter(v === '' ? '' : Number(v));
 
 /* =========================================================
    Helpers de imagem
@@ -369,7 +369,7 @@ function stepIconFor(n: number) {
 }
 
 /* =========================================================
-   AreaCard
+   AreaCard (sem contagem; mostra só "Poucas vagas disponíveis")
 ========================================================= */
 function AreaCard({
   foto,
@@ -395,6 +395,13 @@ function AreaCard({
     setSrc(foto || FALLBACK_IMG);
   }, [foto]);
 
+  const LOW_STOCK_THRESHOLD = 8; // <<< ajuste aqui se quiser outro limite
+  const showLowStock =
+    !disabled &&
+    typeof remaining === 'number' &&
+    remaining > 0 &&
+    remaining <= LOW_STOCK_THRESHOLD;
+
   return (
     <Card
       withBorder
@@ -405,7 +412,9 @@ function AreaCard({
         cursor: disabled ? 'not-allowed' : 'pointer',
         overflow: 'hidden',
         borderColor: selected ? 'var(--mantine-color-green-5)' : 'transparent',
-        boxShadow: selected ? '0 8px 20px rgba(16, 185, 129, .15)' : '0 2px 10px rgba(0,0,0,.06)',
+        boxShadow: selected
+          ? '0 8px 20px rgba(16, 185, 129, .15)'
+          : '0 2px 10px rgba(0,0,0,.06)',
         transition: 'transform .15s ease',
         background: disabled ? '#F4F4F4' : '#FBF5E9',
         opacity: disabled ? 0.7 : 1,
@@ -433,13 +442,18 @@ function AreaCard({
           unoptimized
           referrerPolicy="no-referrer"
         />
+
+        {/* overlay escuro suave */}
         <Box
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.45) 100%)',
+            background:
+              'linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.45) 100%)',
           }}
         />
+
+        {/* Selo de selecionada */}
         {selected && !disabled && (
           <Badge
             color="green"
@@ -455,6 +469,8 @@ function AreaCard({
             Selecionada
           </Badge>
         )}
+
+        {/* ESGOTADO */}
         {disabled && (
           <Badge
             color="red"
@@ -470,7 +486,9 @@ function AreaCard({
             ESGOTADO
           </Badge>
         )}
-        {typeof remaining === 'number' && (
+
+        {/* Poucas vagas */}
+        {showLowStock && (
           <div
             style={{
               position: 'absolute',
@@ -485,10 +503,10 @@ function AreaCard({
               border: '2px solid #0f5132',
               boxShadow: '0 6px 18px rgba(0,0,0,.25)',
               letterSpacing: '.2px',
-              textTransform: 'uppercase',
+              textTransform: 'none',
             }}
           >
-            VAGAS: {remaining}
+            Poucas vagas disponíveis
           </div>
         )}
       </Box>
@@ -635,7 +653,7 @@ async function generatePoster({
   );
   const fileName = `reserva-mane-${Date.now()}.jpg`;
   const url = URL.createObjectURL(blob);
-  return { blob, fileName, url }; 
+  return { blob, fileName, url };
 }
 
 
@@ -1273,8 +1291,8 @@ export default function ReservarMane() {
   const boardingDateStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('DD/MM/YYYY')
     : data
-    ? dayjs(data).format('DD/MM/YYYY')
-    : '--/--/----';
+      ? dayjs(data).format('DD/MM/YYYY')
+      : '--/--/----';
   const boardingTimeStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('HH:mm')
     : hora || '--:--';
@@ -1681,7 +1699,7 @@ export default function ReservarMane() {
                   <AreaCard
                     key={a.id}
                     foto={a.photoUrl || FALLBACK_IMG}
-                    titulo={`${a.name}${typeof left === 'number' ? ` • ${left} vagas` : ''}`}
+                    titulo={`${a.name}${typeof left === 'number' ? `` :'' }`}
                     desc={a.description || '—'}
                     icon={a.iconEmoji ?? null}
                     selected={areaId === a.id}
