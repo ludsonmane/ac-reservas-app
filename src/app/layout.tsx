@@ -50,15 +50,12 @@ const theme = createTheme({
   defaultRadius: 'md',
 
   colors: {
-    // sobrescreve a paleta "green" do Mantine
     green: maneGreen as any,
   },
 
-  // Body: Comfortaa
   fontFamily:
     `var(--font-comfortaa), Comfortaa, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`,
 
-  // Headings: Merriweather BLACK (900)
   headings: {
     fontFamily:
       `var(--font-merri), Merriweather, serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`,
@@ -93,11 +90,16 @@ const theme = createTheme({
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const GA4 = process.env.NEXT_PUBLIC_GA4_ID;
 
+  // >>> Flags do snippet CSQ/HJ
+  const ENABLE_CSQ = process.env.NEXT_PUBLIC_ENABLE_CSQ !== '0'; // defina 1 para ligar
+  const CSQ_ID = process.env.NEXT_PUBLIC_CSQ_ID ?? '6581655';
+
   return (
     <html lang="pt-BR">
       <head>
         <ColorSchemeScript defaultColorScheme="light" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
         {/* GA4 base (só se houver ID configurado) */}
         {GA4 ? (
           <>
@@ -112,6 +114,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Script>
           </>
         ) : null}
+
+        {/* Contentsquare/Hotjar snippet */}
+        {ENABLE_CSQ && (
+          <Script id="csq-hj" strategy="afterInteractive">
+            {`
+              (function (c, s, q, u, a, r, e) {
+                c.hj = c.hj || function(){ (c.hj.q = c.hj.q || []).push(arguments) };
+                c._hjSettings = { hjid: ${CSQ_ID} };
+                r = s.getElementsByTagName('head')[0];
+                e = s.createElement('script');
+                e.async = true;
+                e.src = q + c._hjSettings.hjid + u;
+                r.appendChild(e);
+              })(window, document, 'https://static.hj.contentsquare.net/c/csq-', '.js', ${CSQ_ID});
+            `}
+          </Script>
+        )}
       </head>
       <body
         className={`${merri.variable} ${comfortaa.variable}`}
