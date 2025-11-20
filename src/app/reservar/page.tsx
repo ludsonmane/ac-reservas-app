@@ -735,7 +735,7 @@ export default function ReservarMane() {
 
   const [areasMeta, setAreasMeta] = useState<Record<string, AreaMeta>>({});
 
-  const [adultos, setAdultos] = useState<number | ''>(2);
+  const [adultos, setAdultos] = useState<number | ''>(8);
   const [criancas, setCriancas] = useState<number | ''>(0);
   const [data, setData] = useState<Date | null>(null);
   const [hora, setHora] = useState<string>('');
