@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { apiGet } from '@/lib/api';
-import { resolvePhotoUrl } from '@/lib/assets';
+import { resolvePhotoUrl } from '../lib/assets';
 
 export type AreaOption = {
   id: string;
