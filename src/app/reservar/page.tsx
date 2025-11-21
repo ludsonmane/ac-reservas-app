@@ -173,6 +173,7 @@ const SLOT_ERROR_MSG = 'Escolha um horário válido da lista';
 
 /* janela de horário */
 const TODAY_START = dayjs().startOf('day').toDate();
+const TOMORROW_START = dayjs().add(1, 'day').startOf('day').toDate(); // 👈 novo
 const OPEN_H = 12,
   OPEN_M = 0,
   CLOSE_H = 21,
@@ -199,6 +200,12 @@ function isPastSelection(date: Date | null, time: string) {
   const [hh, mm] = time.split(':').map(Number);
   const when = dayjs(date).hour(hh || 0).minute(mm || 0).second(0).millisecond(0);
   return when.isBefore(dayjs());
+}
+
+/* 1 dia de antecedência */
+const ONE_DAY_AHEAD_MSG = 'Reservas precisam ser feitas com 1 dia de antecedência.'; // 👈 novo
+function isSameDayAsToday(d: Date | null) { // 👈 novo
+  return !!d && dayjs(d).isSame(dayjs(), 'day');
 }
 
 /* onChange NumberInput */
@@ -1047,6 +1054,12 @@ export default function ReservarMane() {
       return;
     }
 
+    // 🔒 hoje não pode avançar
+    if (isSameDayAsToday(data)) {
+      setError(ONE_DAY_AHEAD_MSG);
+      return;
+    }
+
     if (qty > MAX_PEOPLE_WITHOUT_CONCIERGE) {
       setShowConcierge(true);
       return;
@@ -1067,6 +1080,13 @@ export default function ReservarMane() {
       }
       if (!data || !hora) {
         setError('Selecione data e horário.');
+        goToStep(1);
+        setSending(false);
+        return;
+      }
+      // 🔒 1 dia de antecedência
+      if (isSameDayAsToday(data)) {
+        setError(ONE_DAY_AHEAD_MSG);
         goToStep(1);
         setSending(false);
         return;
@@ -1600,6 +1620,7 @@ export default function ReservarMane() {
 
                   <Grid gutter="md">
                     <Grid.Col span={6}>
+                      {/* 👇 atualizado: minDate = TOMORROW_START + validações de hoje */}
                       <DatePickerInput
                         locale="pt-br"
                         label="Data"
@@ -1607,8 +1628,18 @@ export default function ReservarMane() {
                         onChange={(value) => {
                           const d = value as unknown as Date | null;
                           setData(d);
-                          const invalid = d ? dayjs(d).isBefore(TODAY_START, 'day') : false;
-                          setDateError(invalid ? 'Selecione uma data a partir de hoje' : null);
+
+                          // ❌ hoje não pode | ❌ passado não pode
+                          const isSameDay = isSameDayAsToday(d);
+                          const isPast = d ? dayjs(d).isBefore(TOMORROW_START, 'day') : false;
+
+                          if (isSameDay) {
+                            setDateError(ONE_DAY_AHEAD_MSG);
+                          } else if (isPast) {
+                            setDateError('Selecione uma data a partir de amanhã');
+                          } else {
+                            setDateError(null);
+                          }
 
                           setPastError(() => {
                             if (!d || !hora) return null;
@@ -1620,7 +1651,8 @@ export default function ReservarMane() {
                         valueFormat="DD/MM/YYYY"
                         leftSection={<IconCalendar size={16} />}
                         allowDeselect={false}
-                        minDate={TODAY_START}
+                        // 🔒 não deixa escolher hoje no calendário
+                        minDate={TOMORROW_START}
                         size="md"
                         styles={{ input: { height: rem(48) } }}
                         error={dateError}
