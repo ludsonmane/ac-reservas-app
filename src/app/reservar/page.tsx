@@ -861,16 +861,29 @@ export default function ReservarMane() {
 
   useEffect(() => {
     let alive = true;
+
     (async () => {
       if (!unidade) {
         setAreasMeta({});
         return;
       }
       try {
-        const list = await apiGet<any[]>(`/v1/areas/public/by-unit/${unidade}`);
+        let list = await apiGet<any[]>(`/v1/areas/public/by-unit/${encodeURIComponent(unidade)}`);
+
+        // 🔁 Fallback: se vier vazio, tenta disponibilidade de amanhã às 18:00
+        if (!Array.isArray(list) || list.length === 0) {
+          const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
+          const qs = new URLSearchParams({ unitId: String(unidade), date: tomorrow, time: '18:00' }).toString();
+          console.warn('[areas-meta] by-unit vazio; usando fallback availability', { unidade });
+          const alt = await apiGet<any[]>(`/v1/reservations/public/availability?${qs}`);
+          list = Array.isArray(alt) ? alt : [];
+        }
+
         const metaMap: Record<string, AreaMeta> = {};
-        for (const a of list ?? []) {
-          const id = String(a?.id ?? a?._id);
+        for (const a of list) {
+          const id = String(a?.id ?? a?._id ?? '');
+          if (!id) continue;
+
           const description = String(a?.description ?? a?.desc ?? a?.area?.description ?? '').trim();
           const iconEmojiRaw =
             a?.iconEmoji ?? a?.icon_emoji ?? a?.area?.iconEmoji ?? a?.area?.icon_emoji;
@@ -890,29 +903,27 @@ export default function ReservarMane() {
             a?.area?.image ??
             a?.area?.coverUrl;
 
-          const photoS3 = toS3Url(rawPhoto) || null;
+          const photoS3 = toS3Url(rawPhoto) || undefined;
 
           metaMap[id] = {
             id,
             name: String(a?.name ?? a?.title ?? ''),
             description,
             photoUrl: photoS3,
-            iconEmoji:
-              typeof iconEmojiRaw === 'string' && iconEmojiRaw.trim()
-                ? iconEmojiRaw.trim()
-                : null,
+            iconEmoji: typeof iconEmojiRaw === 'string' && iconEmojiRaw.trim() ? iconEmojiRaw.trim() : null,
           };
         }
+
         if (!alive) return;
         setAreasMeta(metaMap);
-      } catch {
+      } catch (err) {
         if (!alive) return;
+        console.error('[areas-meta] erro:', err);
         setAreasMeta({});
       }
     })();
-    return () => {
-      alive = false;
-    };
+
+    return () => { alive = false; };
   }, [unidade]);
 
   const ymd = useMemo(() => (data ? dayjs(data).format('YYYY-MM-DD') : ''), [data]);
@@ -1731,7 +1742,7 @@ export default function ReservarMane() {
                   <AreaCard
                     key={a.id}
                     foto={a.photoUrl || FALLBACK_IMG}
-                    titulo={`${a.name}${typeof left === 'number' ? `` :'' }`}
+                    titulo={`${a.name}${typeof left === 'number' ? `` : ''}`}
                     desc={a.description || '—'}
                     icon={a.iconEmoji ?? null}
                     selected={areaId === a.id}

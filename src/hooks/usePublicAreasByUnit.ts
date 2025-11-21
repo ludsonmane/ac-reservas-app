@@ -3,8 +3,24 @@
 
 import * as React from 'react';
 import { apiGet } from '@/lib/api';
+import { resolvePhotoUrl } from '@/lib/assets';
 
-export type AreaOption = { id: string; name: string; capacity?: number };
+export type AreaOption = {
+  id: string;
+  name: string;
+
+  /** compat antigo */
+  capacity?: number;
+
+  /** novos (para exibir imagem e info) */
+  photoUrl?: string | null;
+  photoUrlAbsolute?: string | null;
+  capacityAfternoon?: number | null;
+  capacityNight?: number | null;
+  isActive?: boolean;
+  iconEmoji?: string | null;
+  description?: string | null;
+};
 
 export function usePublicAreasByUnit(
   unitId?: string | null,
@@ -28,13 +44,34 @@ export function usePublicAreasByUnit(
       setError(null);
       try {
         const list = await apiGet<any[]>(
-          `/v1/areas/public/by-unit/${encodeURIComponent(unitId)}`
+          `/v1/areas/public/by-unit/${encodeURIComponent(unitId)}?__ts=${Date.now()}`
         );
-        const normalized: AreaOption[] = (list ?? []).map((a: any) => ({
-          id: String(a.id ?? a._id),
-          name: String(a.name ?? a.title ?? ''),
-          capacity: typeof a.capacity === 'number' ? a.capacity : undefined,
-        }));
+
+        const normalized: AreaOption[] = (list ?? []).map((a: any) => {
+          // normaliza URLs (preferir absoluta vinda da API)
+          const abs = resolvePhotoUrl(a.photoUrlAbsolute) ?? null;
+          const rel = resolvePhotoUrl(
+            a.photoUrl ?? a.photo ?? a.imageUrl ?? a.image ?? a.coverUrl ?? a.photo_url
+          ) ?? null;
+
+          return {
+            id: String(a.id ?? a._id),
+            name: String(a.name ?? a.title ?? ''),
+
+            // compat antigo
+            capacity: typeof a.capacity === 'number' ? a.capacity : undefined,
+
+            // novos campos
+            photoUrlAbsolute: abs,
+            photoUrl: rel,
+            capacityAfternoon: a.capacityAfternoon ?? a.capacity_afternoon ?? null,
+            capacityNight: a.capacityNight ?? a.capacity_night ?? null,
+            isActive: a.isActive ?? true,
+            iconEmoji: a.iconEmoji ?? a.icon_emoji ?? null,
+            description: a.description ?? null,
+          };
+        });
+
         if (!alive) return;
         setData(normalized);
       } catch (e: any) {
