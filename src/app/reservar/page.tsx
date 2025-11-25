@@ -1536,8 +1536,9 @@ export default function ReservarMane() {
                   <Text size="sm" c="dimmed">Escolha o tipo de reserva</Text>
                   <Grid gutter="md">
                     {([
+                      { key: 'ANIVERSÁRIO', label: 'Aniversário', desc: 'Para você e seus convidados.' },
                       { key: 'PARTICULAR', label: 'Particular', desc: 'Para você e seus convidados.' },
-                      { key: 'CONFRATERNIZACAO', label: 'Confraternização', desc: 'Aniversários, formaturas, despedidas...' },
+                      { key: 'CONFRATERNIZACAO', label: 'Confraternização', desc: 'Formaturas, reuniões de amigos, despedidas...' },
                       { key: 'EMPRESA', label: 'Empresa', desc: 'Eventos corporativos.' },
                     ] as { key: ReservationType; label: string; desc: string }[]).map(opt => (
                       <Grid.Col span={12} key={opt.key}>
