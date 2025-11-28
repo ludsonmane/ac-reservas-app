@@ -17,6 +17,9 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconCalendarPlus } from '@tabler/icons-react';
 
+import UtmLink from 'components/UtmLink';
+import { withUtm, useUtm } from '@/lib/utm'; // opcional se for usar router.push também
+
 // ⬇️ importa o bootstrap do analytics
 import { ensureAnalyticsReady } from '@/lib/analytics';
 
@@ -266,7 +269,7 @@ function MenuCard({
 
         <div className="menuAction">
           <Button
-            component={Link}
+            component={UtmLink}
             href={href}
             radius="md"
             color={actionColor}
