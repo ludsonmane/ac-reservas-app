@@ -1099,9 +1099,6 @@ export default function ReservarMane() {
       // UTM / URL / Ref direto da URL
       const attribution = readUrlAttribution();
 
-      // Se o backend AINDA não aceitar 'ANIVERSARIO', mapeie para 'PARTICULAR' só no envio:
-      const reservationTypeToSend: ReservationType | 'PARTICULAR' =
-        reservationType === 'ANIVERSARIO' ? 'PARTICULAR' : reservationType; // <-- ajuste aqui se o backend já aceitar
 
       const payload = {
         fullName,
@@ -1122,7 +1119,7 @@ export default function ReservarMane() {
         url: attribution.url,
         ref: attribution.ref,
         source: 'site',
-        reservationType: reservationTypeToSend,
+        reservationType: reservationType,
       };
 
       const resp = await fetch(`${API_BASE || ''}/v1/reservations/public`, {
