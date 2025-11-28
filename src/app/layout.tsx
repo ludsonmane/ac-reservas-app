@@ -167,7 +167,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <MetaPixelBootstrap />
 
           {/* Bootstrap de UTM (client) */}
-          <UtmBootstrap />
+         {/* <UtmBootstrap /> */}
 
           {children}
         </MantineProvider>
