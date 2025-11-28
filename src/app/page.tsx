@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -196,7 +196,7 @@ function MenuCard({
   title: string;
   description: string;
   href: string;
-  icon: React.ReactNode;
+  icon: ReactNode;   
   actionColor?: 'green' | 'dark';
   variant?: 'filled' | 'outline';
 }) {
