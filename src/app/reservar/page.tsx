@@ -1,6 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
 import type React from 'react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
