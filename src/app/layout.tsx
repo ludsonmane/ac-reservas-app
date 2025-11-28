@@ -7,7 +7,13 @@ import { ColorSchemeScript, MantineProvider, createTheme, rem } from '@mantine/c
 import { Merriweather, Comfortaa } from 'next/font/google';
 import React from 'react';
 import Script from 'next/script';
-import MetaPixelBootstrap from './MetaPixelBootstrap';
+import dynamic from 'next/dynamic';
+
+// carrega MetaPixel **apenas no client**, nunca no SSR (evita quebrar build/SSR)
+const MetaPixelBootstrapNoSSR = dynamic(() => import('./MetaPixelBootstrap'), {
+  ssr: false,
+  loading: () => null,
+});
 
 export const metadata = {
   title: 'Mané Mercado • Reservas',
@@ -106,10 +112,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA4}`} strategy="afterInteractive" />
             <Script id="ga4" strategy="afterInteractive">
               {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${GA4}', { debug_mode: ${process.env.NODE_ENV !== 'production' ? 'true' : 'false'} });
+                try {
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${GA4}', { debug_mode: ${process.env.NODE_ENV !== 'production' ? 'true' : 'false'} });
+                } catch (e) {
+                  console.error('[GA4 init] ignorado:', e);
+                }
               `}
             </Script>
           </>
@@ -119,15 +129,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {ENABLE_CSQ && (
           <Script id="csq-hj" strategy="afterInteractive">
             {`
-              (function (c, s, q, u, a, r, e) {
-                c.hj = c.hj || function(){ (c.hj.q = c.hj.q || []).push(arguments) };
-                c._hjSettings = { hjid: ${CSQ_ID} };
-                r = s.getElementsByTagName('head')[0];
-                e = s.createElement('script');
-                e.async = true;
-                e.src = q + c._hjSettings.hjid + u;
-                r.appendChild(e);
-              })(window, document, 'https://static.hj.contentsquare.net/c/csq-', '.js', ${CSQ_ID});
+              try {
+                (function (c, s, q, u, a, r, e) {
+                  c.hj = c.hj || function(){ (c.hj.q = c.hj.q || []).push(arguments) };
+                  c._hjSettings = { hjid: ${CSQ_ID} };
+                  r = s.getElementsByTagName('head')[0];
+                  e = s.createElement('script');
+                  e.async = true;
+                  e.src = q + c._hjSettings.hjid + u;
+                  r.appendChild(e);
+                })(window, document, 'https://static.hj.contentsquare.net/c/csq-', '.js', ${CSQ_ID});
+              } catch (e) {
+                console.error('[CSQ/HJ init] ignorado:', e);
+              }
             `}
           </Script>
         )}
@@ -162,8 +176,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               `,
             }}
           />
-          {/* Bootstrap do Meta Pixel (apenas carrega fbq; a INIT por unidade é feita via analytics.ts) */}
-          <MetaPixelBootstrap />
+          {/* Bootstrap do Meta Pixel (apenas carrega fbq; INIT por unidade via analytics.ts) */}
+          <MetaPixelBootstrapNoSSR />
 
           {children}
         </MantineProvider>
