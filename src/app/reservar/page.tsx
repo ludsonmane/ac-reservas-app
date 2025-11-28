@@ -1545,7 +1545,7 @@ export default function ReservarMane() {
                   <Text size="sm" c="dimmed">Escolha o tipo de reserva</Text>
                   <Grid gutter="md">
                     {([
-                      { key: 'ANIVERSÁRIO', label: 'Aniversário', desc: 'Celebre seu dia com uma experiência completa para você e seus convidados.' },
+                      { key: 'ANIVERSARIO', label: 'Aniversário', desc: 'Celebre seu dia com uma experiência completa para você e seus convidados.' },
                       { key: 'PARTICULAR', label: 'Particular', desc: 'Para você e seus convidados.' },
                       { key: 'CONFRATERNIZACAO', label: 'Confraternização', desc: 'Formaturas, reuniões de amigos, despedidas...' },
                       { key: 'EMPRESA', label: 'Empresa', desc: 'Eventos corporativos.' },
