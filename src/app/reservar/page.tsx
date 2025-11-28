@@ -648,16 +648,15 @@ function readUrlAttribution() {
   };
 }
 
-/* ====== Helpers de datas ====== */
-function fmtYmd(d: Date) {
-  return dayjs(d).format('YYYY-MM-DD');
+/* ====== Helpers de datas/bloqueio específico ====== */
+function isBrasiliaSelected(unidade: string | null, units: UnitOption[]) {
+  if (!unidade) return false;
+  const u = units.find((x) => x.id === unidade);
+  const name = (u?.name || '').toLowerCase();
+  return /brasília|brasilia|bsb/.test(name);
 }
-const isDayFive = (d: Date) => dayjs(d).date() === 5;
-function isBrasiliaSelected(unitId: string | null, units: UnitOption[]) {
-  const u = units.find((x) => x.id === unitId);
-  if (!u) return false;
-  const name = (u.name || '').toLowerCase();
-  return name.includes('brasília') || name.includes('brasilia') || name.includes('bsb');
+function isDayFive(d: Date) {
+  return dayjs(d).date() === 5;
 }
 
 // ====== Página
@@ -1015,8 +1014,9 @@ export default function ReservarMane() {
 
   const contactOk = isValidEmail(email) && isValidPhone(phone);
 
-  // unidade Brasília + dia 05 bloqueado
-  const brbDayFiveBlocked = !!(data && isBrasiliaSelected(unidade, units) && isDayFive(data));
+  // Regras de navegação
+  const dayBlocked =
+    data && isBrasiliaSelected(unidade, units) && isDayFive(data) ? true : false;
 
   const canNext1 = Boolean(
     unidade &&
@@ -1026,7 +1026,7 @@ export default function ReservarMane() {
     !timeError &&
     !dateError &&
     !pastError &&
-    !brbDayFiveBlocked
+    !dayBlocked
   );
 
   const chosen = areas.find((a) => a.id === areaId);
@@ -1060,7 +1060,7 @@ export default function ReservarMane() {
       setError(ONE_DAY_AHEAD_MSG);
       return;
     }
-    if (brbDayFiveBlocked) {
+    if (dayBlocked) {
       setError('Unidade Brasília indisponível no dia 05.');
       return;
     }
@@ -1093,7 +1093,7 @@ export default function ReservarMane() {
         setSending(false);
         return;
       }
-      if (isBrasiliaSelected(unidade, units) && isDayFive(data)) {
+      if (dayBlocked) {
         setError('Unidade Brasília indisponível no dia 05.');
         goToStep(1);
         setSending(false);
@@ -1638,9 +1638,7 @@ export default function ReservarMane() {
                         onChange={(value) => {
                           const d = value as unknown as Date | null;
 
-                          // 🚫 Bloqueia dia 05 apenas quando unidade selecionada é Brasília/BSB
                           if (d && isBrasiliaSelected(unidade, units) && isDayFive(d)) {
-                            // Mantém a selec. visual mas impede prosseguir e zera hora
                             setData(d);
                             setHora('');
                             setDateError('Unidade Brasília indisponível no dia 05.');
@@ -1676,12 +1674,11 @@ export default function ReservarMane() {
                         styles={{ input: { height: rem(48) } }}
                         error={dateError}
                         weekendDays={[]}
-                        // 👇 Desabilita visualmente o dia 05 quando Brasília estiver selecionada (tipagem aceita string)
-                        excludeDate={(d) =>
-                          isBrasiliaSelected(unidade, units) && dayjs(d).date() === 5
+                        // 👇 Desabilita visualmente o dia 05 quando Brasília estiver selecionada
+                        excludeDate={(date: Date) =>
+                          isBrasiliaSelected(unidade, units) && isDayFive(date)
                         }
                         // Impede digitação manual
-                        allowFreeInput={false}
                         readOnly
                         inputMode="none"
                       />
@@ -1720,9 +1717,9 @@ export default function ReservarMane() {
                     </Text>
                   </Card>
 
-                  {(peopleError || pastError || timeError || dateError || brbDayFiveBlocked) && (
-                    <Alert color={peopleError || pastError || timeError || brbDayFiveBlocked ? 'red' : 'yellow'} icon={<IconInfoCircle />}>
-                      {brbDayFiveBlocked ? 'Unidade Brasília indisponível no dia 05.' : (peopleError || pastError || timeError || dateError)}
+                  {(peopleError || pastError || timeError || dateError || dayBlocked) && (
+                    <Alert color={peopleError || pastError || timeError || dayBlocked ? 'red' : 'yellow'} icon={<IconInfoCircle />}>
+                      {dayBlocked ? 'Unidade Brasília indisponível no dia 05.' : (peopleError || pastError || timeError || dateError)}
                     </Alert>
                   )}
                 </Stack>
