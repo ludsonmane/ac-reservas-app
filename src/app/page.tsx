@@ -18,7 +18,6 @@ import {
 import { IconSearch, IconCalendarPlus } from '@tabler/icons-react';
 
 import UtmLink from 'components/UtmLink';
-import { withUtm, useUtm } from '@/lib/utm'; // opcional se for usar router.push também
 
 // ⬇️ importa o bootstrap do analytics
 import { ensureAnalyticsReady } from '@/lib/analytics';
