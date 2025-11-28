@@ -170,7 +170,7 @@ const SLOT_ERROR_MSG = 'Escolha um horário válido da lista';
 
 // janela de horário
 const TODAY_START = dayjs().startOf('day').toDate();
-const TOMORROW_START = dayjs().add(1, 'day').startOf('day').toDate(); // 👈 novo
+const TOMORROW_START = dayjs().add(1, 'day').startOf('day').toDate();
 const OPEN_H = 12,
   OPEN_M = 0,
   CLOSE_H = 21,
@@ -208,8 +208,8 @@ function isSameDayAsToday(d: Date | null) {
 // NumberInput
 const numberInputHandler =
   (setter: React.Dispatch<React.SetStateAction<number | ''>>) =>
-  (v: string | number) =>
-    setter(v === '' ? '' : Number(v));
+    (v: string | number) =>
+      setter(v === '' ? '' : Number(v));
 
 // ====== Imagens
 const S3_BASE = 'https://mane-reservations-prod.s3.amazonaws.com';
@@ -571,7 +571,7 @@ async function generatePoster({
     const logo = await loadImage(logoUrl);
     const lw = 360, lh = 140;
     ctx.drawImage(logo, (W - lw) / 2, 80, lw, lh);
-  } catch {}
+  } catch { }
 
   ctx.fillStyle = '#146C2E';
   ctx.textAlign = 'center';
@@ -605,7 +605,7 @@ async function generatePoster({
       ctx.font = '500 28px system-ui, Arial';
       ctx.fillStyle = '#0f5132';
       ctx.fillText('Apresente este QR no check-in', qrX + s / 2, qrY + s + 32);
-    } catch {}
+    } catch { }
   }
 
   ctx.textAlign = 'center';
@@ -646,6 +646,18 @@ function readUrlAttribution() {
     url: window.location.href,
     ref: document.referrer || null,
   };
+}
+
+/* ====== Helpers de datas ====== */
+function fmtYmd(d: Date) {
+  return dayjs(d).format('YYYY-MM-DD');
+}
+const isDayFive = (d: Date) => dayjs(d).date() === 5;
+function isBrasiliaSelected(unitId: string | null, units: UnitOption[]) {
+  const u = units.find((x) => x.id === unitId);
+  if (!u) return false;
+  const name = (u.name || '').toLowerCase();
+  return name.includes('brasília') || name.includes('brasilia') || name.includes('bsb');
 }
 
 // ====== Página
@@ -754,7 +766,6 @@ export default function ReservarMane() {
           if (resp.ok) {
             const r = (await resp.json()) as ReservationDto;
             if (r.status === 'AWAITING_CHECKIN') {
-              // >>> preserva ANIVERSARIO e injeta no estado local mesmo que API não retorne
               setReservationType((prev) =>
                 prev === 'ANIVERSARIO'
                   ? 'ANIVERSARIO'
@@ -954,8 +965,8 @@ export default function ReservarMane() {
             typeof a?.iconEmoji === 'string' && a.iconEmoji.trim()
               ? a.iconEmoji.trim()
               : typeof a?.icon_emoji === 'string' && a.icon_emoji.trim()
-              ? a.icon_emoji.trim()
-              : meta?.iconEmoji ?? null;
+                ? a.icon_emoji.trim()
+                : meta?.iconEmoji ?? null;
 
           return {
             id,
@@ -967,8 +978,8 @@ export default function ReservarMane() {
               typeof a?.available === 'number'
                 ? a.available
                 : typeof a?.remaining === 'number'
-                ? a.remaining
-                : undefined,
+                  ? a.remaining
+                  : undefined,
             isAvailable: Boolean(a?.isAvailable ?? (a?.available ?? a?.remaining ?? 0) > 0),
             iconEmoji: icon,
           };
@@ -1004,8 +1015,18 @@ export default function ReservarMane() {
 
   const contactOk = isValidEmail(email) && isValidPhone(phone);
 
+  // unidade Brasília + dia 05 bloqueado
+  const brbDayFiveBlocked = !!(data && isBrasiliaSelected(unidade, units) && isDayFive(data));
+
   const canNext1 = Boolean(
-    unidade && data && hora && total >= MIN_PEOPLE && !timeError && !dateError && !pastError
+    unidade &&
+    data &&
+    hora &&
+    total >= MIN_PEOPLE &&
+    !timeError &&
+    !dateError &&
+    !pastError &&
+    !brbDayFiveBlocked
   );
 
   const chosen = areas.find((a) => a.id === areaId);
@@ -1020,6 +1041,14 @@ export default function ReservarMane() {
 
   const [showConcierge, setShowConcierge] = useState(false);
 
+  // resetar horário quando muda unidade ou data
+  useEffect(() => {
+    setHora('');
+  }, [unidade]);
+  useEffect(() => {
+    setHora('');
+  }, [ymd]);
+
   const handleContinueStep1 = () => {
     setError(null);
     const qty = typeof total === 'number' ? total : 0;
@@ -1029,6 +1058,10 @@ export default function ReservarMane() {
     }
     if (isSameDayAsToday(data)) {
       setError(ONE_DAY_AHEAD_MSG);
+      return;
+    }
+    if (brbDayFiveBlocked) {
+      setError('Unidade Brasília indisponível no dia 05.');
       return;
     }
     if (qty > MAX_PEOPLE_WITHOUT_CONCIERGE) {
@@ -1056,6 +1089,12 @@ export default function ReservarMane() {
       }
       if (isSameDayAsToday(data)) {
         setError(ONE_DAY_AHEAD_MSG);
+        goToStep(1);
+        setSending(false);
+        return;
+      }
+      if (isBrasiliaSelected(unidade, units) && isDayFive(data)) {
+        setError('Unidade Brasília indisponível no dia 05.');
         goToStep(1);
         setSending(false);
         return;
@@ -1147,7 +1186,6 @@ export default function ReservarMane() {
             if (activeResp.ok) {
               const r = (await activeResp.json()) as ReservationDto;
 
-              // >>> preserva ANIVERSARIO e injeta no estado local
               setReservationType((prev) =>
                 prev === 'ANIVERSARIO'
                   ? 'ANIVERSARIO'
@@ -1258,7 +1296,6 @@ export default function ReservarMane() {
       }
 
       if (reservationLoaded) {
-        // >>> preserva ANIVERSARIO e injeta no estado local
         setReservationType((prev) =>
           prev === 'ANIVERSARIO'
             ? 'ANIVERSARIO'
@@ -1300,8 +1337,8 @@ export default function ReservarMane() {
   const boardingDateStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('DD/MM/YYYY')
     : data
-    ? dayjs(data).format('DD/MM/YYYY')
-    : '--/--/----';
+      ? dayjs(data).format('DD/MM/YYYY')
+      : '--/--/----';
   const boardingTimeStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('HH:mm')
     : hora || '--:--';
@@ -1600,6 +1637,17 @@ export default function ReservarMane() {
                         value={data}
                         onChange={(value) => {
                           const d = value as unknown as Date | null;
+
+                          // 🚫 Bloqueia dia 05 apenas quando unidade selecionada é Brasília/BSB
+                          if (d && isBrasiliaSelected(unidade, units) && isDayFive(d)) {
+                            // Mantém a selec. visual mas impede prosseguir e zera hora
+                            setData(d);
+                            setHora('');
+                            setDateError('Unidade Brasília indisponível no dia 05.');
+                            setPastError(null);
+                            return;
+                          }
+
                           setData(d);
 
                           const isSameDay = isSameDayAsToday(d);
@@ -1628,6 +1676,14 @@ export default function ReservarMane() {
                         styles={{ input: { height: rem(48) } }}
                         error={dateError}
                         weekendDays={[]}
+                        // 👇 Desabilita visualmente o dia 05 quando Brasília estiver selecionada
+                        excludeDate={(date: Date) =>
+                          isBrasiliaSelected(unidade, units) && isDayFive(date)
+                        }
+                        // Impede digitação manual
+                        allowFreeInput={false}
+                        readOnly
+                        inputMode="none"
                       />
                     </Grid.Col>
 
@@ -1664,9 +1720,9 @@ export default function ReservarMane() {
                     </Text>
                   </Card>
 
-                  {(peopleError || pastError || timeError || dateError) && (
-                    <Alert color={peopleError ? 'red' : pastError ? 'red' : 'yellow'} icon={<IconInfoCircle />}>
-                      {peopleError || pastError || timeError || dateError}
+                  {(peopleError || pastError || timeError || dateError || brbDayFiveBlocked) && (
+                    <Alert color={peopleError || pastError || timeError || brbDayFiveBlocked ? 'red' : 'yellow'} icon={<IconInfoCircle />}>
+                      {brbDayFiveBlocked ? 'Unidade Brasília indisponível no dia 05.' : (peopleError || pastError || timeError || dateError)}
                     </Alert>
                   )}
                 </Stack>
@@ -1910,7 +1966,7 @@ export default function ReservarMane() {
                     Para reservas acima de <b>{MAX_PEOPLE_WITHOUT_CONCIERGE}</b> pessoas, é necessário falar com nosso concierge pelo WhatsApp.
                   </Text>
                   <Text size="sm" c="dimmed" mt={6}>
-                    Assim garantimos a melhor organização do espaço e atendimento do seu grupo. 🙂 
+                    Assim garantimos a melhor organização do espaço e atendimento do seu grupo. 🙂
                   </Text>
                 </Box>
                 <Group justify="end" gap="sm" px="md" py="sm" style={{ borderTop: '1px solid rgba(0,0,0,.08)', background: '#fff' }}>
