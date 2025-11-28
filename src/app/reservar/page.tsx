@@ -754,10 +754,15 @@ export default function ReservarMane() {
           if (resp.ok) {
             const r = (await resp.json()) as ReservationDto;
             if (r.status === 'AWAITING_CHECKIN') {
-              setActiveReservation(r);
+              // >>> preserva ANIVERSARIO e injeta no estado local mesmo que API não retorne
+              setReservationType((prev) =>
+                prev === 'ANIVERSARIO'
+                  ? 'ANIVERSARIO'
+                  : ((r.reservationType as ReservationType) ?? prev)
+              );
+              setActiveReservation({ ...r, reservationType });
               setCreatedId(r.id);
               setCreatedCode(r.reservationCode);
-              if (r.reservationType) setReservationType(r.reservationType as ReservationType);
               setStep(4);
               return;
             }
@@ -1099,7 +1104,6 @@ export default function ReservarMane() {
       // UTM / URL / Ref direto da URL
       const attribution = readUrlAttribution();
 
-
       const payload = {
         fullName,
         cpf: onlyDigits(cpf),
@@ -1122,6 +1126,8 @@ export default function ReservarMane() {
         reservationType: reservationType,
       };
 
+      console.debug('[payload.reservationType]', reservationType);
+
       const resp = await fetch(`${API_BASE || ''}/v1/reservations/public`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1140,10 +1146,17 @@ export default function ReservarMane() {
             );
             if (activeResp.ok) {
               const r = (await activeResp.json()) as ReservationDto;
-              setActiveReservation(r);
+
+              // >>> preserva ANIVERSARIO e injeta no estado local
+              setReservationType((prev) =>
+                prev === 'ANIVERSARIO'
+                  ? 'ANIVERSARIO'
+                  : ((r.reservationType as ReservationType) ?? prev)
+              );
+              setActiveReservation({ ...r, reservationType });
+
               setCreatedId(r.id);
               setCreatedCode(r.reservationCode);
-              if (r.reservationType) setReservationType(r.reservationType as ReservationType);
               setStep(4);
               if (typeof window !== 'undefined') {
                 const qrUrl = `${API_BASE || ''}/v1/reservations/${r.id}/qrcode`;
@@ -1245,10 +1258,13 @@ export default function ReservarMane() {
       }
 
       if (reservationLoaded) {
-        if (reservationLoaded.reservationType) {
-          setReservationType(reservationLoaded.reservationType as ReservationType);
-        }
-        setActiveReservation(reservationLoaded);
+        // >>> preserva ANIVERSARIO e injeta no estado local
+        setReservationType((prev) =>
+          prev === 'ANIVERSARIO'
+            ? 'ANIVERSARIO'
+            : ((reservationLoaded?.reservationType as ReservationType) ?? prev)
+        );
+        setActiveReservation({ ...reservationLoaded, reservationType });
       } else {
         const reservationISO2 = joinDateTimeISO(data, hora)!;
         setActiveReservation({
