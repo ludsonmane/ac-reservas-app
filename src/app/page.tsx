@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -17,18 +17,13 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconCalendarPlus } from '@tabler/icons-react';
 
-// ⬇️ bootstrap do analytics (não mexi; só protegi a chamada)
+// ⬇️ bootstrap do analytics (não mexido)
 import { ensureAnalyticsReady } from '@/lib/analytics';
 
 export default function Home() {
-  // Inicializa fbq/gtag no client, protegido para nunca quebrar a página
+  // Inicializa fbq/gtag apenas uma vez no client
   useEffect(() => {
-    try {
-      ensureAnalyticsReady();
-    } catch (err) {
-      // silencia qualquer erro de bootstrap pra não derrubar a Home
-      console.error('[analytics bootstrap] ignorado na Home:', err);
-    }
+    ensureAnalyticsReady();
   }, []);
 
   // Mostra skeleton até hidratar (e um tique a mais para suavizar)
@@ -37,6 +32,29 @@ export default function Home() {
     const id = setTimeout(() => setHydrated(true), 250);
     return () => clearTimeout(id);
   }, []);
+
+  // --- NOVO: capturar query atual (UTMs) e reaproveitar nos links
+  const [query, setQuery] = useState<string>('');
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setQuery(window.location.search || '');
+    }
+  }, []);
+
+  // helper que anexa a query atual ao destino
+  const withQuery = useMemo(() => {
+    return (basePath: string) => {
+      if (!query) return basePath;
+      // se já houver query no basePath (não é nosso caso), mesclaria aqui.
+      const hasHash = basePath.includes('#');
+      if (!hasHash) return `${basePath}${basePath.includes('?') ? '&' : '?'}${query.replace(/^\?/, '')}`;
+
+      // mantém o hash no final, anexando query antes dele
+      const [path, hash] = basePath.split('#');
+      const sep = path.includes('?') ? '&' : '?';
+      return `${path}${sep}${query.replace(/^\?/, '')}#${hash}`;
+    };
+  }, [query]);
 
   if (!hydrated) return <HomeSkeleton />;
 
@@ -86,21 +104,21 @@ export default function Home() {
 
             {/* Lista de opções */}
             <Stack gap={14}>
-              {/* 1) Reservar (realçado) */}
+              {/* 1) Reservar (realçado) — COM UTM */}
               <MenuCard
                 title="Reservar Mesa"
                 description="Faça uma nova reserva de forma rápida e segura."
-                href="/reservar"
+                href={withQuery('/reservar')}
                 icon={<IconCalendarPlus size={20} />}
                 actionColor="green"
                 variant="filled"
               />
 
-              {/* 2) Localizar (borda/ghost) */}
+              {/* 2) Localizar (borda/ghost) — opcional: também manter UTM */}
               <MenuCard
                 title="Localizar Reserva"
                 description="Consulte sua reserva usando o código (ex.: JT5WK6)."
-                href="/consultar"
+                href={withQuery('/consultar')}
                 icon={<IconSearch size={20} />}
                 actionColor="green"
                 variant="outline"
@@ -216,13 +234,13 @@ function MenuCard({
         transition: 'transform .12s ease, box-shadow .12s ease',
       }}
       onMouseEnter={(e) => {
-        if (typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches) {
+        if (window.matchMedia('(hover: hover)').matches) {
           e.currentTarget.style.transform = 'translateY(-2px)';
           e.currentTarget.style.boxShadow = '0 10px 24px rgba(0,0,0,.06)';
         }
       }}
       onMouseLeave={(e) => {
-        if (typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches) {
+        if (window.matchMedia('(hover: hover)').matches) {
           e.currentTarget.style.transform = 'translateY(0)';
           e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,.05)';
         }
@@ -290,7 +308,7 @@ function MenuCard({
       <style jsx>{`
         .menuCard {
           display: grid;
-          grid-template-columns: 1fr auto; /* SEMPRE 2 colunas */
+          grid-template-columns: 1fr auto;
           align-items: center;
           gap: 10px 12px;
         }
@@ -310,7 +328,7 @@ function MenuCard({
         }
         @media (max-width: 340px) {
           .menuCard {
-            grid-template-columns: 1fr; /* fallback p/ telas ultra estreitas */
+            grid-template-columns: 1fr;
           }
           .menuActionBtn {
             width: 100%;
