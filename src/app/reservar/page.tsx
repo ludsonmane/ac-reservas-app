@@ -1676,9 +1676,9 @@ export default function ReservarMane() {
                         styles={{ input: { height: rem(48) } }}
                         error={dateError}
                         weekendDays={[]}
-                        // 👇 Desabilita visualmente o dia 05 quando Brasília estiver selecionada
-                        excludeDate={(date: Date) =>
-                          isBrasiliaSelected(unidade, units) && isDayFive(date)
+                        // 👇 Desabilita visualmente o dia 05 quando Brasília estiver selecionada (tipagem aceita string)
+                        excludeDate={(d) =>
+                          isBrasiliaSelected(unidade, units) && dayjs(d).date() === 5
                         }
                         // Impede digitação manual
                         allowFreeInput={false}
