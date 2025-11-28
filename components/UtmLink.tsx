@@ -2,45 +2,46 @@
 
 import Link from 'next/link';
 import type { ComponentProps } from 'react';
-import React from 'react';
-import { withUtm, useUtm } from '../src/lib/utm';
+import React, { useMemo } from 'react';
+import { appendUtmToUrl, useUtm } from '@/lib/utm';
 
-// Pega as props reais do <Link> e substitui o href por um tipo explicitamente aceito
+// Pega as props padrão do <Link> e substitui o href por string/URL
 type LinkBaseProps = ComponentProps<typeof Link>;
-
-type Props = Omit<LinkBaseProps, 'href'> & {
-  href: string | URL | { pathname: string; query?: Record<string, any>; hash?: string };
-  forceUtm?: boolean; // mantido caso queira sobrescrever no futuro
+type UtmLinkProps = Omit<LinkBaseProps, 'href'> & {
+  href: string | URL;
+  /** Força anexar UTM mesmo se o href for cross-origin (default: só relative/mesma origem) */
+  forceUtm?: boolean;
 };
 
-export default function UtmLink({ href, forceUtm = false, ...rest }: Props) {
-  const utm = useUtm();
-
-  const hrefStr = React.useMemo(() => {
-    if (typeof href === 'string') return href;
-
-    // URL nativa
-    if (href instanceof URL) {
-      const qs = href.search ?? '';
-      const hash = href.hash ?? '';
-      return `${href.pathname}${qs}${hash}`;
+function isRelativeOrSameOrigin(href: string | URL) {
+  try {
+    if (typeof href === 'string') {
+      // relativo: começa com / ou ? ou #
+      if (/^([/?#]|$)/.test(href)) return true;
+      // absoluto -> comparar origem
+      const u = new URL(href, typeof window !== 'undefined' ? window.location.origin : 'https://dummy.local');
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://dummy.local';
+      return u.origin === origin;
     }
+    // URL object
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://dummy.local';
+    return href.origin === origin || href.href.startsWith('/') || href.href.startsWith('?') || href.href.startsWith('#');
+  } catch {
+    return false;
+  }
+}
 
-    // UrlObject (pathname + query + hash)
-    if (href && typeof href === 'object' && 'pathname' in href) {
-      const qs = new URLSearchParams(href.query as Record<string, string> | undefined);
-      const query = qs.toString();
-      const hash = href.hash ? `#${href.hash}` : '';
-      return `${href.pathname}${query ? `?${query}` : ''}${hash}`;
-    }
+export default function UtmLink({ href, forceUtm, ...rest }: UtmLinkProps) {
+  // manter hook caso queira decisões futuras baseadas nas UTMs
+  useUtm(); // garante persistência e leitura (efeito colateral idempotente)
 
-    return '/';
-  }, [href]);
+  const hrefWithUtm = useMemo(() => {
+    const base = typeof href === 'string' ? href : href.toString();
+    const shouldAttach = typeof forceUtm === 'boolean' ? forceUtm : isRelativeOrSameOrigin(base);
+    if (!shouldAttach) return base;
+    // <<< FIX: appendUtmToUrl aceita só 1 argumento
+    return appendUtmToUrl(base);
+  }, [href, forceUtm]);
 
-  const computedHref = React.useMemo(() => {
-    if (!utm || Object.keys(utm).length === 0) return hrefStr;
-    return withUtm(hrefStr, utm); // adiciona UTMs só se faltarem
-  }, [hrefStr, utm, forceUtm]);
-
-  return <Link href={computedHref} {...rest} />;
+  return <Link href={hrefWithUtm} {...rest} />;
 }

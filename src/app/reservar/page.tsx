@@ -52,7 +52,7 @@ import {
 } from '@tabler/icons-react';
 import NextImage from 'next/image';
 import { apiGet, API_BASE } from '@/lib/api';
-import { getAttributionForPayload } from '@/lib/utm'; // <- ADD
+import { getAttributionForPayload } from '@/lib/utm';
 
 dayjs.locale('pt-br');
 

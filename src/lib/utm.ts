@@ -1,97 +1,185 @@
-// src/lib/utm.ts
 'use client';
 
-type UTM = Partial<{
-  utm_source: string;
-  utm_medium: string;
-  utm_campaign: string;
-  utm_content: string;
-  utm_term: string;
-}>;
+import { useEffect, useMemo, useState } from 'react';
 
-const UTM_KEYS: (keyof UTM)[] = [
-  'utm_source',
-  'utm_medium',
-  'utm_campaign',
-  'utm_content',
-  'utm_term',
-];
+export type UTM = {
+  utm_source?: string | null;
+  utm_medium?: string | null;
+  utm_campaign?: string | null;
+  utm_content?: string | null;
+  utm_term?: string | null;
+  url?: string | null;
+  ref?: string | null;
+};
 
-const COOKIE_TTL_DAYS = 90;
+const STORAGE_KEY = '__mane_utm_v1';
 
-// helpers
-function setCookie(name: string, value: string, days = COOKIE_TTL_DAYS) {
-  try {
-    const d = new Date();
-    d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
-    document.cookie = `${name}=${encodeURIComponent(value)}; expires=${d.toUTCString()}; path=/; SameSite=Lax`;
-  } catch {}
+function safeWindow() {
+  return typeof window !== 'undefined' ? window : undefined;
 }
-function getCookie(name: string): string | undefined {
-  try {
-    return document.cookie
-      .split(';')
-      .map(s => s.trim())
-      .map(s => s.split('=').map(decodeURIComponent))
-      .reduce<Record<string, string>>((acc, [k, v]) => { acc[k] = v; return acc; }, {})[name];
-  } catch { return undefined; }
+function safeDocument() {
+  return typeof document !== 'undefined' ? document : undefined;
 }
 
-export function persistUtmFromUrlOnce() {
-  if (typeof window === 'undefined') return;
-  const url = new URL(window.location.href);
-  let found = false;
-  UTM_KEYS.forEach(k => {
-    const v = url.searchParams.get(k);
-    if (v && v.trim()) {
-      found = true;
-      setCookie(k, v.trim());
-      try { localStorage.setItem(k, v.trim()); } catch {}
-    }
-  });
-  // também guarda o referrer bruto (quem trouxe o usuário), se útil
-  if (document.referrer) {
-    try { localStorage.setItem('ref', document.referrer); } catch {}
-    setCookie('ref', document.referrer);
-  }
-  return found;
-}
-
-export function getStoredUtm(): UTM {
-  const out: UTM = {};
-  UTM_KEYS.forEach(k => {
-    const v = (typeof window !== 'undefined' && (localStorage.getItem(k) || getCookie(k))) || '';
+function parseSearchParams(search: string): Partial<UTM> {
+  const out: Partial<UTM> = {};
+  const sp = new URLSearchParams(search || '');
+  ([
+    'utm_source',
+    'utm_medium',
+    'utm_campaign',
+    'utm_content',
+    'utm_term',
+  ] as const).forEach((k) => {
+    const v = sp.get(k);
     if (v) out[k] = v;
   });
   return out;
 }
 
-export function getAttributionForPayload() {
-  if (typeof window === 'undefined') return {};
-  const utm = getStoredUtm();
-  const url = window.location.href;
-  const ref = document.referrer || localStorage.getItem('ref') || undefined;
-  return { ...utm, url, ref };
+export function readUtmFromStorage(): UTM | null {
+  try {
+    const w = safeWindow();
+    if (!w) return null;
+    const raw = w.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as UTM;
+    return obj || null;
+  } catch {
+    return null;
+  }
 }
 
-/**
- * Gera um href com as UTM persistidas (para navegação interna manter query).
- * Ex.: useUtmHref('/reservar') -> '/reservar?utm_source=...&utm_campaign=...'
- */
-export function useUtmHref(baseHref: string): string {
-  if (typeof window === 'undefined') return baseHref;
+/** Grava UTMs da URL uma única vez (idempotente) */
+export function persistUtmFromUrlOnce(): void {
+  const w = safeWindow();
+  const d = safeDocument();
+  if (!w) return;
+
+  const current = readUtmFromStorage() || {};
+  const incoming = parseSearchParams(w.location.search);
+
+  // se já temos source/campaign salvos, não sobrescreve (idempotente)
+  const already = !!(current.utm_source || current.utm_campaign);
+
+  const urlNow = w.location.href || null;
+  const refNow = d?.referrer || null;
+
+  const merged: UTM = {
+    ...(already ? current : { ...incoming }),
+    url: current.url ?? urlNow,
+    ref: current.ref ?? refNow,
+  };
+
   try {
-    const hasQuery = baseHref.includes('?');
-    const url = new URL(baseHref, window.location.origin);
-    const utm = getStoredUtm();
-    for (const k of UTM_KEYS) {
-      const v = utm[k];
-      if (v && !url.searchParams.get(k)) {
-        url.searchParams.set(k, v);
-      }
-    }
-    return hasQuery ? `${url.pathname}?${url.searchParams.toString()}` : url.toString().replace(window.location.origin, '');
+    w.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
   } catch {
-    return baseHref;
+    /* ignore */
   }
+}
+
+/** Hook para ler UTMs (client) */
+export function useUtm(): UTM | null {
+  const [state, setState] = useState<UTM | null>(null);
+
+  useEffect(() => {
+    // garante persistência (caso layout não tenha chamado)
+    try {
+      persistUtmFromUrlOnce();
+    } catch {}
+    setState(readUtmFromStorage());
+  }, []);
+
+  return state;
+}
+
+/** Adiciona UTMs salvas ao URL fornecido */
+export function appendUtmToUrl(rawUrl: string): string {
+  try {
+    const w = safeWindow();
+    const base = new URL(rawUrl, w?.location?.origin ?? 'https://dummy.local');
+    const utm = readUtmFromStorage();
+    if (utm) {
+      ([
+        'utm_source',
+        'utm_medium',
+        'utm_campaign',
+        'utm_content',
+        'utm_term',
+      ] as (keyof UTM)[]).forEach((k) => {
+        const v = utm[k];
+        if (v && !base.searchParams.get(k)) {
+          base.searchParams.set(k, String(v));
+        }
+      });
+    }
+    return base.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
+/** Retrocompat: alias de appendUtmToUrl (para imports antigos) */
+export const withUtm = appendUtmToUrl;
+
+/** Mescla UTMs no body (não sobrescreve campos já presentes) */
+export function mergeUtmIntoBody<T extends Record<string, any>>(body: T): T & UTM {
+  const utm = readUtmFromStorage();
+  if (!utm) return body as T & UTM;
+
+  const outAny: Record<string, any> = { ...body };
+
+  ([
+    'utm_source',
+    'utm_medium',
+    'utm_campaign',
+    'utm_content',
+    'utm_term',
+    'url',
+    'ref',
+  ] as (keyof UTM)[]).forEach((k) => {
+    if (outAny[k] == null && utm[k] != null) {
+      outAny[k] = utm[k];
+    }
+  });
+
+  return outAny as T & UTM;
+}
+
+/** Retorno pronto para payload (prioriza UTMs salvas; preenche url/ref atuais) */
+export function getAttributionForPayload(): UTM {
+  const w = safeWindow();
+  const d = safeDocument();
+  const saved = readUtmFromStorage() || {};
+
+  const urlNow = w?.location?.href ?? null;
+  const refNow = d?.referrer ?? null;
+
+  return {
+    utm_source: saved.utm_source ?? null,
+    utm_medium: saved.utm_medium ?? null,
+    utm_campaign: saved.utm_campaign ?? null,
+    utm_content: saved.utm_content ?? null,
+    utm_term: saved.utm_term ?? null,
+    url: saved.url ?? urlNow,
+    ref: saved.ref ?? refNow,
+  };
+}
+
+/** Versão memoizada opcional */
+export function useAttribution(): UTM {
+  const utm = useUtm();
+  return useMemo<UTM>(() => {
+    const w = safeWindow();
+    const d = safeDocument();
+    return {
+      utm_source: utm?.utm_source ?? null,
+      utm_medium: utm?.utm_medium ?? null,
+      utm_campaign: utm?.utm_campaign ?? null,
+      utm_content: utm?.utm_content ?? null,
+      utm_term: utm?.utm_term ?? null,
+      url: utm?.url ?? (w?.location?.href ?? null),
+      ref: utm?.ref ?? (d?.referrer ?? null),
+    };
+  }, [utm]);
 }
