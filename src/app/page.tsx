@@ -17,13 +17,18 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconCalendarPlus } from '@tabler/icons-react';
 
-// ⬇️ bootstrap do analytics
+// ⬇️ bootstrap do analytics (não mexi; só protegi a chamada)
 import { ensureAnalyticsReady } from '@/lib/analytics';
 
 export default function Home() {
-  // Inicializa fbq/gtag apenas uma vez no client
+  // Inicializa fbq/gtag no client, protegido para nunca quebrar a página
   useEffect(() => {
-    ensureAnalyticsReady();
+    try {
+      ensureAnalyticsReady();
+    } catch (err) {
+      // silencia qualquer erro de bootstrap pra não derrubar a Home
+      console.error('[analytics bootstrap] ignorado na Home:', err);
+    }
   }, []);
 
   // Mostra skeleton até hidratar (e um tique a mais para suavizar)
@@ -196,7 +201,7 @@ function MenuCard({
   title: string;
   description: string;
   href: string;
-  icon: ReactNode;   
+  icon: ReactNode;
   actionColor?: 'green' | 'dark';
   variant?: 'filled' | 'outline';
 }) {
@@ -211,13 +216,13 @@ function MenuCard({
         transition: 'transform .12s ease, box-shadow .12s ease',
       }}
       onMouseEnter={(e) => {
-        if (window.matchMedia('(hover: hover)').matches) {
+        if (typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches) {
           e.currentTarget.style.transform = 'translateY(-2px)';
           e.currentTarget.style.boxShadow = '0 10px 24px rgba(0,0,0,.06)';
         }
       }}
       onMouseLeave={(e) => {
-        if (window.matchMedia('(hover: hover)').matches) {
+        if (typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches) {
           e.currentTarget.style.transform = 'translateY(0)';
           e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,.05)';
         }
@@ -251,7 +256,7 @@ function MenuCard({
                   margin: 0,
                   fontFamily: '"Alfa Slab One", system-ui, sans-serif',
                   letterSpacing: '-0.01em',
-                  fontSize: 18, // >=16px (anti-zoom iOS)
+                  fontSize: 18,
                   lineHeight: 1.15,
                 }}
               >
