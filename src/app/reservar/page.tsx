@@ -52,7 +52,6 @@ import {
 } from '@tabler/icons-react';
 import NextImage from 'next/image';
 import { apiGet, API_BASE } from '@/lib/api';
-import { getAttributionForPayload } from '@/lib/utm';
 
 dayjs.locale('pt-br');
 
@@ -86,11 +85,13 @@ type AreaMeta = {
   photoUrl?: string | null;
 };
 
-type ReservationType = 'PARTICULAR' | 'CONFRATERNIZACAO' | 'EMPRESA';
+// ✅ inclui ANIVERSARIO
+type ReservationType = 'PARTICULAR' | 'CONFRATERNIZACAO' | 'EMPRESA' | 'ANIVERSARIO';
 const RES_TYPE_LABEL: Record<ReservationType, string> = {
   PARTICULAR: 'Particular',
   CONFRATERNIZACAO: 'Confraternização',
   EMPRESA: 'Empresa',
+  ANIVERSARIO: 'Aniversário',
 };
 
 type ReservationDto = {
@@ -265,6 +266,34 @@ function toS3Url(raw?: any): string | undefined {
   if (/^https?:\/\//i.test(s) || s.startsWith('data:')) return toHttps(s);
   const path = s.startsWith('/') ? s : `/${s}`;
   return `${S3_BASE}${path}`;
+}
+
+/* =========================================================
+   UTM direto da URL (client-side)
+========================================================= */
+function getUtmFromCurrentUrl() {
+  if (typeof window === 'undefined') {
+    return {
+      utm_source: undefined as string | undefined,
+      utm_medium: undefined as string | undefined,
+      utm_campaign: undefined as string | undefined,
+      utm_content: undefined as string | undefined,
+      utm_term: undefined as string | undefined,
+      url: undefined as string | undefined,
+      ref: undefined as string | undefined,
+    };
+  }
+  const u = new URL(window.location.href);
+  const p = u.searchParams;
+  return {
+    utm_source: p.get('utm_source') || undefined,
+    utm_medium: p.get('utm_medium') || undefined,
+    utm_campaign: p.get('utm_campaign') || undefined,
+    utm_content: p.get('utm_content') || undefined,
+    utm_term: p.get('utm_term') || undefined,
+    url: u.toString(),
+    ref: typeof document !== 'undefined' ? (document.referrer || undefined) : undefined,
+  };
 }
 
 /* =========================================================
@@ -1143,8 +1172,16 @@ export default function ReservarMane() {
       const birthdayISO = birthday ? dayjs(birthday).startOf('day').toDate().toISOString() : undefined;
       const kidsNum = typeof criancas === 'number' && !Number.isNaN(criancas) ? criancas : 0;
 
-      // <<< ADD: UTM/url/ref do cliente
-      const attribution = getAttributionForPayload();
+      // UTM/url/ref direto da URL atual
+      const {
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        utm_content,
+        utm_term,
+        url,
+        ref,
+      } = getUtmFromCurrentUrl();
 
       const payload = {
         fullName,
@@ -1157,14 +1194,14 @@ export default function ReservarMane() {
         phone: onlyDigits(phone),
         unitId: unidade,
         areaId: areaId,
-        // UTM/attribs — prioriza o que veio da URL; mantém fallback antigo
-        utm_source: (attribution as any).utm_source ?? 'site',
-        utm_medium: (attribution as any).utm_medium ?? null,
-        utm_campaign: (attribution as any).utm_campaign ?? `${unidade}:${areaId}`,
-        utm_content: (attribution as any).utm_content ?? null,
-        utm_term: (attribution as any).utm_term ?? null,
-        url: (attribution as any).url ?? (typeof window !== 'undefined' ? window.location.href : null),
-        ref: (attribution as any).ref ?? (typeof document !== 'undefined' ? document.referrer || null : null),
+        // UTM/attribs — lê da URL com fallback
+        utm_source: utm_source ?? 'site',
+        utm_medium: utm_medium ?? null,
+        utm_campaign: utm_campaign ?? `${unidade}:${areaId}`,
+        utm_content: utm_content ?? null,
+        utm_term: utm_term ?? null,
+        url: url ?? (typeof window !== 'undefined' ? window.location.href : null),
+        ref: ref ?? (typeof document !== 'undefined' ? document.referrer || null : null),
         source: 'site',
         reservationType,
       };
