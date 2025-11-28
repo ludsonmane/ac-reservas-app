@@ -5,9 +5,10 @@ import './globals.css';
 
 import { ColorSchemeScript, MantineProvider, createTheme, rem } from '@mantine/core';
 import { Merriweather, Comfortaa } from 'next/font/google';
-import React from 'react';
+import React, { useEffect } from 'react'; // <-- ADD
 import Script from 'next/script';
 import MetaPixelBootstrap from './MetaPixelBootstrap';
+import { persistUtmFromUrlOnce } from '@/lib/utm'; // <-- ADD
 
 export const metadata = {
   title: 'Mané Mercado • Reservas',
@@ -93,6 +94,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // >>> Flags do snippet CSQ/HJ
   const ENABLE_CSQ = process.env.NEXT_PUBLIC_ENABLE_CSQ !== '0'; // defina 1 para ligar
   const CSQ_ID = process.env.NEXT_PUBLIC_CSQ_ID ?? '6581655';
+
+  // --- ADD: captura UTM/referrer na primeira carga (client-side)
+  useEffect(() => {
+    persistUtmFromUrlOnce();
+  }, []);
 
   return (
     <html lang="pt-BR">

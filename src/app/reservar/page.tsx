@@ -52,6 +52,7 @@ import {
 } from '@tabler/icons-react';
 import NextImage from 'next/image';
 import { apiGet, API_BASE } from '@/lib/api';
+import { getAttributionForPayload } from '@/lib/utm'; // <- ADD
 
 dayjs.locale('pt-br');
 
@@ -1070,7 +1071,6 @@ export default function ReservarMane() {
       setError(ONE_DAY_AHEAD_MSG);
       return;
     }
-
     if (qty > MAX_PEOPLE_WITHOUT_CONCIERGE) {
       setShowConcierge(true);
       return;
@@ -1143,6 +1143,9 @@ export default function ReservarMane() {
       const birthdayISO = birthday ? dayjs(birthday).startOf('day').toDate().toISOString() : undefined;
       const kidsNum = typeof criancas === 'number' && !Number.isNaN(criancas) ? criancas : 0;
 
+      // <<< ADD: UTM/url/ref do cliente
+      const attribution = getAttributionForPayload();
+
       const payload = {
         fullName,
         cpf: onlyDigits(cpf),
@@ -1154,8 +1157,14 @@ export default function ReservarMane() {
         phone: onlyDigits(phone),
         unitId: unidade,
         areaId: areaId,
-        utm_source: 'site',
-        utm_campaign: `${unidade}:${areaId}`,
+        // UTM/attribs — prioriza o que veio da URL; mantém fallback antigo
+        utm_source: (attribution as any).utm_source ?? 'site',
+        utm_medium: (attribution as any).utm_medium ?? null,
+        utm_campaign: (attribution as any).utm_campaign ?? `${unidade}:${areaId}`,
+        utm_content: (attribution as any).utm_content ?? null,
+        utm_term: (attribution as any).utm_term ?? null,
+        url: (attribution as any).url ?? (typeof window !== 'undefined' ? window.location.href : null),
+        ref: (attribution as any).ref ?? (typeof document !== 'undefined' ? document.referrer || null : null),
         source: 'site',
         reservationType,
       };
@@ -1169,8 +1178,8 @@ export default function ReservarMane() {
       const json = await resp.json().catch(() => ({} as any));
 
       if (!resp.ok) {
-        if (resp.status === 409 && json?.error?.code === 'ALREADY_HAS_ACTIVE_RESERVATION') {
-          const activeId = json.error.reservationId as string;
+        if (resp.status === 409 && (json as any)?.error?.code === 'ALREADY_HAS_ACTIVE_RESERVATION') {
+          const activeId = (json as any).error.reservationId as string;
           if (activeId) {
             const activeResp = await fetch(
               `${API_BASE || ''}/v1/reservations/public/active?id=${encodeURIComponent(activeId)}`,
@@ -1213,8 +1222,8 @@ export default function ReservarMane() {
         }
 
         const msg =
-          json?.error?.message ||
-          json?.message ||
+          (json as any)?.error?.message ||
+          (json as any)?.message ||
           'Não foi possível concluir sua reserva agora. Tente novamente.';
         setError(msg);
         setSending(false);

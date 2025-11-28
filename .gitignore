@@ -1,2 +1,53 @@
+# — Node
 node_modules/
-.next
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.log
+logs/
+*.gz
+
+# — TypeScript
+dist/
+*.tsbuildinfo
+dist/.tsbuildinfo
+
+# — Next.js
+.next/
+.next/cache/
+out/
+.vercel/
+
+# — Ambiente/segredos
+.env
+.env*.local
+sendgrid.env
+
+# — Prisma (mantém schema, ignora possíveis dumps)
+prisma/*.db
+prisma/*.sqlite
+prisma/*-journal
+
+# — Uploads/arquivos gerados em runtime
+uploads/
+data/uploads/
+public/uploads/
+
+# — Cobertura & caches
+coverage/
+.eslintcache
+.turbo/
+turbo/
+.cache/
+
+# — SO/IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# — Artefatos compactados
+*.zip
+mane-web.zip
+mane-api.zip
+mane-reservations-ui.zip
