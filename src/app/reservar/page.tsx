@@ -28,7 +28,7 @@ import {
   Anchor,
   Badge,
 } from '@mantine/core';
-import { IconChevronDown, IconArrowLeft, IconInfoCircle } from '@tabler/icons-react';
+import { IconChevronDown, IconArrowLeft } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
 import BoardingPass from './BoardingPass';
 import Link from 'next/link';
@@ -41,6 +41,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   IconCalendar,
   IconClockHour4,
+  IconInfoCircle,
   IconMapPin,
   IconUser,
   IconBuildingStore,
@@ -54,64 +55,13 @@ import { apiGet, API_BASE } from '@/lib/api';
 
 dayjs.locale('pt-br');
 
-/* =========================================================
-   Network helpers (timeout, retry, logging e https fix)
-========================================================= */
-const DEBUG = process.env.NEXT_PUBLIC_DEBUG === '1';
+// ====== Configs
+const MAX_PEOPLE_WITHOUT_CONCIERGE = 40;
+const MIN_PEOPLE = 8;
+const CONCIERGE_WPP_LINK =
+  'https://wa.me/5561982850776?text=Oi%20Concierge!%20Quero%20reservar%20para%20mais%20de%2040%20pessoas.%20Pode%20me%20ajudar%3F';
 
-function forceHttps(u?: string | null) {
-  if (!u) return u || '';
-  try {
-    const url = new URL(u);
-    if (url.protocol === 'http:') url.protocol = 'https:';
-    return url.toString();
-  } catch {
-    return u || '';
-  }
-}
-const API_BASE_SAFE = forceHttps(API_BASE || '');
-
-async function fetchJsonWithRetry(
-  input: RequestInfo | URL,
-  init: RequestInit & { timeoutMs?: number; retries?: number } = {}
-) {
-  const { timeoutMs = 10000, retries = 1, ...rest } = init;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const res = await fetch(input, { ...rest, signal: controller.signal });
-      const text = await res.text().catch(() => '');
-      let json: any = null;
-      try { json = text ? JSON.parse(text) : null; } catch { /* ignore */ }
-
-      if (!res.ok) {
-        if (res.status >= 500 && attempt < retries) {
-          await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
-          continue;
-        }
-        const err = new Error(json?.error?.message || json?.message || `HTTP ${res.status}`);
-        (err as any).status = res.status;
-        (err as any).body = text;
-        throw err;
-      }
-      return json;
-    } catch (e) {
-      if (attempt < retries) {
-        await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
-        continue;
-      }
-      throw e;
-    } finally {
-      clearTimeout(t);
-    }
-  }
-  throw new Error('Erro de rede');
-}
-
-/* =========================================================
-   Tipos
-========================================================= */
+// ====== Tipos
 type UnitOption = { id: string; name: string; slug?: string };
 
 type AreaOption = {
@@ -134,6 +84,7 @@ type AreaMeta = {
 };
 
 type ReservationType = 'ANIVERSARIO' | 'PARTICULAR' | 'CONFRATERNIZACAO' | 'EMPRESA';
+
 const RES_TYPE_LABEL: Record<ReservationType, string> = {
   ANIVERSARIO: 'Aniversário',
   PARTICULAR: 'Particular',
@@ -177,9 +128,7 @@ type SavedReservationLS = {
 
 const LS_KEY = 'mane:lastReservation';
 
-/* =========================================================
-   Helpers
-========================================================= */
+// ====== Helpers
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1528605248644-14dd04022da1?q=80&w=1600&auto=format&fit=crop';
 
@@ -213,46 +162,20 @@ function joinDateTimeISO(date: Date | null, time: string) {
   return dt.toISOString();
 }
 
-/* UTM/url/ref direto da URL */
-function getUrlAttribution() {
-  if (typeof window === 'undefined') {
-    return {
-      utm_source: 'site',
-      utm_medium: null,
-      utm_campaign: null,
-      utm_content: null,
-      utm_term: null,
-      url: null,
-      ref: null,
-    };
-  }
-  const sp = new URLSearchParams(window.location.search);
-  const pick = (k: string) => {
-    const v = sp.get(k);
-    return v && v.trim() ? v.trim() : null;
-  };
-  return {
-    utm_source: pick('utm_source') || 'site',
-    utm_medium: pick('utm_medium'),
-    utm_campaign: pick('utm_campaign'),
-    utm_content: pick('utm_content'),
-    utm_term: pick('utm_term'),
-    url: window.location.href,
-    ref: document.referrer || null,
-  };
-}
-
-/* slots válidos */
+// slots válidos
 const ALLOWED_SLOTS = ['12:00', '12:30', '13:00', '18:00', '18:30', '19:00'];
 function isValidSlot(v: string) {
   return ALLOWED_SLOTS.includes(v);
 }
 const SLOT_ERROR_MSG = 'Escolha um horário válido da lista';
 
-/* janela de horário */
+// janela de horário
 const TODAY_START = dayjs().startOf('day').toDate();
-const TOMORROW_START = dayjs().add(1, 'day').startOf('day').toDate();
-const OPEN_H = 12, OPEN_M = 0, CLOSE_H = 21, CLOSE_M = 30;
+const TOMORROW_START = dayjs().add(1, 'day').startOf('day').toDate(); // 👈 novo
+const OPEN_H = 12,
+  OPEN_M = 0,
+  CLOSE_H = 21,
+  CLOSE_M = 30;
 function isTimeOutsideWindow(hhmm: string) {
   if (!hhmm) return false;
   const [hh, mm] = hhmm.split(':').map(Number);
@@ -269,7 +192,7 @@ function timeWindowMessage() {
   ).padStart(2, '0')} e ${String(CLOSE_H).padStart(2, '0')}:${String(CLOSE_M).padStart(2, '0')}`;
 }
 
-/* regra: data/hora no passado */
+// regra: data/hora no passado
 function isPastSelection(date: Date | null, time: string) {
   if (!date || !time) return false;
   const [hh, mm] = time.split(':').map(Number);
@@ -277,21 +200,19 @@ function isPastSelection(date: Date | null, time: string) {
   return when.isBefore(dayjs());
 }
 
-/* 1 dia de antecedência */
+// 1 dia de antecedência
 const ONE_DAY_AHEAD_MSG = 'Reservas precisam ser feitas com 1 dia de antecedência.';
 function isSameDayAsToday(d: Date | null) {
   return !!d && dayjs(d).isSame(dayjs(), 'day');
 }
 
-/* onChange NumberInput */
+// NumberInput
 const numberInputHandler =
   (setter: React.Dispatch<React.SetStateAction<number | ''>>) =>
-    (v: string | number) =>
-      setter(v === '' ? '' : Number(v));
+  (v: string | number) =>
+    setter(v === '' ? '' : Number(v));
 
-/* =========================================================
-   Helpers de imagem
-========================================================= */
+// ====== Imagens
 const S3_BASE = 'https://mane-reservations-prod.s3.amazonaws.com';
 const ASSET_BASE = (API_BASE || '').replace(/\/+$/, '');
 
@@ -313,7 +234,9 @@ function toHttps(u: string) {
       url.protocol = 'https:';
       return url.toString();
     }
-  } catch {}
+  } catch {
+    // não era absoluta
+  }
   return u;
 }
 
@@ -327,9 +250,7 @@ function toS3Url(raw?: any): string | undefined {
   return `${S3_BASE}${path}`;
 }
 
-/* =========================================================
-   Loading overlay
-========================================================= */
+// ====== Loading overlay
 function LoadingOverlay({ visible }: { visible: boolean }) {
   const msgs = useRef([
     'Verificando disponibilidade...',
@@ -384,16 +305,16 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
       </Card>
       <style jsx global>{`
         @keyframes spin {
-          to { transform: rotate(360deg); }
+          to {
+            transform: rotate(360deg);
+          }
         }
       `}</style>
     </Box>
   );
 }
 
-/* =========================================================
-   Skeleton
-========================================================= */
+// ====== Skeleton
 function StepSkeleton() {
   return (
     <Stack mt="xs" gap="md">
@@ -424,19 +345,14 @@ function StepSkeleton() {
   );
 }
 
-/* =========================================================
-   Ícone da etapa
-========================================================= */
+// ====== Ícone da etapa
 function stepIconFor(n: number) {
-  // 0: Tipo | 1: Reserva | 2: Área | 3: Cadastro | 4: Concluído
   if (n === 2) return <IconMapPin size={28} />;
   if (n === 3) return <IconUser size={28} />;
   return <IconCalendar size={28} />;
 }
 
-/* =========================================================
-   AreaCard
-========================================================= */
+// ====== AreaCard
 function AreaCard({
   foto,
   titulo,
@@ -457,11 +373,16 @@ function AreaCard({
   remaining?: number;
 }) {
   const [src, setSrc] = useState(foto || FALLBACK_IMG);
-  useEffect(() => { setSrc(foto || FALLBACK_IMG); }, [foto]);
+  useEffect(() => {
+    setSrc(foto || FALLBACK_IMG);
+  }, [foto]);
 
   const LOW_STOCK_THRESHOLD = 8;
   const showLowStock =
-    !disabled && typeof remaining === 'number' && remaining > 0 && remaining <= LOW_STOCK_THRESHOLD;
+    !disabled &&
+    typeof remaining === 'number' &&
+    remaining > 0 &&
+    remaining <= LOW_STOCK_THRESHOLD;
 
   return (
     <Card
@@ -480,10 +401,18 @@ function AreaCard({
         background: disabled ? '#F4F4F4' : '#FBF5E9',
         opacity: disabled ? 0.7 : 1,
       }}
-      onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.transform = 'translateY(-2px)'; }}
+      onMouseEnter={(e) => {
+        if (!disabled) e.currentTarget.style.transform = 'translateY(-2px)';
+      }}
       onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
     >
-      <Box style={{ position: 'relative', height: 'clamp(120px, 32vw, 160px)', background: '#f2f2f2' }}>
+      <Box
+        style={{
+          position: 'relative',
+          height: 'clamp(120px, 32vw, 160px)',
+          background: '#f2f2f2',
+        }}
+      >
         <NextImage
           src={src}
           alt={titulo}
@@ -495,23 +424,48 @@ function AreaCard({
           unoptimized
           referrerPolicy="no-referrer"
         />
+
         <Box
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.45) 100%)',
+            background:
+              'linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.45) 100%)',
           }}
         />
+
         {selected && !disabled && (
-          <Badge color="green" variant="filled" style={{ position: 'absolute', top: 10, right: 10, fontWeight: 700, boxShadow: '0 6px 18px rgba(0,0,0,.25)' }}>
+          <Badge
+            color="green"
+            variant="filled"
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: 10,
+              fontWeight: 700,
+              boxShadow: '0 6px 18px rgba(0,0,0,.25)',
+            }}
+          >
             Selecionada
           </Badge>
         )}
+
         {disabled && (
-          <Badge color="red" variant="filled" style={{ position: 'absolute', top: 10, right: 10, fontWeight: 800, boxShadow: '0 6px 18px rgba(0,0,0,.25)' }}>
+          <Badge
+            color="red"
+            variant="filled"
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: 10,
+              fontWeight: 800,
+              boxShadow: '0 6px 18px rgba(0,0,0,.25)',
+            }}
+          >
             ESGOTADO
           </Badge>
         )}
+
         {showLowStock && (
           <div
             style={{
@@ -539,20 +493,24 @@ function AreaCard({
         <Title order={4} style={{ margin: 0, fontSize: 'clamp(16px, 5vw, 20px)' }}>
           {titulo}
         </Title>
+
         {!!desc && (
           <Text size="sm" c="dimmed" mt={4} style={{ lineHeight: 1.35 }}>
             {desc}
           </Text>
         )}
-        {!!icon && <Text mt={6} style={{ fontSize: 24, lineHeight: 1 }}>{icon}</Text>}
+
+        {!!icon && (
+          <Text mt={6} style={{ fontSize: 24, lineHeight: 1 }}>
+            {icon}
+          </Text>
+        )}
       </Box>
     </Card>
   );
 }
 
-/* =========================================================
-   WhatsApp + Poster (canvas)
-========================================================= */
+// ====== Poster/WhatsApp
 function buildWhatsappLink(text: string) {
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
@@ -664,40 +622,34 @@ async function generatePoster({
   return { blob, fileName, url };
 }
 
-/* =========================================================
-   Helpers novos (Calendar/Email)
-========================================================= */
-function buildGoogleCalendarUrl({
-  title,
-  startISO,
-  endISO,
-  guestEmails,
-  details,
-  timezone = 'America/Sao_Paulo',
-}: {
-  title: string;
-  startISO: string;
-  endISO: string;
-  guestEmails: string[];
-  details?: string;
-  timezone?: string;
-}) {
-  const fmt = (iso: string) => dayjs(iso).format('YYYYMMDDTHHmmss');
-  const params = new URLSearchParams({
-    action: 'TEMPLATE',
-    text: title,
-    dates: `${fmt(startISO)}/${fmt(endISO)}`,
-    ctz: timezone,
-    details: details || '',
-    conference: 'hangouts',
-  });
-  if (guestEmails.length) params.set('add', guestEmails.join(','));
-  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+// ====== Helpers de URL/UTM (sem libs)
+function readUrlAttribution() {
+  if (typeof window === 'undefined') {
+    return {
+      utm_source: 'site',
+      utm_medium: null,
+      utm_campaign: null,
+      utm_content: null,
+      utm_term: null,
+      url: null,
+      ref: null,
+    };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const get = (k: string) => (params.get(k) || '').trim() || null;
+
+  return {
+    utm_source: get('utm_source') || 'site',
+    utm_medium: get('utm_medium'),
+    utm_campaign: get('utm_campaign'),
+    utm_content: get('utm_content'),
+    utm_term: get('utm_term'),
+    url: window.location.href,
+    ref: document.referrer || null,
+  };
 }
 
-/* =========================================================
-   Página
-========================================================= */
+// ====== Página
 export default function ReservarMane() {
   const [reservationType, setReservationType] = useState<ReservationType>('PARTICULAR');
 
@@ -773,43 +725,54 @@ export default function ReservarMane() {
     return Math.max(1, a + c);
   }, [adultos, criancas]);
 
-  const peopleError = total < 8 ? `Mínimo de 8 pessoas` : null;
+  const peopleError = total < MIN_PEOPLE ? `Mínimo de ${MIN_PEOPLE} pessoas` : null;
 
-  // Recupera ativa do LS
+  // Restore reserva ativa (localStorage)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     (async () => {
-      const apiBase = API_BASE_SAFE || '';
+      const apiBase = API_BASE || '';
       const raw = localStorage.getItem(LS_KEY);
       let saved: SavedReservationLS | null = null;
       if (raw) {
-        try { saved = JSON.parse(raw) as SavedReservationLS; }
-        catch { localStorage.removeItem(LS_KEY); }
-      }
-
-      if (saved?.reservationType) setReservationType(saved.reservationType);
-      if (saved?.id) {
         try {
-          const r = await fetchJsonWithRetry(
-            `${apiBase}/v1/reservations/public/active?id=${encodeURIComponent(saved.id)}`,
-            { timeoutMs: 8000, retries: 1 }
-          ) as ReservationDto;
-          if (r?.status === 'AWAITING_CHECKIN') {
-            setActiveReservation(r);
-            setCreatedId(r.id);
-            setCreatedCode(r.reservationCode);
-            if (r.reservationType) setReservationType(r.reservationType as ReservationType);
-            setStep(4);
-            return;
-          }
+          saved = JSON.parse(raw) as SavedReservationLS;
         } catch {
           localStorage.removeItem(LS_KEY);
+        }
+      }
+
+      if (saved?.reservationType) {
+        setReservationType(saved.reservationType);
+      }
+
+      if (saved?.id) {
+        try {
+          const resp = await fetch(
+            `${apiBase}/v1/reservations/public/active?id=${encodeURIComponent(saved.id)}`,
+            { cache: 'no-store' }
+          );
+          if (resp.ok) {
+            const r = (await resp.json()) as ReservationDto;
+            if (r.status === 'AWAITING_CHECKIN') {
+              setActiveReservation(r);
+              setCreatedId(r.id);
+              setCreatedCode(r.reservationCode);
+              if (r.reservationType) setReservationType(r.reservationType as ReservationType);
+              setStep(4);
+              return;
+            }
+          } else {
+            localStorage.removeItem(LS_KEY);
+          }
+        } catch {
+          // ignore
         }
       }
     })();
   }, []);
 
-  // Carrega unidades
+  // Units
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -818,10 +781,10 @@ export default function ReservarMane() {
       try {
         const list = await apiGet<any[]>('/v1/units/public/options/list');
         const normalized: UnitOption[] = (list ?? [])
-          .map((u: any) => ([
+          .map((u: any) => [
             String(u.id ?? u._id ?? u.slug ?? u.name),
-            String(u.name ?? u.title ?? u.slug ?? '')
-          ]))
+            String(u.name ?? u.title ?? u.slug ?? ''),
+          ])
           .map(([id, name]) => ({ id, name }));
         if (!alive) return;
         setUnits(normalized);
@@ -834,24 +797,34 @@ export default function ReservarMane() {
         if (alive) setUnitsLoading(false);
       }
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // Pixel por unidade
   useEffect(() => {
     if (!unidade || units.length === 0) return;
     const unitObj = units.find((u) => u.id === unidade);
-    if (unitObj) setActiveUnitPixelFromUnit({ id: unitObj.id, name: unitObj.name, slug: unitObj.slug });
-    else setActiveUnitPixelFromUnit(unidade);
+    if (unitObj) {
+      setActiveUnitPixelFromUnit({ id: unitObj.id, name: unitObj.name, slug: unitObj.slug });
+    } else {
+      setActiveUnitPixelFromUnit(unidade);
+    }
   }, [unidade, units]);
 
-  // Meta das áreas (fallback availability se vazio)
+  // Metadados de áreas por unidade
   useEffect(() => {
     let alive = true;
+
     (async () => {
-      if (!unidade) { setAreasMeta({}); return; }
+      if (!unidade) {
+        setAreasMeta({});
+        return;
+      }
       try {
         let list = await apiGet<any[]>(`/v1/areas/public/by-unit/${encodeURIComponent(unidade)}`);
+
         if (!Array.isArray(list) || list.length === 0) {
           const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
           const qs = new URLSearchParams({ unitId: String(unidade), date: tomorrow, time: '18:00' }).toString();
@@ -863,20 +836,38 @@ export default function ReservarMane() {
         for (const a of list) {
           const id = String(a?.id ?? a?._id ?? '');
           if (!id) continue;
+
           const description = String(a?.description ?? a?.desc ?? a?.area?.description ?? '').trim();
-          const iconEmojiRaw = a?.iconEmoji ?? a?.icon_emoji ?? a?.area?.iconEmoji ?? a?.area?.icon_emoji;
+          const iconEmojiRaw =
+            a?.iconEmoji ?? a?.icon_emoji ?? a?.area?.iconEmoji ?? a?.area?.icon_emoji;
+
           const rawPhoto =
-            a?.photoUrlAbsolute ?? a?.photoPath ?? a?.photoUrl ?? a?.photo ?? a?.imageUrl ?? a?.image ?? a?.coverUrl ??
-            a?.photo_url ?? a?.area?.photoUrl ?? a?.area?.photo ?? a?.area?.imageUrl ?? a?.area?.image ?? a?.area?.coverUrl;
+            a?.photoUrlAbsolute ??
+            a?.photoPath ??
+            a?.photoUrl ??
+            a?.photo ??
+            a?.imageUrl ??
+            a?.image ??
+            a?.coverUrl ??
+            a?.photo_url ??
+            a?.area?.photoUrl ??
+            a?.area?.photo ??
+            a?.area?.imageUrl ??
+            a?.area?.image ??
+            a?.area?.coverUrl;
+
           const photoS3 = toS3Url(rawPhoto) || undefined;
+
           metaMap[id] = {
             id,
             name: String(a?.name ?? a?.title ?? ''),
             description,
             photoUrl: photoS3,
-            iconEmoji: typeof iconEmojiRaw === 'string' && iconEmojiRaw.trim() ? iconEmojiRaw.trim() : null,
+            iconEmoji:
+              typeof iconEmojiRaw === 'string' && iconEmojiRaw.trim() ? iconEmojiRaw.trim() : null,
           };
         }
+
         if (!alive) return;
         setAreasMeta(metaMap);
       } catch (err) {
@@ -885,16 +876,23 @@ export default function ReservarMane() {
         setAreasMeta({});
       }
     })();
-    return () => { alive = false; };
+
+    return () => {
+      alive = false;
+    };
   }, [unidade]);
 
   const ymd = useMemo(() => (data ? dayjs(data).format('YYYY-MM-DD') : ''), [data]);
 
-  // Lista de áreas (com disponibilidade quando tiver data/hora)
+  // Disponibilidade de áreas (dependendo de data/hora)
   useEffect(() => {
     let alive = true;
 
-    if (!unidade) { setAreas([]); setAreaId(null); return; }
+    if (!unidade) {
+      setAreas([]);
+      setAreaId(null);
+      return;
+    }
 
     if (!ymd || !hora) {
       const metaList = Object.values(areasMeta);
@@ -908,10 +906,13 @@ export default function ReservarMane() {
         available: undefined,
         isAvailable: undefined,
       }));
+
       if (!alive) return;
       setAreas(normalized);
       setAreaId((curr) => (normalized.some((x) => x.id === curr) ? curr : null));
-      return () => { alive = false; };
+      return () => {
+        alive = false;
+      };
     }
 
     (async () => {
@@ -920,6 +921,7 @@ export default function ReservarMane() {
       try {
         const qs = new URLSearchParams({ unitId: String(unidade), date: ymd, time: hora }).toString();
         const list = await apiGet<any[]>(`/v1/reservations/public/availability?${qs}`);
+
         const metaMap = areasMeta;
 
         const normalized: AreaOption[] = (list ?? []).map((a: any) => {
@@ -927,16 +929,29 @@ export default function ReservarMane() {
           const meta = metaMap[id];
 
           const rawPhoto =
-            a?.photoUrlAbsolute ?? a?.photoPath ?? a?.photoUrl ?? a?.photo ?? a?.imageUrl ?? a?.image ?? a?.coverUrl ??
-            a?.photo_url ?? meta?.photoUrl ?? '';
+            a?.photoUrlAbsolute ??
+            a?.photoPath ??
+            a?.photoUrl ??
+            a?.photo ??
+            a?.imageUrl ??
+            a?.image ??
+            a?.coverUrl ??
+            a?.photo_url ??
+            meta?.photoUrl ??
+            '';
+
           const photo = toS3Url(rawPhoto) ?? meta?.photoUrl ?? undefined;
 
-          const desc = String(a?.description ?? a?.desc ?? a?.area?.description ?? meta?.description ?? '').trim();
+          const desc = String(
+            a?.description ?? a?.desc ?? a?.area?.description ?? meta?.description ?? ''
+          ).trim();
 
           const icon =
-            (typeof a?.iconEmoji === 'string' && a.iconEmoji.trim()) ? a.iconEmoji.trim()
-              : (typeof a?.icon_emoji === 'string' && a.icon_emoji.trim()) ? a.icon_emoji.trim()
-              : (meta?.iconEmoji ?? null);
+            typeof a?.iconEmoji === 'string' && a.iconEmoji.trim()
+              ? a.iconEmoji.trim()
+              : typeof a?.icon_emoji === 'string' && a.icon_emoji.trim()
+              ? a.icon_emoji.trim()
+              : meta?.iconEmoji ?? null;
 
           return {
             id,
@@ -944,9 +959,12 @@ export default function ReservarMane() {
             description: desc,
             photoUrl: photo,
             capacity: typeof a?.capacity === 'number' ? a.capacity : undefined,
-            available: typeof a?.available === 'number'
-              ? a.available
-              : (typeof a?.remaining === 'number' ? a.remaining : undefined),
+            available:
+              typeof a?.available === 'number'
+                ? a.available
+                : typeof a?.remaining === 'number'
+                ? a.remaining
+                : undefined,
             isAvailable: Boolean(a?.isAvailable ?? (a?.available ?? a?.remaining ?? 0) > 0),
             iconEmoji: icon,
           };
@@ -975,14 +993,12 @@ export default function ReservarMane() {
       }
     })();
 
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [unidade, ymd, hora, total, areasMeta]);
 
   const contactOk = isValidEmail(email) && isValidPhone(phone);
-  const MIN_PEOPLE = 8;
-  const MAX_PEOPLE_WITHOUT_CONCIERGE = 40;
-  const CONCIERGE_WPP_LINK =
-    'https://wa.me/5561982850776?text=Oi%20Concierge!%20Quero%20reservar%20para%20mais%20de%2040%20pessoas.%20Pode%20me%20ajudar%3F';
 
   const canNext1 = Boolean(
     unidade && data && hora && total >= MIN_PEOPLE && !timeError && !dateError && !pastError
@@ -1003,9 +1019,18 @@ export default function ReservarMane() {
   const handleContinueStep1 = () => {
     setError(null);
     const qty = typeof total === 'number' ? total : 0;
-    if (qty < MIN_PEOPLE) { setError(`Mínimo de ${MIN_PEOPLE} pessoas para reservar.`); return; }
-    if (isSameDayAsToday(data)) { setError(ONE_DAY_AHEAD_MSG); return; }
-    if (qty > MAX_PEOPLE_WITHOUT_CONCIERGE) { setShowConcierge(true); return; }
+    if (qty < MIN_PEOPLE) {
+      setError(`Mínimo de ${MIN_PEOPLE} pessoas para reservar.`);
+      return;
+    }
+    if (isSameDayAsToday(data)) {
+      setError(ONE_DAY_AHEAD_MSG);
+      return;
+    }
+    if (qty > MAX_PEOPLE_WITHOUT_CONCIERGE) {
+      setShowConcierge(true);
+      return;
+    }
     goToStep(2);
   };
 
@@ -1013,34 +1038,84 @@ export default function ReservarMane() {
     setSending(true);
     setError(null);
     try {
-      if (total < MIN_PEOPLE) { setError(`Mínimo de ${MIN_PEOPLE} pessoas para reservar.`); goToStep(1); setSending(false); return; }
-      if (!data || !hora) { setError('Selecione data e horário.'); goToStep(1); setSending(false); return; }
-      if (isSameDayAsToday(data)) { setError(ONE_DAY_AHEAD_MSG); goToStep(1); setSending(false); return; }
-      if (dayjs(data).isBefore(TODAY_START, 'day')) { setError('Data inválida. Selecione uma data a partir de hoje.'); goToStep(1); setSending(false); return; }
-      if (isPastSelection(data, hora)) { setError('Esse horário já passou. Selecione um horário no futuro.'); goToStep(1); setSending(false); return; }
-      if (isTimeOutsideWindow(hora)) { setError(`Horário indisponível. ${timeWindowMessage()}.`); goToStep(1); setSending(false); return; }
-      if (!contactOk) { setError('Preencha um e-mail e telefone válidos.'); setSending(false); return; }
-      if (!areaId || !unidade) { setError('Selecione a unidade e a área.'); goToStep(2); setSending(false); return; }
-      if (!birthday) { setError(null); setBirthdayError('Obrigatório'); goToStep(3); setSending(false); return; }
+      if (total < MIN_PEOPLE) {
+        setError(`Mínimo de ${MIN_PEOPLE} pessoas para reservar.`);
+        goToStep(1);
+        setSending(false);
+        return;
+      }
+      if (!data || !hora) {
+        setError('Selecione data e horário.');
+        goToStep(1);
+        setSending(false);
+        return;
+      }
+      if (isSameDayAsToday(data)) {
+        setError(ONE_DAY_AHEAD_MSG);
+        goToStep(1);
+        setSending(false);
+        return;
+      }
+      if (dayjs(data).isBefore(TODAY_START, 'day')) {
+        setError('Data inválida. Selecione uma data a partir de hoje.');
+        goToStep(1);
+        setSending(false);
+        return;
+      }
+      if (isPastSelection(data, hora)) {
+        setError('Esse horário já passou. Selecione um horário no futuro.');
+        goToStep(1);
+        setSending(false);
+        return;
+      }
+      if (isTimeOutsideWindow(hora)) {
+        setError(`Horário indisponível. ${timeWindowMessage()}.`);
+        goToStep(1);
+        setSending(false);
+        return;
+      }
+      if (!contactOk) {
+        setError('Preencha um e-mail e telefone válidos.');
+        setSending(false);
+        return;
+      }
+      if (!areaId || !unidade) {
+        setError('Selecione a unidade e a área.');
+        goToStep(2);
+        setSending(false);
+        return;
+      }
+      if (!birthday) {
+        setError(null);
+        setBirthdayError('Obrigatório');
+        goToStep(3);
+        setSending(false);
+        return;
+      }
 
-      const reservationISO = joinDateTimeISO(data, hora)!;
+      const reservationISO = joinDateTimeISO(data, hora);
       const birthdayISO = birthday ? dayjs(birthday).startOf('day').toDate().toISOString() : undefined;
       const kidsNum = typeof criancas === 'number' && !Number.isNaN(criancas) ? criancas : 0;
 
-      const attribution = getUrlAttribution();
+      // UTM / URL / Ref direto da URL
+      const attribution = readUrlAttribution();
+
+      // Se o backend AINDA não aceitar 'ANIVERSARIO', mapeie para 'PARTICULAR' só no envio:
+      const reservationTypeToSend: ReservationType | 'PARTICULAR' =
+        reservationType === 'ANIVERSARIO' ? 'PARTICULAR' : reservationType; // <-- ajuste aqui se o backend já aceitar
 
       const payload = {
         fullName,
         cpf: onlyDigits(cpf),
         people: typeof total === 'number' ? total : 0,
         kids: kidsNum,
-        reservationDate: reservationISO,
+        reservationDate: reservationISO!,
         birthdayDate: birthdayISO,
         email: email.trim().toLowerCase(),
         phone: onlyDigits(phone),
         unitId: unidade,
         areaId: areaId,
-        utm_source: attribution.utm_source,
+        utm_source: attribution.utm_source ?? 'site',
         utm_medium: attribution.utm_medium,
         utm_campaign: attribution.utm_campaign ?? `${unidade}:${areaId}`,
         utm_content: attribution.utm_content,
@@ -1048,26 +1123,71 @@ export default function ReservarMane() {
         url: attribution.url,
         ref: attribution.ref,
         source: 'site',
-        reservationType,
+        reservationType: reservationTypeToSend,
       };
 
-      if (DEBUG) console.debug('[RESERVATION PAYLOAD]', { API_BASE: API_BASE_SAFE, payload });
+      const resp = await fetch(`${API_BASE || ''}/v1/reservations/public`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-      let resOk: { id: string; reservationCode: string; status?: string };
-      try {
-        resOk = await fetchJsonWithRetry(`${API_BASE_SAFE}/v1/reservations/public`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-          timeoutMs: 12000,
-          retries: 2,
-        });
-      } catch (e: any) {
-        const msg = e?.message || 'Falha ao criar reserva (rede).';
-        setError(msg.includes('HTTP') ? `Servidor indisponível (${msg}). Tente novamente.` : msg);
+      const json = await resp.json().catch(() => ({} as any));
+
+      if (!resp.ok) {
+        if (resp.status === 409 && (json as any)?.error?.code === 'ALREADY_HAS_ACTIVE_RESERVATION') {
+          const activeId = (json as any).error.reservationId as string;
+          if (activeId) {
+            const activeResp = await fetch(
+              `${API_BASE || ''}/v1/reservations/public/active?id=${encodeURIComponent(activeId)}`,
+              { cache: 'no-store' }
+            );
+            if (activeResp.ok) {
+              const r = (await activeResp.json()) as ReservationDto;
+              setActiveReservation(r);
+              setCreatedId(r.id);
+              setCreatedCode(r.reservationCode);
+              if (r.reservationType) setReservationType(r.reservationType as ReservationType);
+              setStep(4);
+              if (typeof window !== 'undefined') {
+                const qrUrl = `${API_BASE || ''}/v1/reservations/${r.id}/qrcode`;
+                const lsPayload: SavedReservationLS = {
+                  id: r.id,
+                  code: r.reservationCode,
+                  qrUrl,
+                  unitLabel: r.unit || '',
+                  areaName: r.areaName || '',
+                  dateStr: dayjs(r.reservationDate).format('DD/MM/YYYY'),
+                  timeStr: dayjs(r.reservationDate).format('HH:mm'),
+                  people: r.people ?? 0,
+                  kids: r.kids ?? 0,
+                  fullName: r.fullName ?? undefined,
+                  cpf: r.cpf ?? undefined,
+                  emailHint: r.email ?? undefined,
+                  reservationType,
+                };
+                localStorage.setItem(LS_KEY, JSON.stringify(lsPayload));
+              }
+              setSending(false);
+              return;
+            }
+          }
+
+          setError('Você já tem uma reserva ativa. Faça o check-in para poder reservar de novo.');
+          setSending(false);
+          return;
+        }
+
+        const msg =
+          (json as any)?.error?.message ||
+          (json as any)?.message ||
+          'Não foi possível concluir sua reserva agora. Tente novamente.';
+        setError(msg);
         setSending(false);
         return;
       }
+
+      const resOk = json as { id: string; reservationCode: string; status?: string };
 
       const unitObj = units.find((u) => u.id === unidade);
       const unitLabel = unitObj?.name || unitObj?.slug || unidade || '';
@@ -1087,18 +1207,23 @@ export default function ReservarMane() {
 
       let reservationLoaded: ReservationDto | null = null;
       try {
-        reservationLoaded = await fetchJsonWithRetry(
-          `${API_BASE_SAFE}/v1/reservations/public/active?id=${encodeURIComponent(resOk.id)}`,
-          { timeoutMs: 8000, retries: 1 }
-        ) as ReservationDto;
-      } catch {}
+        const fetchCreated = await fetch(
+          `${API_BASE || ''}/v1/reservations/public/active?id=${encodeURIComponent(resOk.id)}`,
+          { cache: 'no-store' }
+        );
+        if (fetchCreated.ok) {
+          reservationLoaded = (await fetchCreated.json()) as ReservationDto;
+        }
+      } catch {
+        // ignore
+      }
 
       setCreatedId(resOk.id);
       setCreatedCode(resOk.reservationCode);
       setStep(4);
 
       if (typeof window !== 'undefined') {
-        const qrUrl = `${API_BASE_SAFE}/v1/reservations/${resOk.id}/qrcode`;
+        const qrUrl = `${API_BASE || ''}/v1/reservations/${resOk.id}/qrcode`;
         const lsPayload: SavedReservationLS = {
           id: resOk.id,
           code: resOk.reservationCode,
@@ -1153,7 +1278,7 @@ export default function ReservarMane() {
     }
   }
 
-  const apiBase = API_BASE_SAFE || '';
+  const apiBase = API_BASE || '';
   const qrUrl = createdId ? `${apiBase}/v1/reservations/${createdId}/qrcode` : '';
 
   const boardingUnitLabel =
@@ -1163,8 +1288,8 @@ export default function ReservarMane() {
   const boardingDateStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('DD/MM/YYYY')
     : data
-      ? dayjs(data).format('DD/MM/YYYY')
-      : '--/--/----';
+    ? dayjs(data).format('DD/MM/YYYY')
+    : '--/--/----';
   const boardingTimeStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('HH:mm')
     : hora || '--:--';
@@ -1237,7 +1362,9 @@ export default function ReservarMane() {
         await navigator.share({ text, files: [file] });
         return;
       }
-    } catch {}
+    } catch {
+      // ignore → fallback
+    }
 
     const wpp = buildWhatsappLink(text);
     window.open(wpp, '_blank', 'noopener,noreferrer');
@@ -1247,11 +1374,9 @@ export default function ReservarMane() {
     <DatesProvider settings={{ locale: 'pt-br' }}>
       <Box style={{ background: '#ffffff', minHeight: '100dvh' }}>
         <LoadingOverlay visible={sending || shareBusy} />
-        <Container
-          size="xs"
-          px="md"
-          style={{ marginTop: '48px', marginBottom: 12, width: '100%' }}
-        >
+
+        {/* HEADER */}
+        <Container size="xs" px="md" style={{ marginTop: '48px', marginBottom: 12, width: '100%' }}>
           <Anchor component={Link} href="/" c="dimmed" size="sm" mt={4} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <IconArrowLeft size={16} />
             Voltar
@@ -1340,6 +1465,7 @@ export default function ReservarMane() {
           </Stack>
         </Container>
 
+        {/* CONTEÚDO */}
         <Container
           size="xs"
           px="md"
@@ -1394,7 +1520,13 @@ export default function ReservarMane() {
               </Card>
 
               <Group gap="sm">
-                <Button color="green" radius="md" onClick={() => goToStep(1)} type="button" style={{ flex: 1 }}>
+                <Button
+                  color="green"
+                  radius="md"
+                  onClick={() => goToStep(1)}
+                  type="button"
+                  style={{ flex: 1 }}
+                >
                   Continuar
                 </Button>
               </Group>
@@ -1457,11 +1589,18 @@ export default function ReservarMane() {
                         onChange={(value) => {
                           const d = value as unknown as Date | null;
                           setData(d);
+
                           const isSameDay = isSameDayAsToday(d);
                           const isPast = d ? dayjs(d).isBefore(TOMORROW_START, 'day') : false;
-                          if (isSameDay) setDateError(ONE_DAY_AHEAD_MSG);
-                          else if (isPast) setDateError('Selecione uma data a partir de amanhã');
-                          else setDateError(null);
+
+                          if (isSameDay) {
+                            setDateError(ONE_DAY_AHEAD_MSG);
+                          } else if (isPast) {
+                            setDateError('Selecione uma data a partir de amanhã');
+                          } else {
+                            setDateError(null);
+                          }
+
                           setPastError(() => {
                             if (!d || !hora) return null;
                             return isPastSelection(d, hora)
@@ -1486,6 +1625,7 @@ export default function ReservarMane() {
                         onChange={(val) => {
                           setHora(val);
                           setTimeError(val && !isValidSlot(val) ? SLOT_ERROR_MSG : null);
+
                           setPastError(() => {
                             if (!data || !val) return null;
                             return isPastSelection(data, val)
@@ -1758,7 +1898,7 @@ export default function ReservarMane() {
                     Para reservas acima de <b>{MAX_PEOPLE_WITHOUT_CONCIERGE}</b> pessoas, é necessário falar com nosso concierge pelo WhatsApp.
                   </Text>
                   <Text size="sm" c="dimmed" mt={6}>
-                    Assim garantimos a melhor organização do espaço e atendimento do seu grupo. 🙂
+                    Assim garantimos a melhor organização do espaço e atendimento do seu grupo. 🙂 
                   </Text>
                 </Box>
                 <Group justify="end" gap="sm" px="md" py="sm" style={{ borderTop: '1px solid rgba(0,0,0,.08)', background: '#fff' }}>
@@ -1778,9 +1918,7 @@ export default function ReservarMane() {
   );
 }
 
-/* =========================================================
-   SlotTimePicker
-========================================================= */
+// ====== SlotTimePicker
 function SlotTimePicker({
   value,
   onChange,
@@ -1824,7 +1962,10 @@ function SlotTimePicker({
           {ALLOWED_SLOTS.map((slot) => (
             <UnstyledButton
               key={slot}
-              onClick={() => { onChange(slot); close(); }}
+              onClick={() => {
+                onChange(slot);
+                close();
+              }}
               style={{
                 padding: '8px 10px',
                 borderRadius: 8,
