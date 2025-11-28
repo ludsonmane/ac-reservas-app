@@ -8,7 +8,6 @@ import { Merriweather, Comfortaa } from 'next/font/google';
 import React from 'react';
 import Script from 'next/script';
 import MetaPixelBootstrap from './MetaPixelBootstrap';
-import UtmBootstrap from './UtmBootstrap';
 
 export const metadata = {
   title: 'Mané Mercado • Reservas',
@@ -167,7 +166,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <MetaPixelBootstrap />
 
           {/* Bootstrap de UTM (client) */}
-         {/* <UtmBootstrap /> */}
+       
 
           {children}
         </MantineProvider>

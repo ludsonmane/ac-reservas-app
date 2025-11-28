@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import Image from 'next/image';
 import {
   Container,
@@ -16,9 +17,7 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconCalendarPlus } from '@tabler/icons-react';
 
-import UtmLink from 'components/UtmLink';
-
-// ⬇️ importa o bootstrap do analytics
+// ⬇️ bootstrap do analytics
 import { ensureAnalyticsReady } from '@/lib/analytics';
 
 export default function Home() {
@@ -267,17 +266,14 @@ function MenuCard({
 
         <div className="menuAction">
           <Button
-            component={UtmLink}
+            component={Link}
             href={href}
             radius="md"
             color={actionColor}
             variant={variant}
             className="menuActionBtn"
             styles={{
-              root:
-                variant === 'outline'
-                  ? { background: 'transparent' }
-                  : undefined,
+              root: variant === 'outline' ? { background: 'transparent' } : undefined,
             }}
           >
             Acessar
