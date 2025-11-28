@@ -39,7 +39,7 @@ const maneGreen: string[] = [
   '#3a8a81', // 4
   '#0f6e63', // 5
   '#04534c', // 6
-  '#034c46', // 7  <- cor principal pedida
+  '#034c46', // 7  <- principal
   '#023a36', // 8
   '#012b29', // 9
 ];
@@ -164,9 +164,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           />
           {/* Bootstrap do Meta Pixel (apenas carrega fbq; a INIT por unidade é feita via analytics.ts) */}
           <MetaPixelBootstrap />
-
-          {/* Bootstrap de UTM (client) */}
-       
 
           {children}
         </MantineProvider>
