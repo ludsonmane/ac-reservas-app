@@ -1,47 +1,40 @@
+// components/UtmLink.tsx
 'use client';
 
 import Link from 'next/link';
 import type { ComponentProps } from 'react';
 import React, { useMemo } from 'react';
-import { appendUtmToUrl, useUtm } from '@/lib/utm';
+import { appendUtmToUrl, useUtm, type Utm } from '@/lib/utm';
 
-// Pega as props padrão do <Link> e substitui o href por string/URL
 type LinkBaseProps = ComponentProps<typeof Link>;
-type UtmLinkProps = Omit<LinkBaseProps, 'href'> & {
-  href: string | URL;
-  /** Força anexar UTM mesmo se o href for cross-origin (default: só relative/mesma origem) */
+
+type Props = Omit<LinkBaseProps, 'href'> & {
+  href: string;
+  /** força anexar UTM mesmo p/ domínios externos */
   forceUtm?: boolean;
+  /** opcional: UTMs custom (senão pega do hook/storage) */
+  utmOverride?: Utm;
 };
 
-function isRelativeOrSameOrigin(href: string | URL) {
+function isRelativeOrSameOrigin(href: string) {
   try {
-    if (typeof href === 'string') {
-      // relativo: começa com / ou ? ou #
-      if (/^([/?#]|$)/.test(href)) return true;
-      // absoluto -> comparar origem
-      const u = new URL(href, typeof window !== 'undefined' ? window.location.origin : 'https://dummy.local');
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://dummy.local';
-      return u.origin === origin;
-    }
-    // URL object
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://dummy.local';
-    return href.origin === origin || href.href.startsWith('/') || href.href.startsWith('?') || href.href.startsWith('#');
+    const u = new URL(href, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+    if (typeof window === 'undefined') return true;
+    return u.origin === window.location.origin;
   } catch {
-    return false;
+    return true; // relativo
   }
 }
 
-export default function UtmLink({ href, forceUtm, ...rest }: UtmLinkProps) {
-  // manter hook caso queira decisões futuras baseadas nas UTMs
-  useUtm(); // garante persistência e leitura (efeito colateral idempotente)
-
-  const hrefWithUtm = useMemo(() => {
-    const base = typeof href === 'string' ? href : href.toString();
+export default function UtmLink({ href, forceUtm, utmOverride, ...rest }: Props) {
+  const utm = useUtm();
+  const finalHref = useMemo(() => {
+    const base = href || '/';
     const shouldAttach = typeof forceUtm === 'boolean' ? forceUtm : isRelativeOrSameOrigin(base);
     if (!shouldAttach) return base;
-    // <<< FIX: appendUtmToUrl aceita só 1 argumento
-    return appendUtmToUrl(base);
-  }, [href, forceUtm]);
+    // nova assinatura aceita (url, utm) ou (url, { utm })
+    return appendUtmToUrl(base, utmOverride ?? utm);
+  }, [href, utm, utmOverride, forceUtm]);
 
-  return <Link href={hrefWithUtm} {...rest} />;
+  return <Link href={finalHref} {...rest} />;
 }
