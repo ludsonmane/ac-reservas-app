@@ -7,8 +7,8 @@ import { DatesProvider, DatePickerInput } from '@mantine/dates';
 import {
   Popover,
   TextInput,
-  SimpleGrid,
   UnstyledButton,
+  SimpleGrid,
   Container,
   Group,
   Button,
@@ -552,9 +552,11 @@ async function generatePoster({
   qrUrl?: string;
   logoUrl?: string;
 }) {
-  const W = 1080, H = 1350;
+  const W = 1080,
+    H = 1350;
   const canvas = document.createElement('canvas');
-  canvas.width = W; canvas.height = H;
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext('2d')!;
 
   const grad = ctx.createLinearGradient(0, 0, 0, H);
@@ -569,7 +571,8 @@ async function generatePoster({
 
   try {
     const logo = await loadImage(logoUrl);
-    const lw = 360, lh = 140;
+    const lw = 360,
+      lh = 140;
     ctx.drawImage(logo, (W - lw) / 2, 80, lw, lh);
   } catch { }
 
@@ -585,7 +588,9 @@ async function generatePoster({
   ctx.textAlign = 'left';
   ctx.font = '600 44px system-ui, Arial';
   ctx.fillStyle = '#0f5132';
-  const left = 120, top = 470, lh2 = 70;
+  const left = 120,
+    top = 470,
+    lh2 = 70;
   const lines = [
     `Unidade: ${unitLabel}`,
     `Data: ${dateStr}`,
@@ -621,7 +626,7 @@ async function generatePoster({
   return { blob, fileName, url };
 }
 
-// ====== Helpers de URL/UTM (sem libs)
+// ====== Helpers de URL/UTM
 function readUrlAttribution() {
   if (typeof window === 'undefined') {
     return {
@@ -655,8 +660,19 @@ function isBrasiliaSelected(unidade: string | null, units: UnitOption[]) {
   const name = (u?.name || '').toLowerCase();
   return /brasília|brasilia|bsb/.test(name);
 }
-function isDayFive(d: Date) {
-  return dayjs(d).date() === 5;
+
+// 05 de dezembro (qualquer ano)
+const BLOCKED_DAY = 5;
+const BLOCKED_MONTH = 11; // 0-based (11 = dezembro)
+
+function isBlockedDateForBrasilia(
+  date: string | Date,
+  unidade: string | null,
+  units: UnitOption[]
+) {
+  if (!isBrasiliaSelected(unidade, units)) return false;
+  const d = dayjs(date);
+  return d.date() === BLOCKED_DAY && d.month() === BLOCKED_MONTH;
 }
 
 // ====== Página
@@ -841,7 +857,11 @@ export default function ReservarMane() {
 
         if (!Array.isArray(list) || list.length === 0) {
           const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
-          const qs = new URLSearchParams({ unitId: String(unidade), date: tomorrow, time: '18:00' }).toString();
+          const qs = new URLSearchParams({
+            unitId: String(unidade),
+            date: tomorrow,
+            time: '18:00',
+          }).toString();
           const alt = await apiGet<any[]>(`/v1/reservations/public/availability?${qs}`);
           list = Array.isArray(alt) ? alt : [];
         }
@@ -933,7 +953,11 @@ export default function ReservarMane() {
       setAreasLoading(true);
       setAreasError(null);
       try {
-        const qs = new URLSearchParams({ unitId: String(unidade), date: ymd, time: hora }).toString();
+        const qs = new URLSearchParams({
+          unitId: String(unidade),
+          date: ymd,
+          time: hora,
+        }).toString();
         const list = await apiGet<any[]>(`/v1/reservations/public/availability?${qs}`);
 
         const metaMap = areasMeta;
@@ -1016,7 +1040,7 @@ export default function ReservarMane() {
 
   // Regras de navegação
   const dayBlocked =
-    data && isBrasiliaSelected(unidade, units) && isDayFive(data) ? true : false;
+    data && isBlockedDateForBrasilia(data, unidade, units) ? true : false;
 
   const canNext1 = Boolean(
     unidade &&
@@ -1137,8 +1161,11 @@ export default function ReservarMane() {
       }
 
       const reservationISO = joinDateTimeISO(data, hora);
-      const birthdayISO = birthday ? dayjs(birthday).startOf('day').toDate().toISOString() : undefined;
-      const kidsNum = typeof criancas === 'number' && !Number.isNaN(criancas) ? criancas : 0;
+      const birthdayISO = birthday
+        ? dayjs(birthday).startOf('day').toDate().toISOString()
+        : undefined;
+      const kidsNum =
+        typeof criancas === 'number' && !Number.isNaN(criancas) ? criancas : 0;
 
       // UTM / URL / Ref direto da URL
       const attribution = readUrlAttribution();
@@ -1180,7 +1207,9 @@ export default function ReservarMane() {
           const activeId = (json as any).error.reservationId as string;
           if (activeId) {
             const activeResp = await fetch(
-              `${API_BASE || ''}/v1/reservations/public/active?id=${encodeURIComponent(activeId)}`,
+              `${API_BASE || ''}/v1/reservations/public/active?id=${encodeURIComponent(
+                activeId
+              )}`,
               { cache: 'no-store' }
             );
             if (activeResp.ok) {
@@ -1255,7 +1284,9 @@ export default function ReservarMane() {
       let reservationLoaded: ReservationDto | null = null;
       try {
         const fetchCreated = await fetch(
-          `${API_BASE || ''}/v1/reservations/public/active?id=${encodeURIComponent(resOk.id)}`,
+          `${API_BASE || ''}/v1/reservations/public/active?id=${encodeURIComponent(
+            resOk.id
+          )}`,
           { cache: 'no-store' }
         );
         if (fetchCreated.ok) {
@@ -1277,14 +1308,12 @@ export default function ReservarMane() {
           qrUrl,
           unitLabel: reservationLoaded?.unit || unitLabel,
           areaName: reservationLoaded?.areaName || areaLabel,
-          dateStr:
-            reservationLoaded?.reservationDate
-              ? dayjs(reservationLoaded.reservationDate).format('DD/MM/YYYY')
-              : dayjs(data).format('DD/MM/YYYY'),
-          timeStr:
-            reservationLoaded?.reservationDate
-              ? dayjs(reservationLoaded.reservationDate).format('HH:mm')
-              : hora,
+          dateStr: reservationLoaded?.reservationDate
+            ? dayjs(reservationLoaded.reservationDate).format('DD/MM/YYYY')
+            : dayjs(data).format('DD/MM/YYYY'),
+          timeStr: reservationLoaded?.reservationDate
+            ? dayjs(reservationLoaded.reservationDate).format('HH:mm')
+            : hora,
           people: reservationLoaded?.people ?? (typeof total === 'number' ? total : 0),
           kids: reservationLoaded?.kids ?? (typeof criancas === 'number' ? criancas : 0),
           fullName: reservationLoaded?.fullName ?? fullName,
@@ -1342,8 +1371,16 @@ export default function ReservarMane() {
   const boardingTimeStr = activeReservation
     ? dayjs(activeReservation.reservationDate).format('HH:mm')
     : hora || '--:--';
-  const boardingPeople = activeReservation ? activeReservation.people ?? 0 : typeof total === 'number' ? total : 0;
-  const boardingKids = activeReservation ? activeReservation.kids ?? 0 : typeof criancas === 'number' ? criancas : 0;
+  const boardingPeople = activeReservation
+    ? activeReservation.people ?? 0
+    : typeof total === 'number'
+      ? total
+      : 0;
+  const boardingKids = activeReservation
+    ? activeReservation.kids ?? 0
+    : typeof criancas === 'number'
+      ? criancas
+      : 0;
   const boardingFullName = activeReservation?.fullName ?? fullName;
   const boardingCpf = activeReservation?.cpf ?? cpf;
   const boardingEmail = activeReservation?.email ?? email;
@@ -1396,11 +1433,18 @@ export default function ReservarMane() {
       `• Área: ${boardingAreaName}`,
       `• Data: ${boardingDateStr}`,
       `• Horário: ${boardingTimeStr}`,
-      `• Pessoas: ${boardingPeople}${boardingKids ? ` (Crianças: ${boardingKids})` : ''}`,
-      boardingReservationType ? `• Tipo: ${RES_TYPE_LABEL[boardingReservationType as ReservationType] || boardingReservationType}` : '',
+      `• Pessoas: ${boardingPeople}${boardingKids ? ` (Crianças: ${boardingKids})` : ''
+      }`,
+      boardingReservationType
+        ? `• Tipo: ${RES_TYPE_LABEL[boardingReservationType as ReservationType] ||
+        boardingReservationType
+        }`
+        : '',
       '',
-      `Vem com a gente!`
-    ].filter(Boolean).join('\n');
+      `Vem com a gente!`,
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     try {
       const p = await ensurePoster();
@@ -1425,8 +1469,19 @@ export default function ReservarMane() {
         <LoadingOverlay visible={sending || shareBusy} />
 
         {/* HEADER */}
-        <Container size="xs" px="md" style={{ marginTop: '48px', marginBottom: 12, width: '100%' }}>
-          <Anchor component={Link} href="/" c="dimmed" size="sm" mt={4} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <Container
+          size="xs"
+          px="md"
+          style={{ marginTop: '48px', marginBottom: 12, width: '100%' }}
+        >
+          <Anchor
+            component={Link}
+            href="/"
+            c="dimmed"
+            size="sm"
+            mt={4}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
             <IconArrowLeft size={16} />
             Voltar
           </Anchor>
@@ -1443,16 +1498,30 @@ export default function ReservarMane() {
               order={2}
               ta="center"
               fw={400}
-              style={{ fontFamily: '"Alfa Slab One", system-ui, sans-serif', color: '#146C2E', fontSize: 'clamp(20px, 5.6vw, 28px)' }}
+              style={{
+                fontFamily: '"Alfa Slab One", system-ui, sans-serif',
+                color: '#146C2E',
+                fontSize: 'clamp(20px, 5.6vw, 28px)',
+              }}
             >
               Mané Mercado Reservas
             </Title>
 
-            <Text size="sm" c="dimmed" ta="center" style={{ fontFamily: '"Comfortaa", system-ui, sans-serif' }}>
+            <Text
+              size="sm"
+              c="dimmed"
+              ta="center"
+              style={{ fontFamily: '"Comfortaa", system-ui, sans-serif' }}
+            >
               Águas Claras &amp; Brasília
             </Text>
 
-            <Card radius="md" p="sm" style={{ width: '100%', maxWidth: 460, background: '#fff', border: 'none' }} shadow="sm">
+            <Card
+              radius="md"
+              p="sm"
+              style={{ width: '100%', maxWidth: 460, background: '#fff', border: 'none' }}
+              shadow="sm"
+            >
               <Stack gap={6} align="stretch">
                 <Box
                   aria-hidden
@@ -1481,7 +1550,14 @@ export default function ReservarMane() {
                       {['Tipo', 'Reserva', 'Área', 'Cadastro'][step]}
                     </Title>
                     <Text size="sm" c="dimmed" ta="center">
-                      {['Selecione o tipo de reserva', 'Unidade, pessoas e horário', 'Escolha onde quer sentar', 'Dados necessários.'][step]}
+                      {
+                        [
+                          'Selecione o tipo de reserva',
+                          'Unidade, pessoas e horário',
+                          'Escolha onde quer sentar',
+                          'Dados necessários.',
+                        ][step]
+                      }
                     </Text>
                   </>
                 ) : (
@@ -1530,16 +1606,42 @@ export default function ReservarMane() {
           {/* PASSO 0 — Tipo */}
           {step === 0 && (
             <Stack mt="xs" gap="md">
-              <Card withBorder radius="lg" shadow="sm" p="md" style={{ background: '#FBF5E9' }}>
+              <Card
+                withBorder
+                radius="lg"
+                shadow="sm"
+                p="md"
+                style={{ background: '#FBF5E9' }}
+              >
                 <Stack gap="md">
-                  <Text size="sm" c="dimmed">Escolha o tipo de reserva</Text>
+                  <Text size="sm" c="dimmed">
+                    Escolha o tipo de reserva
+                  </Text>
                   <Grid gutter="md">
-                    {([
-                      { key: 'ANIVERSARIO', label: 'Aniversário', desc: 'Celebre seu dia com uma experiência completa para você e seus convidados.' },
-                      { key: 'PARTICULAR', label: 'Particular', desc: 'Para você e seus convidados.' },
-                      { key: 'CONFRATERNIZACAO', label: 'Confraternização', desc: 'Formaturas, reuniões de amigos, despedidas...' },
-                      { key: 'EMPRESA', label: 'Empresa', desc: 'Eventos corporativos.' },
-                    ] as { key: ReservationType; label: string; desc: string }[]).map(opt => (
+                    {(
+                      [
+                        {
+                          key: 'ANIVERSARIO',
+                          label: 'Aniversário',
+                          desc: 'Celebre seu dia com uma experiência completa para você e seus convidados.',
+                        },
+                        {
+                          key: 'PARTICULAR',
+                          label: 'Particular',
+                          desc: 'Para você e seus convidados.',
+                        },
+                        {
+                          key: 'CONFRATERNIZACAO',
+                          label: 'Confraternização',
+                          desc: 'Formaturas, reuniões de amigos, despedidas...',
+                        },
+                        {
+                          key: 'EMPRESA',
+                          label: 'Empresa',
+                          desc: 'Eventos corporativos.',
+                        },
+                      ] as { key: ReservationType; label: string; desc: string }[]
+                    ).map((opt) => (
                       <Grid.Col span={12} key={opt.key}>
                         <Card
                           withBorder
@@ -1548,17 +1650,26 @@ export default function ReservarMane() {
                           onClick={() => setReservationType(opt.key)}
                           style={{
                             cursor: 'pointer',
-                            borderColor: reservationType === opt.key ? 'var(--mantine-color-green-5)' : 'transparent',
+                            borderColor:
+                              reservationType === opt.key
+                                ? 'var(--mantine-color-green-5)'
+                                : 'transparent',
                             background: reservationType === opt.key ? '#EFFFF3' : '#fff',
                           }}
                         >
                           <Group justify="space-between" align="flex-start">
                             <div>
-                              <Title order={4} fw={600} style={{ margin: 0 }}>{opt.label}</Title>
-                              <Text size="sm" c="dimmed">{opt.desc}</Text>
+                              <Title order={4} fw={600} style={{ margin: 0 }}>
+                                {opt.label}
+                              </Title>
+                              <Text size="sm" c="dimmed">
+                                {opt.desc}
+                              </Text>
                             </div>
                             {reservationType === opt.key && (
-                              <Badge color="green" variant="filled">Selecionado</Badge>
+                              <Badge color="green" variant="filled">
+                                Selecionado
+                              </Badge>
                             )}
                           </Group>
                         </Card>
@@ -1583,312 +1694,398 @@ export default function ReservarMane() {
           )}
 
           {/* PASSO 1 — Reserva */}
-          {step === 1 && (stepLoading ? (
-            <StepSkeleton />
-          ) : (
-            <Stack mt="xs" gap="md">
-              <Card withBorder radius="lg" shadow="sm" p="md" style={{ background: '#FBF5E9' }}>
-                <Stack gap="md">
-                  <Select
-                    label="Unidade"
-                    placeholder={unitsLoading ? 'Carregando...' : 'Selecione'}
-                    data={units.map((u) => ({ value: u.id, label: u.name }))}
-                    value={unidade}
-                    onChange={(val) => {
-                      setUnidade(val);
-                      const u = units.find((x) => x.id === val);
-                      if (u) setActiveUnitPixelFromUnit({ id: u.id, name: u.name, slug: u.slug });
-                      else if (val) setActiveUnitPixelFromUnit(val);
-                    }}
-                    withAsterisk
-                    leftSection={<IconBuildingStore size={16} />}
-                    searchable={false}
-                    nothingFoundMessage={unitsLoading ? 'Carregando...' : 'Nenhuma unidade'}
-                    error={!unidade ? 'Selecione a unidade' : undefined}
-                    allowDeselect={false}
-                  />
+          {step === 1 &&
+            (stepLoading ? (
+              <StepSkeleton />
+            ) : (
+              <Stack mt="xs" gap="md">
+                <Card
+                  withBorder
+                  radius="lg"
+                  shadow="sm"
+                  p="md"
+                  style={{ background: '#FBF5E9' }}
+                >
+                  <Stack gap="md">
+                    <Select
+                      label="Unidade"
+                      placeholder={unitsLoading ? 'Carregando...' : 'Selecione'}
+                      data={units.map((u) => ({ value: u.id, label: u.name }))}
+                      value={unidade}
+                      onChange={(val) => {
+                        setUnidade(val);
+                        const u = units.find((x) => x.id === val);
+                        if (u)
+                          setActiveUnitPixelFromUnit({
+                            id: u.id,
+                            name: u.name,
+                            slug: u.slug,
+                          });
+                        else if (val) setActiveUnitPixelFromUnit(val);
+                      }}
+                      withAsterisk
+                      leftSection={<IconBuildingStore size={16} />}
+                      searchable={false}
+                      nothingFoundMessage={unitsLoading ? 'Carregando...' : 'Nenhuma unidade'}
+                      error={!unidade ? 'Selecione a unidade' : undefined}
+                      allowDeselect={false}
+                    />
 
-                  <Grid gutter="md">
-                    <Grid.Col span={6}>
-                      <NumberInput
-                        label="Adultos (mín. total 8)"
-                        min={1}
-                        value={adultos}
-                        onChange={numberInputHandler(setAdultos)}
-                        leftSection={<IconUsers size={16} />}
-                      />
-                    </Grid.Col>
-                    <Grid.Col span={6}>
-                      <NumberInput
-                        label="Crianças"
-                        min={0}
-                        value={criancas}
-                        onChange={numberInputHandler(setCriancas)}
-                        leftSection={<IconMoodKid size={16} />}
-                      />
-                    </Grid.Col>
-                  </Grid>
+                    <Grid gutter="md">
+                      <Grid.Col span={6}>
+                        <NumberInput
+                          label="Adultos (mín. total 8)"
+                          min={1}
+                          value={adultos}
+                          onChange={numberInputHandler(setAdultos)}
+                          leftSection={<IconUsers size={16} />}
+                        />
+                      </Grid.Col>
+                      <Grid.Col span={6}>
+                        <NumberInput
+                          label="Crianças"
+                          min={0}
+                          value={criancas}
+                          onChange={numberInputHandler(setCriancas)}
+                          leftSection={<IconMoodKid size={16} />}
+                        />
+                      </Grid.Col>
+                    </Grid>
 
-                  <Grid gutter="md">
-                    <Grid.Col span={6}>
-                      <DatePickerInput
-                        locale="pt-br"
-                        label="Data"
-                        value={data}
-                        onChange={(value) => {
-                          const d = value as unknown as Date | null;
+                    <Grid gutter="md">
+                      <Grid.Col span={6}>
+                        <DatePickerInput
+                          locale="pt-br"
+                          label="Data"
+                          value={data}
+                          onChange={(value) => {
+                            const d = value as unknown as Date | null;
 
-                          if (d && isBrasiliaSelected(unidade, units) && isDayFive(d)) {
+                            if (d && isBlockedDateForBrasilia(d, unidade, units)) {
+                              setData(d);
+                              setHora('');
+                              setDateError('Unidade Brasília indisponível no dia 05.');
+                              setPastError(null);
+                              return;
+                            }
+
                             setData(d);
-                            setHora('');
-                            setDateError('Unidade Brasília indisponível no dia 05.');
-                            setPastError(null);
-                            return;
+
+                            const isSameDay = isSameDayAsToday(d);
+                            const isPast = d
+                              ? dayjs(d).isBefore(TOMORROW_START, 'day')
+                              : false;
+
+                            if (isSameDay) {
+                              setDateError(ONE_DAY_AHEAD_MSG);
+                            } else if (isPast) {
+                              setDateError('Selecione uma data a partir de amanhã');
+                            } else {
+                              setDateError(null);
+                            }
+
+                            setPastError(() => {
+                              if (!d || !hora) return null;
+                              return isPastSelection(d, hora)
+                                ? 'Esse horário já passou. Escolha um horário futuro.'
+                                : null;
+                            });
+                          }}
+                          valueFormat="DD/MM/YYYY"
+                          leftSection={<IconCalendar size={16} />}
+                          allowDeselect={false}
+                          minDate={TOMORROW_START}
+                          size="md"
+                          styles={{ input: { height: rem(48) } }}
+                          error={dateError}
+                          weekendDays={[]}
+                          // Desabilita visualmente o dia 05/12 quando Brasília estiver selecionada
+                          excludeDate={(date) =>
+                            isBlockedDateForBrasilia(date, unidade, units)
                           }
+                          readOnly
+                          inputMode="none"
+                        />
+                      </Grid.Col>
 
-                          setData(d);
+                      <Grid.Col span={6}>
+                        <SlotTimePicker
+                          value={hora}
+                          onChange={(val) => {
+                            setHora(val);
+                            setTimeError(val && !isValidSlot(val) ? SLOT_ERROR_MSG : null);
 
-                          const isSameDay = isSameDayAsToday(d);
-                          const isPast = d ? dayjs(d).isBefore(TOMORROW_START, 'day') : false;
+                            setPastError(() => {
+                              if (!data || !val) return null;
+                              return isPastSelection(data, val)
+                                ? 'Esse horário já passou. Escolha um horário futuro.'
+                                : null;
+                            });
+                          }}
+                          label="Horário"
+                          placeholder="Selecionar"
+                          error={timeError || pastError}
+                        />
+                      </Grid.Col>
+                    </Grid>
 
-                          if (isSameDay) {
-                            setDateError(ONE_DAY_AHEAD_MSG);
-                          } else if (isPast) {
-                            setDateError('Selecione uma data a partir de amanhã');
-                          } else {
-                            setDateError(null);
-                          }
+                    <Card withBorder radius="md" p="sm" style={{ background: '#fffdf7' }}>
+                      <Text size="sm" ta="center">
+                        <b>Tipo:</b> {RES_TYPE_LABEL[reservationType]} • <b>Total:</b> {total}{' '}
+                        pessoa(s) • <b>Data:</b>{' '}
+                        {data ? dayjs(data).format('DD/MM/YY') : '--'} - {hora || '--:--'}{' '}
+                        {peopleError && (
+                          <Text component="span" c="red">
+                            • {peopleError}
+                          </Text>
+                        )}
+                        {dateError && (
+                          <Text component="span" c="red">
+                            • {dateError}
+                          </Text>
+                        )}
+                        {(timeError || pastError) && (
+                          <Text component="span" c="red">
+                            {' '}
+                            • {pastError || timeError}
+                          </Text>
+                        )}
+                      </Text>
+                    </Card>
 
-                          setPastError(() => {
-                            if (!d || !hora) return null;
-                            return isPastSelection(d, hora)
-                              ? 'Esse horário já passou. Escolha um horário futuro.'
-                              : null;
-                          });
-                        }}
-                        valueFormat="DD/MM/YYYY"
-                        leftSection={<IconCalendar size={16} />}
-                        allowDeselect={false}
-                        minDate={TOMORROW_START}
-                        size="md"
-                        styles={{ input: { height: rem(48) } }}
-                        error={dateError}
-                        weekendDays={[]}
-                        // 👇 Desabilita visualmente o dia 05 quando Brasília estiver selecionada
-                        excludeDate={(date: Date) =>
-                          isBrasiliaSelected(unidade, units) && isDayFive(date)
+                    {(peopleError || pastError || timeError || dateError || dayBlocked) && (
+                      <Alert
+                        color={
+                          peopleError || pastError || timeError || dayBlocked
+                            ? 'red'
+                            : 'yellow'
                         }
-                        // Impede digitação manual
-                        readOnly
-                        inputMode="none"
-                      />
-                    </Grid.Col>
+                        icon={<IconInfoCircle />}
+                      >
+                        {dayBlocked
+                          ? 'Unidade Brasília indisponível no dia 05.'
+                          : peopleError || pastError || timeError || dateError}
+                      </Alert>
+                    )}
+                  </Stack>
+                </Card>
 
-                    <Grid.Col span={6}>
-                      <SlotTimePicker
-                        value={hora}
-                        onChange={(val) => {
-                          setHora(val);
-                          setTimeError(val && !isValidSlot(val) ? SLOT_ERROR_MSG : null);
-
-                          setPastError(() => {
-                            if (!data || !val) return null;
-                            return isPastSelection(data, val)
-                              ? 'Esse horário já passou. Escolha um horário futuro.'
-                              : null;
-                          });
-                        }}
-                        label="Horário"
-                        placeholder="Selecionar"
-                        error={timeError || pastError}
-                      />
-                    </Grid.Col>
-                  </Grid>
-
-                  <Card withBorder radius="md" p="sm" style={{ background: '#fffdf7' }}>
-                    <Text size="sm" ta="center">
-                      <b>Tipo:</b> {RES_TYPE_LABEL[reservationType]} • <b>Total:</b> {total} pessoa(s) • <b>Data:</b>{' '}
-                      {data ? dayjs(data).format('DD/MM/YY') : '--'} - {hora || '--:--'}{' '}
-                      {peopleError && <Text component="span" c="red">• {peopleError}</Text>}
-                      {dateError && <Text component="span" c="red">• {dateError}</Text>}
-                      {(timeError || pastError) && (
-                        <Text component="span" c="red"> • {pastError || timeError}</Text>
-                      )}
-                    </Text>
-                  </Card>
-
-                  {(peopleError || pastError || timeError || dateError || dayBlocked) && (
-                    <Alert color={peopleError || pastError || timeError || dayBlocked ? 'red' : 'yellow'} icon={<IconInfoCircle />}>
-                      {dayBlocked ? 'Unidade Brasília indisponível no dia 05.' : (peopleError || pastError || timeError || dateError)}
-                    </Alert>
-                  )}
-                </Stack>
-              </Card>
-
-              <Group gap="sm">
-                <Button variant="light" radius="md" onClick={() => goToStep(0)} type="button" style={{ flex: 1 }}>
-                  Voltar
-                </Button>
-                <Button color="green" radius="md" disabled={!canNext1} onClick={handleContinueStep1} type="button" style={{ flex: 2 }}>
-                  Continuar
-                </Button>
-              </Group>
-            </Stack>
-          ))}
+                <Group gap="sm">
+                  <Button
+                    variant="light"
+                    radius="md"
+                    onClick={() => goToStep(0)}
+                    type="button"
+                    style={{ flex: 1 }}
+                  >
+                    Voltar
+                  </Button>
+                  <Button
+                    color="green"
+                    radius="md"
+                    disabled={!canNext1}
+                    onClick={handleContinueStep1}
+                    type="button"
+                    style={{ flex: 2 }}
+                  >
+                    Continuar
+                  </Button>
+                </Group>
+              </Stack>
+            ))}
 
           {/* PASSO 2 — Área */}
-          {step === 2 && (stepLoading ? (
-            <StepSkeleton />
-          ) : (
-            <Stack mt="xs" gap="md">
-              {areasLoading && <Text size="sm" c="dimmed">Carregando áreas...</Text>}
-              {areasError && <Alert color="red" icon={<IconInfoCircle />}>{areasError}</Alert>}
-              {!areasLoading && !areasError && areas.length === 0 && (
-                <Alert color="yellow" icon={<IconInfoCircle />}>Não há áreas cadastradas para esta unidade.</Alert>
-              )}
+          {step === 2 &&
+            (stepLoading ? (
+              <StepSkeleton />
+            ) : (
+              <Stack mt="xs" gap="md">
+                {areasLoading && (
+                  <Text size="sm" c="dimmed">
+                    Carregando áreas...
+                  </Text>
+                )}
+                {areasError && (
+                  <Alert color="red" icon={<IconInfoCircle />}>
+                    {areasError}
+                  </Alert>
+                )}
+                {!areasLoading && !areasError && areas.length === 0 && (
+                  <Alert color="yellow" icon={<IconInfoCircle />}>
+                    Não há áreas cadastradas para esta unidade.
+                  </Alert>
+                )}
 
-              {areas.map((a) => {
-                const left = a.available ?? a.capacity ?? 0;
-                const need = typeof total === 'number' ? total : 0;
-                const disabled = left < need;
-                return (
-                  <AreaCard
-                    key={a.id}
-                    foto={a.photoUrl || FALLBACK_IMG}
-                    titulo={`${a.name}${typeof left === 'number' ? `` : ''}`}
-                    desc={a.description || '—'}
-                    icon={a.iconEmoji ?? null}
-                    selected={areaId === a.id}
-                    onSelect={() => !disabled && setAreaId(a.id)}
-                    disabled={disabled}
-                    remaining={left}
-                  />
-                );
-              })}
+                {areas.map((a) => {
+                  const left = a.available ?? a.capacity ?? 0;
+                  const need = typeof total === 'number' ? total : 0;
+                  const disabled = left < need;
+                  return (
+                    <AreaCard
+                      key={a.id}
+                      foto={a.photoUrl || FALLBACK_IMG}
+                      titulo={`${a.name}${typeof left === 'number' ? `` : ''}`}
+                      desc={a.description || '—'}
+                      icon={a.iconEmoji ?? null}
+                      selected={areaId === a.id}
+                      onSelect={() => !disabled && setAreaId(a.id)}
+                      disabled={disabled}
+                      remaining={left}
+                    />
+                  );
+                })}
 
-              <Group gap="sm">
-                <Button variant="light" radius="md" onClick={() => goToStep(1)} type="button" style={{ flex: 1 }}>
-                  Voltar
-                </Button>
-                <Button
-                  color="green"
-                  radius="md"
-                  onClick={() => goToStep(3)}
-                  disabled={!canNext2}
-                  type="button"
-                  style={{ flex: 2 }}
-                >
-                  Continuar
-                </Button>
-              </Group>
-            </Stack>
-          ))}
+                <Group gap="sm">
+                  <Button
+                    variant="light"
+                    radius="md"
+                    onClick={() => goToStep(1)}
+                    type="button"
+                    style={{ flex: 1 }}
+                  >
+                    Voltar
+                  </Button>
+                  <Button
+                    color="green"
+                    radius="md"
+                    onClick={() => goToStep(3)}
+                    disabled={!canNext2}
+                    type="button"
+                    style={{ flex: 2 }}
+                  >
+                    Continuar
+                  </Button>
+                </Group>
+              </Stack>
+            ))}
 
           {/* PASSO 3 — Cadastro */}
-          {step === 3 && (stepLoading ? (
-            <StepSkeleton />
-          ) : (
-            <Stack mt="xs" gap="md">
-              <Card withBorder radius="lg" shadow="sm" p="md" style={{ background: '#FBF5E9' }}>
-                <Stack gap="md">
-                  <TextInput
-                    label="Nome completo"
-                    placeholder="Seu nome"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.currentTarget.value)}
-                    leftSection={<IconUser size={16} />}
-                  />
-                  <TextInput
-                    label="CPF"
-                    placeholder="000.000.000-00"
-                    value={cpf}
-                    onChange={(e) => setCpf(maskCPF(e.currentTarget.value))}
-                  />
-
-                  <Grid gutter="md">
-                    <Grid.Col span={12}>
-                      <TextInput
-                        label="E-mail"
-                        placeholder="seuemail@exemplo.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.currentTarget.value)}
-                        leftSection={<IconMail size={16} />}
-                        error={email.length > 0 && !isValidEmail(email) ? 'Informe um e-mail válido' : null}
-                      />
-                    </Grid.Col>
-                    <Grid.Col span={12}>
-                      <TextInput
-                        label="Telefone"
-                        placeholder="(61) 99999-9999"
-                        value={phone}
-                        onChange={(e) => setPhone(maskPhone(e.currentTarget.value))}
-                        leftSection={<IconPhone size={16} />}
-                        error={phone.length > 0 && !isValidPhone(phone) ? 'Informe um telefone válido' : null}
-                      />
-                      <Text size="xs" c="dimmed" mt={4}>
-                        Usaremos e-mail/telefone apenas para entrar em contato caso necessário.
-                      </Text>
-                    </Grid.Col>
-                  </Grid>
-
-                  <DatePickerInput
-                    label="Nascimento"
-                    placeholder="Selecionar"
-                    value={birthday}
-                    onChange={(value) => {
-                      const d = value as unknown as Date | null;
-                      setBirthday(d);
-                      if (d) setBirthdayError(null);
-                    }}
-                    valueFormat="DD/MM/YYYY"
-                    required
-                    allowDeselect={false}
-                    size="md"
-                    styles={{ input: { height: rem(48) } }}
-                    leftSection={<IconCalendar size={16} />}
-                    weekendDays={[]}
-                    defaultLevel="decade"
-                    defaultDate={new Date(1990, 0, 1)}
-                    maxDate={new Date()}
-                    error={birthdayError || undefined}
-                  />
-                </Stack>
-              </Card>
-
-              {error && (
-                <Alert color="red" icon={<IconInfoCircle />}>
-                  {error}
-                </Alert>
-              )}
-
-              <Card withBorder radius="md" p="sm" style={{ background: '#fffdf7' }}>
-                <Text size="sm" ta="center">
-                  <b>Tipo:</b> {RES_TYPE_LABEL[reservationType]} • <b>Unidade:</b> {units.find((u) => u.id === unidade)?.name ?? '—'} • <b>Área:</b>{' '}
-                  {areas.find((a) => a.id === areaId)?.name ?? '—'}
-                  <br />
-                  <b>Pessoas:</b> {total} • <b>Data/Hora:</b>{' '}
-                  {data ? dayjs(data).format('DD/MM') : '--'}/{hora || '--:--'}
-                </Text>
-              </Card>
-
-              <Group gap="sm">
-                <Button variant="light" radius="md" onClick={() => goToStep(2)} type="button" style={{ flex: 1 }}>
-                  Voltar
-                </Button>
-                <Button
-                  color="green"
-                  radius="md"
-                  loading={sending}
-                  disabled={!canFinish}
-                  onClick={confirmarReserva}
-                  type="button"
-                  style={{ flex: 2 }}
+          {step === 3 &&
+            (stepLoading ? (
+              <StepSkeleton />
+            ) : (
+              <Stack mt="xs" gap="md">
+                <Card
+                  withBorder
+                  radius="lg"
+                  shadow="sm"
+                  p="md"
+                  style={{ background: '#FBF5E9' }}
                 >
-                  Confirmar reserva
-                </Button>
-              </Group>
-            </Stack>
-          ))}
+                  <Stack gap="md">
+                    <TextInput
+                      label="Nome completo"
+                      placeholder="Seu nome"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.currentTarget.value)}
+                      leftSection={<IconUser size={16} />}
+                    />
+                    <TextInput
+                      label="CPF"
+                      placeholder="000.000.000-00"
+                      value={cpf}
+                      onChange={(e) => setCpf(maskCPF(e.currentTarget.value))}
+                    />
+
+                    <Grid gutter="md">
+                      <Grid.Col span={12}>
+                        <TextInput
+                          label="E-mail"
+                          placeholder="seuemail@exemplo.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.currentTarget.value)}
+                          leftSection={<IconMail size={16} />}
+                          error={
+                            email.length > 0 && !isValidEmail(email)
+                              ? 'Informe um e-mail válido'
+                              : null
+                          }
+                        />
+                      </Grid.Col>
+                      <Grid.Col span={12}>
+                        <TextInput
+                          label="Telefone"
+                          placeholder="(61) 99999-9999"
+                          value={phone}
+                          onChange={(e) => setPhone(maskPhone(e.currentTarget.value))}
+                          leftSection={<IconPhone size={16} />}
+                          error={
+                            phone.length > 0 && !isValidPhone(phone)
+                              ? 'Informe um telefone válido'
+                              : null
+                          }
+                        />
+                        <Text size="xs" c="dimmed" mt={4}>
+                          Usaremos e-mail/telefone apenas para entrar em contato caso necessário.
+                        </Text>
+                      </Grid.Col>
+                    </Grid>
+
+                    <DatePickerInput
+                      label="Nascimento"
+                      placeholder="Selecionar"
+                      value={birthday}
+                      onChange={(value) => {
+                        const d = value as unknown as Date | null;
+                        setBirthday(d);
+                        if (d) setBirthdayError(null);
+                      }}
+                      valueFormat="DD/MM/YYYY"
+                      required
+                      allowDeselect={false}
+                      size="md"
+                      styles={{ input: { height: rem(48) } }}
+                      leftSection={<IconCalendar size={16} />}
+                      weekendDays={[]}
+                      defaultLevel="decade"
+                      defaultDate={new Date(1990, 0, 1)}
+                      maxDate={new Date()}
+                      error={birthdayError || undefined}
+                    />
+                  </Stack>
+                </Card>
+
+                {error && (
+                  <Alert color="red" icon={<IconInfoCircle />}>
+                    {error}
+                  </Alert>
+                )}
+
+                <Card withBorder radius="md" p="sm" style={{ background: '#fffdf7' }}>
+                  <Text size="sm" ta="center">
+                    <b>Tipo:</b> {RES_TYPE_LABEL[reservationType]} • <b>Unidade:</b>{' '}
+                    {units.find((u) => u.id === unidade)?.name ?? '—'} • <b>Área:</b>{' '}
+                    {areas.find((a) => a.id === areaId)?.name ?? '—'}
+                    <br />
+                    <b>Pessoas:</b> {total} • <b>Data/Hora:</b>{' '}
+                    {data ? dayjs(data).format('DD/MM') : '--'}/{hora || '--:--'}
+                  </Text>
+                </Card>
+
+                <Group gap="sm">
+                  <Button
+                    variant="light"
+                    radius="md"
+                    onClick={() => goToStep(2)}
+                    type="button"
+                    style={{ flex: 1 }}
+                  >
+                    Voltar
+                  </Button>
+                  <Button
+                    color="green"
+                    radius="md"
+                    loading={sending}
+                    disabled={!canFinish}
+                    onClick={confirmarReserva}
+                    type="button"
+                    style={{ flex: 2 }}
+                  >
+                    Confirmar reserva
+                  </Button>
+                </Group>
+              </Stack>
+            ))}
 
           {/* PASSO 4 — Boarding Pass + Compartilhar */}
           {step === 4 && createdId && (
@@ -1909,18 +2106,37 @@ export default function ReservarMane() {
                 reservationType={boardingReservationType as ReservationType}
               />
 
-              <Card withBorder radius="lg" shadow="sm" p="md" mt="md" style={{ background: '#FBF5E9' }}>
+              <Card
+                withBorder
+                radius="lg"
+                shadow="sm"
+                p="md"
+                mt="md"
+                style={{ background: '#FBF5E9' }}
+              >
                 <Stack gap="xs" align="center">
-                  <Title order={5} fw={500}>Compartilhar</Title>
+                  <Title order={5} fw={500}>
+                    Compartilhar
+                  </Title>
                   <Text size="sm" c="dimmed" ta="center">
                     Gere sua arte personalizada e envie no WhatsApp.
                   </Text>
 
                   <Group gap="sm" wrap="wrap" justify="center">
-                    <Button variant="default" radius="md" onClick={downloadPoster} disabled={shareBusyInternal}>
+                    <Button
+                      variant="default"
+                      radius="md"
+                      onClick={downloadPoster}
+                      disabled={shareBusyInternal}
+                    >
                       Baixar Convite
                     </Button>
-                    <Button color="green" radius="md" onClick={shareWhatsapp} disabled={shareBusyInternal}>
+                    <Button
+                      color="green"
+                      radius="md"
+                      onClick={shareWhatsapp}
+                      disabled={shareBusyInternal}
+                    >
                       Enviar no WhatsApp
                     </Button>
                   </Group>
@@ -1930,7 +2146,12 @@ export default function ReservarMane() {
                       <img
                         src={posterUrl}
                         alt="Prévia da arte"
-                        style={{ width: '100%', height: 'auto', borderRadius: 12, border: '1px solid rgba(0,0,0,.08)' }}
+                        style={{
+                          width: '100%',
+                          height: 'auto',
+                          borderRadius: 12,
+                          border: '1px solid rgba(0,0,0,.08)',
+                        }}
                       />
                     </Box>
                   )}
@@ -1954,21 +2175,51 @@ export default function ReservarMane() {
               role="dialog"
               aria-modal="true"
             >
-              <Card withBorder radius="lg" shadow="md" p={0} style={{ width: 480, maxWidth: '100%', overflow: 'hidden' }}>
-                <Box px="md" py="sm" style={{ borderBottom: '1px solid rgba(0,0,0,.08)', background: '#fff' }}>
-                  <Title order={4} fw={500} m={0}>Reserva para grupo grande</Title>
+              <Card
+                withBorder
+                radius="lg"
+                shadow="md"
+                p={0}
+                style={{ width: 480, maxWidth: '100%', overflow: 'hidden' }}
+              >
+                <Box
+                  px="md"
+                  py="sm"
+                  style={{ borderBottom: '1px solid rgba(0,0,0,.08)', background: '#fff' }}
+                >
+                  <Title order={4} fw={500} m={0}>
+                    Reserva para grupo grande
+                  </Title>
                 </Box>
                 <Box px="md" py="md">
                   <Text>
-                    Para reservas acima de <b>{MAX_PEOPLE_WITHOUT_CONCIERGE}</b> pessoas, é necessário falar com nosso concierge pelo WhatsApp.
+                    Para reservas acima de <b>{MAX_PEOPLE_WITHOUT_CONCIERGE}</b> pessoas, é
+                    necessário falar com nosso concierge pelo WhatsApp.
                   </Text>
                   <Text size="sm" c="dimmed" mt={6}>
                     Assim garantimos a melhor organização do espaço e atendimento do seu grupo. 🙂
                   </Text>
                 </Box>
-                <Group justify="end" gap="sm" px="md" py="sm" style={{ borderTop: '1px solid rgba(0,0,0,.08)', background: '#fff' }}>
-                  <Button variant="default" onClick={() => setShowConcierge(false)}>Fechar</Button>
-                  <Button component="a" href={CONCIERGE_WPP_LINK} target="_blank" rel="noreferrer" color="green">
+                <Group
+                  justify="end"
+                  gap="sm"
+                  px="md"
+                  py="sm"
+                  style={{
+                    borderTop: '1px solid rgba(0,0,0,.08)',
+                    background: '#fff',
+                  }}
+                >
+                  <Button variant="default" onClick={() => setShowConcierge(false)}>
+                    Fechar
+                  </Button>
+                  <Button
+                    component="a"
+                    href={CONCIERGE_WPP_LINK}
+                    target="_blank"
+                    rel="noreferrer"
+                    color="green"
+                  >
                     Abrir WhatsApp (61 98285-0776)
                   </Button>
                 </Group>
