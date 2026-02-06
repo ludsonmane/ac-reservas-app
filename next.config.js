@@ -8,19 +8,32 @@ const nextConfig = {
     if (!isDev) return [];
     return [
       {
-        source: '/api/:path*',
-        destination: 'http://api.mane.com.vc/:path*',
+        source: "/api/:path*",
+        destination: "http://api.mane.com.vc/:path*",
       },
     ];
   },
 
-  // Permite carregar imagens hospedadas na API
   images: {
     remotePatterns: [
-      // produção
-      { protocol: 'https', hostname: 'api.mane.com.vc' },
-      // dev/local
-      { protocol: 'http', hostname: 'localhost', port: '4000' },
+      // PRODUÇÃO: restringe host + caminho (mitiga DoS do Image Optimizer)
+      {
+        protocol: "https",
+        hostname: "api.mane.com.vc",
+        pathname: "/**",
+      },
+
+      // DEV/LOCAL: só habilita localhost em dev
+      ...(isDev
+        ? [
+            {
+              protocol: "http",
+              hostname: "localhost",
+              port: "4000",
+              pathname: "/**",
+            },
+          ]
+        : []),
     ],
   },
 };
