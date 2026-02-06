@@ -6,7 +6,7 @@ pnpm-debug.log*
 *.log
 logs/
 *.gz
-
+.mane-web.zip
 # — TypeScript
 dist/
 *.tsbuildinfo
