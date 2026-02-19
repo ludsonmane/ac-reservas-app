@@ -295,9 +295,11 @@ export default function Home() {
               src="https://mane.com.vc/wp-content/uploads/2023/03/Camada-1.svg"
               alt="Mané Mercado"
               style={{
-                height: 'clamp(48px,8vw,72px)', width: 'auto', display: 'block',
+                height: 'clamp(48px,8vw,72px)',
+                width: 'auto',
+                display: 'block',
                 marginBottom: 'clamp(20px,3vw,28px)',
-                filter: 'brightness(0) invert(1)',
+                filter: 'none', // ✅ logo original (sem branco)
               } as React.CSSProperties}
             />
 
