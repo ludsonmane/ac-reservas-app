@@ -255,7 +255,7 @@ export default function Home() {
               style={{
                 height:'clamp(48px,8vw,72px)', width:'auto', display:'block',
                 marginBottom:'clamp(20px,3vw,28px)',
-               
+                filter:'brightness(0) invert(1)',
                 dropShadow:'0 2px 16px rgba(0,0,0,.4)',
               } as React.CSSProperties}
             />
@@ -385,9 +385,9 @@ export default function Home() {
           <div style={{ maxWidth:1140, margin:'0 auto' }}>
             <Rv style={{ textAlign:'center', marginBottom:44 }}>
               <Eyebrow color="#a8dbd4">17+ operações</Eyebrow>
-              <SecTitle>Uma pluralidade de sabores<br/>em um só lugar</SecTitle>
-              <p style={{ fontSize:'clamp(.9rem,2vw,1.05rem)', lineHeight:1.7, opacity:.7, maxWidth:500, margin:'0 auto' }}>
-                Chefs renomados de Brasília assinam cada operação.
+              <SecTitle>De gelato a cuscuz, de hambúrguer<br/>a frutos do mar. Aqui tem pra todo mundo!</SecTitle>
+              <p style={{ fontSize:'clamp(.9rem,2vw,1.05rem)', lineHeight:1.7, opacity:.7, maxWidth:540, margin:'0 auto' }}>
+                Chefs renomados da cidade fazem, do nosso Mercado, uma pluralidade de gostos, texturas e culturas.
               </p>
             </Rv>
             <Rv>
@@ -510,17 +510,16 @@ function Sobre({ withQuery }: { withQuery: (s: string) => string }) {
             transition:'opacity .7s ease, transform .7s ease',
           }}>
             <Eyebrow color={G.mid}>O que é o Mané?</Eyebrow>
-            <SecTitle dark>Um mercado feito de sonhos, sabores e Brasília</SecTitle>
+            <SecTitle dark>É restaurante, é bar, é perene. É o Mané.</SecTitle>
             <p style={{ fontSize:'clamp(.9rem,2vw,1rem)', lineHeight:1.7, opacity:.75, marginBottom:24 }}>
-              O Mané nasceu de viagens pelo mundo e do desejo de reunir o melhor da gastronomia
-              da capital num espaço semi-aberto, vibrante e plural.
+              O Mané nasceu de um sonho sonhado em viagens pelo mundo. Dos lugares, das pessoas e, principalmente, das comidas. É um lugar plural, pra família, pros amigos e até pro cachorro. É cultura, diversão e diversidade.
             </p>
             {[
-              { icon:'📍', text:'Ao lado do Estádio Mané Garrincha, no Eixo Monumental da Asa Norte' },
-              { icon:'🍽️', text:'Árabe, peruana, sertaneja, italiana, churrasco, frutos do mar e muito mais' },
-              { icon:'🎵', text:'Música ao vivo, programação cultural e atmosfera da tarde à madrugada' },
-              { icon:'🐾', text:'Pet friendly — cachorro, gato, periquito, todo mundo bem-vindo' },
-              { icon:'🌱', text:'Horta urbana, espaço semi-aberto com iluminação e ventilação naturais' },
+              { icon:'📍', text:'Localizado entre a Arena BRB Mané Garrincha e a Arena BRB Nilson Nelson, no Eixo Monumental.' },
+              { icon:'🍽️', text:'De gelato a cuscuz, de hambúrguer a frutos do mar, de massa a churrasco. Aqui tem pra todo mundo.' },
+              { icon:'🎵', text:'Música ao vivo, programação cultural e diversão da tarde até de madrugada.' },
+              { icon:'🐾', text:'Pet friendly — cachorro, gato, periquito, papagaio e até galinha. Se é seu amigo, é nosso também!' },
+              { icon:'🪑', text:'Atendimento na mesa: peça de qualquer restaurante direto com os garçons, sem sair do lugar.' },
             ].map(item => (
               <div key={item.text} style={{ display:'flex', alignItems:'flex-start', gap:12, marginBottom:12 }}>
                 <span style={{ flexShrink:0, width:32, height:32, borderRadius:10, background:G.dark, color:G.cream, display:'flex', alignItems:'center', justifyContent:'center', fontSize:15, marginTop:1 }}>{item.icon}</span>
@@ -540,10 +539,9 @@ function Ambiente() {
       <div style={{ maxWidth:1140, margin:'0 auto' }}>
         <Rv style={{ textAlign:'center', marginBottom:48 }}>
           <Eyebrow color="#a8dbd4">O espaço</Eyebrow>
-          <SecTitle>Um lugar que inspira</SecTitle>
+          <SecTitle>Um lugar plural,<br/>pra todo mundo</SecTitle>
           <p style={{ fontSize:'clamp(.9rem,2vw,1.05rem)', lineHeight:1.7, opacity:.7, maxWidth:500, margin:'0 auto' }}>
-            Estrutura reaproveitada dos Jogos Pan-Americanos de 2007, transformada
-            em 4.000m² de experiência gastronômica com alma brasiliense.
+            Com mais de 15 restaurantes, 4 bares, uma adega e brinquedoteca — o Mané é restaurante, é bar, é feira, é cultura.
           </p>
         </Rv>
         <Rv>
@@ -554,11 +552,11 @@ function Ambiente() {
             gap:10,
           }}>
             {[
-              { col:'1/6',  row:'1/2', src:IMAGES.mos1, cap:'Espaço semi-aberto de 4.000m²', cls:'amb-cell' },
-              { col:'6/9',  row:'1/2', src:IMAGES.mos2, cap:'Gastronomia de todos os sotaques', cls:'amb-cell' },
+              { col:'1/6',  row:'1/2', src:IMAGES.mos1, cap:'É restaurante, é bar, é perene', cls:'amb-cell' },
+              { col:'6/9',  row:'1/2', src:IMAGES.mos2, cap:'De todos os gostos e culturas', cls:'amb-cell' },
               { col:'9/13', row:'1/3', src:IMAGES.mos3, cap:'Chefs renomados de Brasília', cls:'amb-cell amb-cell-wide' },
-              { col:'1/4',  row:'2/3', src:IMAGES.mos4, cap:'Perfeito para celebrar', cls:'amb-cell' },
-              { col:'4/9',  row:'2/3', src:IMAGES.mos5, cap:'3 bares + adega especial', cls:'amb-cell' },
+              { col:'1/4',  row:'2/3', src:IMAGES.mos4, cap:'Perfeito para comemorar', cls:'amb-cell' },
+              { col:'4/9',  row:'2/3', src:IMAGES.mos5, cap:'3 bares + adega', cls:'amb-cell' },
             ].map(m => (
               <div key={m.cap} className={m.cls} style={{ gridColumn:m.col, gridRow:m.row, borderRadius:14, overflow:'hidden', position:'relative' }}>
                 <img src={m.src} alt={m.cap} style={{ width:'100%', height:'100%', objectFit:'cover', transition:'transform .5s ease' }}
