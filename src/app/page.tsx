@@ -10,7 +10,7 @@ const G = {
   dark: '#034c46', mid: '#0f6e63', light: '#e6f0ef',
   cream: '#FBF5E9', red: '#D94030', gold: '#C8902A', goldLight: '#F0C66A',
   white: '#ffffff',
-  heroAccent: '#D7675E', // ✅ NOVO: cor do destaque do hero
+  heroAccent: '#D7675E', // destaque do hero
 };
 const serif = 'var(--font-merri), Merriweather, serif';
 const sans = 'var(--font-comfortaa), Comfortaa, system-ui, sans-serif';
@@ -97,6 +97,35 @@ const IMAGES = {
 /* ─── main ────────────────────────────────────────────── */
 export default function Home() {
   useEffect(() => { ensureAnalyticsReady(); }, []);
+
+  // ✅ Meta Pixel (somente nesta página)
+  useEffect(() => {
+    const w = window as any;
+    if (w.__MM_HOME_PIXEL_INIT__) return;
+
+    const initAndTrack = () => {
+      if (typeof w.fbq === 'function') {
+        w.fbq('init', '1280990087419324');
+        w.fbq('track', 'PageView');
+        w.__MM_HOME_PIXEL_INIT__ = true;
+        return true;
+      }
+      return false;
+    };
+
+    // tenta imediatamente
+    if (initAndTrack()) return;
+
+    // fallback: espera o fbq aparecer (bootstrap do layout)
+    let tries = 0;
+    const t = window.setInterval(() => {
+      tries += 1;
+      if (initAndTrack()) window.clearInterval(t);
+      if (tries >= 20) window.clearInterval(t); // ~2s
+    }, 100);
+
+    return () => window.clearInterval(t);
+  }, []);
 
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => { const t = setTimeout(() => setHydrated(true), 120); return () => clearTimeout(t); }, []);
@@ -260,7 +289,7 @@ export default function Home() {
               Mercado Vírgula · Brasília
             </div>
 
-            {/* Logo oficial Mané (cor natural, sem “logo branca”) */}
+            {/* Logo oficial Mané (mantida como estava antes: branca) */}
             <img
               className="hero-logo-w"
               src="https://mane.com.vc/wp-content/uploads/2023/03/Camada-1.svg"
@@ -268,13 +297,11 @@ export default function Home() {
               style={{
                 height: 'clamp(48px,8vw,72px)', width: 'auto', display: 'block',
                 marginBottom: 'clamp(20px,3vw,28px)',
-                /* removido: filter brightness/invert */
-                filter: 'none',
-                /* removido dropShadow inválido; use filter: drop-shadow se quiser */
+                filter: 'brightness(0) invert(1)',
               } as React.CSSProperties}
             />
 
-            {/* headline (copy nova) */}
+            {/* headline (copy nova + cor destaque) */}
             <h1 className="hero-h1 hero-h1-txt" style={{
               fontFamily: serif, fontWeight: 900,
               fontSize: 'clamp(2.2rem,6.5vw,4.4rem)',
@@ -283,7 +310,7 @@ export default function Home() {
               margin: 0, width: '100%',
             }}>
               Sua mesa garantida<br />
-               <span style={{ color:G.heroAccent }}>para viver a experiência Mané</span>
+              <span style={{ color: G.heroAccent }}>para viver a experiência Mané</span>
             </h1>
 
             {/* sub (copy nova) */}
@@ -293,7 +320,7 @@ export default function Home() {
               maxWidth: 520, marginTop: 20,
             }}>
               15 restaurantes e 6 bares com atendimento direto na mesa.
-              Reserve e garanta sua experiência Mané.
+              {' '}Reserve e garanta sua experiência Mané.
             </p>
 
             {/* CTAs */}
@@ -443,7 +470,7 @@ export default function Home() {
           <div style={{ position: 'relative', zIndex: 2, maxWidth: 580, margin: '0 auto' }}>
             <Rv>
               <img src="https://mane.com.vc/wp-content/uploads/2023/03/Camada-1.svg" alt="Mané"
-                style={{ height: 56, width: 'auto', display: 'block', margin: '0 auto 28px' }} />
+                style={{ height: 56, width: 'auto', display: 'block', margin: '0 auto 28px', filter: 'brightness(0) invert(1)' }} />
             </Rv>
             <Rv delay={80}>
               <h2 style={{ fontFamily: serif, fontWeight: 900, fontSize: 'clamp(1.8rem,5vw,3rem)', lineHeight: 1.1, marginBottom: 16 }}>
