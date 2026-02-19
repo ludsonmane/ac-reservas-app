@@ -29,10 +29,10 @@ function useIsMobile(bp = 768) {
 
 /* ─── data ────────────────────────────────────────────── */
 const STATS = [
-  { num: '17+',   label: 'Restaurantes' },
-  { num: '3',     label: 'Bares & Adega' },
+  { num: '15',    label: 'Restaurantes' },
+  { num: '6',     label: 'Bares' },
   { num: '4k m²', label: 'de Experiência' },
-  { num: '🐾',   label: 'Pet Friendly' },
+  { num: '✨',    label: 'Atendimento na mesa' },
 ];
 const OCASIOES = [
   { emoji:'🎂', label:'Aniversários', featured:true,
@@ -44,7 +44,7 @@ const OCASIOES = [
   { emoji:'💑', label:'Momentos a Dois', featured:false,
     desc:'Um ambiente acolhedor, boa comida e a companhia certa. Às vezes é tudo o que se precisa.' },
   { emoji:'👨‍👩‍👧‍👦', label:'Família Toda', featured:false,
-    desc:'Brinquedoteca, cardápio diversificado e espaço de sobra. Da vovó ao pet, todo mundo bem-vindo.' },
+    desc:'Brinquedoteca, cardápio diversificado e espaço de sobra. Todo mundo bem-vindo.' },
   { emoji:'🌟', label:'Sem Ocasião', featured:false,
     desc:'Às vezes não precisa de motivo. Chegue, escolha um prato, peça uma cerveja e aproveite Brasília.' },
 ];
@@ -66,7 +66,7 @@ const CHIPS = [
   { icon:'🕐', text:'Seg–Qui: 12h às 00h' },
   { icon:'🌙', text:'Sex–Sáb: 12h às 02h' },
   { icon:'☀️', text:'Dom: 11h às 23h' },
-  { icon:'🐾', text:'Pet Friendly' },
+  { icon:'🍽️', text:'Atendimento na mesa' },
   { icon:'🌿', text:'Vegano & Sem Glúten' },
   { icon:'🅿️', text:'Estacionamento R$10/3h' },
 ];
@@ -247,7 +247,7 @@ export default function Home() {
               Mercado Vírgula · Brasília
             </div>
 
-            {/* Logo oficial Mané */}
+            {/* Logo oficial Mané (cor natural, sem “logo branca”) */}
             <img
               className="hero-logo-w"
               src="https://mane.com.vc/wp-content/uploads/2023/03/Camada-1.svg"
@@ -255,12 +255,13 @@ export default function Home() {
               style={{
                 height:'clamp(48px,8vw,72px)', width:'auto', display:'block',
                 marginBottom:'clamp(20px,3vw,28px)',
-                filter:'brightness(0) invert(1)',
-                dropShadow:'0 2px 16px rgba(0,0,0,.4)',
+                /* removido: filter brightness/invert */
+                filter:'none',
+                /* removido dropShadow inválido; use filter: drop-shadow se quiser */
               } as React.CSSProperties}
             />
 
-            {/* headline */}
+            {/* headline (copy nova) */}
             <h1 className="hero-h1 hero-h1-txt" style={{
               fontFamily:serif, fontWeight:900,
               fontSize:'clamp(2.2rem,6.5vw,4.4rem)',
@@ -269,17 +270,17 @@ export default function Home() {
               margin:0, width:'100%',
             }}>
               Sua mesa garantida<br/>
-              <span style={{ color:'#a8dbd4' }}>num lugar que você<br className="mobile-br"/>não vai querer sair.</span>
+              <span style={{ color:'#a8dbd4' }}>para viver a experiência Mané</span>
             </h1>
 
-            {/* sub */}
+            {/* sub (copy nova) */}
             <p className="hero-sub hero-sub-txt" style={{
               fontSize:'clamp(.9rem,2.5vw,1.15rem)',
               lineHeight:1.65, opacity:.85,
-              maxWidth:500, marginTop:20,
+              maxWidth:520, marginTop:20,
             }}>
-              17 restaurantes, 3 bares, adega e uma experiência gastronômica plural
-              no coração de Brasília. Reserve e chegue direto.
+              15 restaurantes e 6 bares com atendimento direto na mesa.
+              Reserve e garanta sua mesa.
             </p>
 
             {/* CTAs */}
@@ -288,7 +289,7 @@ export default function Home() {
               justifyContent:'center', marginTop:32, width:'100%',
             }}>
               <HeroBtn href={withQuery('/reservar')} primary>
-                <CalIcon /> Reservar Mesa
+                <CalIcon /> Reserve agora
               </HeroBtn>
               <HeroBtn href={withQuery('/consultar')} primary={false}>
                 <SearchIcon /> Localizar Reserva
@@ -384,7 +385,7 @@ export default function Home() {
         <section style={{ background:'#111', padding:'clamp(56px,10vw,100px) clamp(16px,5vw,64px)' }}>
           <div style={{ maxWidth:1140, margin:'0 auto' }}>
             <Rv style={{ textAlign:'center', marginBottom:44 }}>
-              <Eyebrow color="#a8dbd4">17+ operações</Eyebrow>
+              <Eyebrow color="#a8dbd4">15 restaurantes + 6 bares</Eyebrow>
               <SecTitle>De gelato a cuscuz, de hambúrguer<br/>a frutos do mar. Aqui tem pra todo mundo!</SecTitle>
               <p style={{ fontSize:'clamp(.9rem,2vw,1.05rem)', lineHeight:1.7, opacity:.7, maxWidth:540, margin:'0 auto' }}>
                 Chefs renomados da cidade fazem, do nosso Mercado, uma pluralidade de gostos, texturas e culturas.
@@ -429,7 +430,7 @@ export default function Home() {
           <div style={{ position:'relative', zIndex:2, maxWidth:580, margin:'0 auto' }}>
             <Rv>
               <img src="https://mane.com.vc/wp-content/uploads/2023/03/Camada-1.svg" alt="Mané"
-                style={{ height:56, width:'auto', display:'block', margin:'0 auto 28px', filter:'brightness(0) invert(1)' }} />
+                style={{ height:56, width:'auto', display:'block', margin:'0 auto 28px' }} />
             </Rv>
             <Rv delay={80}>
               <h2 style={{ fontFamily:serif, fontWeight:900, fontSize:'clamp(1.8rem,5vw,3rem)', lineHeight:1.1, marginBottom:16 }}>
@@ -443,13 +444,13 @@ export default function Home() {
             </Rv>
             <Rv delay={240}>
               <div className="cta-btns" style={{ display:'flex', gap:12, flexWrap:'wrap', justifyContent:'center' }}>
-                <CtaBtn href={withQuery('/reservar')} primary><CalIcon />Reservar Mesa</CtaBtn>
+                <CtaBtn href={withQuery('/reservar')} primary><CalIcon />Reserve agora</CtaBtn>
                 <CtaBtn href={withQuery('/consultar')} primary={false}><SearchIcon />Localizar Reserva</CtaBtn>
               </div>
             </Rv>
             <Rv delay={320}>
               <div className="cta-tags" style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'center', marginTop:24 }}>
-                {['🎂 Aniversários','🥂 Confraternizações','💼 Empresas','👨‍👩‍👧 Famílias','🐾 Pet Friendly'].map(t => (
+                {['🎂 Aniversários','🥂 Confraternizações','💼 Empresas','👨‍👩‍👧 Famílias','🍽️ Atendimento na mesa'].map(t => (
                   <span key={t} style={{ background:'rgba(255,255,255,.1)', borderRadius:999, padding:'5px 14px', fontSize:12, fontWeight:600, opacity:.75 }}>{t}</span>
                 ))}
               </div>
@@ -463,7 +464,7 @@ export default function Home() {
       <div className={`fab${fabVisible ? '' : ' hidden'}`}>
         <Link href={withQuery('/reservar')}>
           <CalIcon />
-          Reservar Mesa
+          Reserve agora
         </Link>
       </div>
     </>
@@ -512,13 +513,12 @@ function Sobre({ withQuery }: { withQuery: (s: string) => string }) {
             <Eyebrow color={G.mid}>O que é o Mané?</Eyebrow>
             <SecTitle dark>É restaurante, é bar, é perene. É o Mané.</SecTitle>
             <p style={{ fontSize:'clamp(.9rem,2vw,1rem)', lineHeight:1.7, opacity:.75, marginBottom:24 }}>
-              O Mané nasceu de um sonho sonhado em viagens pelo mundo. Dos lugares, das pessoas e, principalmente, das comidas. É um lugar plural, pra família, pros amigos e até pro cachorro. É cultura, diversão e diversidade.
+              O Mané nasceu de um sonho sonhado em viagens pelo mundo. Dos lugares, das pessoas e, principalmente, das comidas. É um lugar plural, pra família e pros amigos. É cultura, diversão e diversidade.
             </p>
             {[
               { icon:'📍', text:'Localizado entre a Arena BRB Mané Garrincha e a Arena BRB Nilson Nelson, no Eixo Monumental.' },
               { icon:'🍽️', text:'De gelato a cuscuz, de hambúrguer a frutos do mar, de massa a churrasco. Aqui tem pra todo mundo.' },
               { icon:'🎵', text:'Música ao vivo, programação cultural e diversão da tarde até de madrugada.' },
-              { icon:'🐾', text:'Pet friendly — cachorro, gato, periquito, papagaio e até galinha. Se é seu amigo, é nosso também!' },
               { icon:'🪑', text:'Atendimento na mesa: peça de qualquer restaurante direto com os garçons, sem sair do lugar.' },
             ].map(item => (
               <div key={item.text} style={{ display:'flex', alignItems:'flex-start', gap:12, marginBottom:12 }}>
@@ -540,8 +540,8 @@ function Ambiente() {
         <Rv style={{ textAlign:'center', marginBottom:48 }}>
           <Eyebrow color="#a8dbd4">O espaço</Eyebrow>
           <SecTitle>Um lugar plural,<br/>pra todo mundo</SecTitle>
-          <p style={{ fontSize:'clamp(.9rem,2vw,1.05rem)', lineHeight:1.7, opacity:.7, maxWidth:500, margin:'0 auto' }}>
-            Com mais de 15 restaurantes, 4 bares, uma adega e brinquedoteca — o Mané é restaurante, é bar, é feira, é cultura.
+          <p style={{ fontSize:'clamp(.9rem,2vw,1.05rem)', lineHeight:1.7, opacity:.7, maxWidth:520, margin:'0 auto' }}>
+            Com 15 restaurantes, 6 bares e brinquedoteca — o Mané é restaurante, é bar, é feira, é cultura.
           </p>
         </Rv>
         <Rv>
@@ -556,7 +556,7 @@ function Ambiente() {
               { col:'6/9',  row:'1/2', src:IMAGES.mos2, cap:'De todos os gostos e culturas', cls:'amb-cell' },
               { col:'9/13', row:'1/3', src:IMAGES.mos3, cap:'Chefs renomados de Brasília', cls:'amb-cell amb-cell-wide' },
               { col:'1/4',  row:'2/3', src:IMAGES.mos4, cap:'Perfeito para comemorar', cls:'amb-cell' },
-              { col:'4/9',  row:'2/3', src:IMAGES.mos5, cap:'3 bares + adega', cls:'amb-cell' },
+              { col:'4/9',  row:'2/3', src:IMAGES.mos5, cap:'6 bares', cls:'amb-cell' },
             ].map(m => (
               <div key={m.cap} className={m.cls} style={{ gridColumn:m.col, gridRow:m.row, borderRadius:14, overflow:'hidden', position:'relative' }}>
                 <img src={m.src} alt={m.cap} style={{ width:'100%', height:'100%', objectFit:'cover', transition:'transform .5s ease' }}
