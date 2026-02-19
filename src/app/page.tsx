@@ -280,7 +280,7 @@ export default function Home() {
               maxWidth:520, marginTop:20,
             }}>
               15 restaurantes e 6 bares com atendimento direto na mesa.
-              Reserve e garanta sua mesa.
+              Reserve e garanta sua experiência Mané.
             </p>
 
             {/* CTAs */}
