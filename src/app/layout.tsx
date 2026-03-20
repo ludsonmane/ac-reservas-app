@@ -17,7 +17,7 @@ const MetaPixelBootstrapNoSSR = dynamic(() => import('./MetaPixelBootstrap'), {
 
 export const metadata = {
   title: 'Mané Mercado • Reservas',
-  description: 'Faça sua reserva no Mané Mercado (Águas Claras / Arena Brasília)',
+  description: 'Faça sua reserva no Mané Mercado (Águas Claras, Brasília e São Paulo)',
 };
 
 // Merriweather para títulos — BLACK (900)

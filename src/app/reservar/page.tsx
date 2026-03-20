@@ -1470,7 +1470,7 @@ export default function ReservarMane() {
             </Title>
 
             <Text size="sm" c="dimmed" ta="center" style={{ fontFamily: '"Comfortaa", system-ui, sans-serif' }}>
-              Águas Claras &amp; Brasília
+              Águas Claras, Brasília &amp; São Paulo
             </Text>
 
             <Card radius="md" p="sm" style={{ width: '100%', maxWidth: 460, background: '#fff', border: 'none' }} shadow="sm">
