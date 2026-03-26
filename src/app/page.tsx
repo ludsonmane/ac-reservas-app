@@ -58,7 +58,7 @@ const OCASIOES = [
   },
   {
     emoji: '🌟', label: 'Sem Ocasião', featured: false,
-    desc: 'Às vezes não precisa de motivo. Chegue, escolha um prato, peça uma cerveja e aproveite Brasília.'
+    desc: 'Às vezes não precisa de motivo. Chegue, escolha um prato, peça uma cerveja e aproveite.'
   },
 ];
 const BENEFITS = [
@@ -286,7 +286,7 @@ export default function Home() {
               color: '#a8dbd4', marginBottom: 20,
             }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: G.goldLight, flexShrink: 0, display: 'inline-block' }} className="pulse-dot" />
-              Mercado Vírgula · Brasília
+              Brasília · Águas Claras · São Paulo
             </div>
 
             {/* Logo oficial Mané (mantida como estava antes: branca) */}
@@ -558,7 +558,7 @@ function Sobre({ withQuery }: { withQuery: (s: string) => string }) {
               O Mané nasceu de um sonho sonhado em viagens pelo mundo. Dos lugares, das pessoas e, principalmente, das comidas. É um lugar plural, pra família e pros amigos. É cultura, diversão e diversidade.
             </p>
             {[
-              { icon: '📍', text: 'Localizado entre a Arena BRB Mané Garrincha e a Arena BRB Nilson Nelson, no Eixo Monumental.' },
+              { icon: '📍', text: 'Brasília (Arena Mané Garrincha), Águas Claras e São Paulo (Vila Madalena). Três unidades, uma experiência.' },
               { icon: '🍽️', text: 'De gelato a cuscuz, de hambúrguer a frutos do mar, de massa a churrasco. Aqui tem pra todo mundo.' },
               { icon: '🎵', text: 'Música ao vivo, programação cultural e diversão da tarde até de madrugada.' },
               { icon: '🪑', text: 'Atendimento na mesa: peça de qualquer restaurante direto com os garçons, sem sair do lugar.' },
@@ -596,7 +596,7 @@ function Ambiente() {
             {[
               { col: '1/6', row: '1/2', src: IMAGES.mos1, cap: 'É restaurante, é bar, é perene', cls: 'amb-cell' },
               { col: '6/9', row: '1/2', src: IMAGES.mos2, cap: 'De todos os gostos e culturas', cls: 'amb-cell' },
-              { col: '9/13', row: '1/3', src: IMAGES.mos3, cap: 'Chefs renomados de Brasília', cls: 'amb-cell amb-cell-wide' },
+              { col: '9/13', row: '1/3', src: IMAGES.mos3, cap: 'Chefs renomados', cls: 'amb-cell amb-cell-wide' },
               { col: '1/4', row: '2/3', src: IMAGES.mos4, cap: 'Perfeito para comemorar', cls: 'amb-cell' },
               { col: '4/9', row: '2/3', src: IMAGES.mos5, cap: '6 bares', cls: 'amb-cell' },
             ].map(m => (
