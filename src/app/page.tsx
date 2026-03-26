@@ -558,7 +558,7 @@ function Sobre({ withQuery }: { withQuery: (s: string) => string }) {
               O Mané nasceu de um sonho sonhado em viagens pelo mundo. Dos lugares, das pessoas e, principalmente, das comidas. É um lugar plural, pra família e pros amigos. É cultura, diversão e diversidade.
             </p>
             {[
-              { icon: '📍', text: 'Brasília (Arena Mané Garrincha), Águas Claras e São Paulo (Vila Madalena). Três unidades, uma experiência.' },
+              { icon: '📍', text: 'Brasília (Arena Mané Garrincha), Águas Claras e São Paulo (Perdizes). Três unidades, uma experiência.' },
               { icon: '🍽️', text: 'De gelato a cuscuz, de hambúrguer a frutos do mar, de massa a churrasco. Aqui tem pra todo mundo.' },
               { icon: '🎵', text: 'Música ao vivo, programação cultural e diversão da tarde até de madrugada.' },
               { icon: '🪑', text: 'Atendimento na mesa: peça de qualquer restaurante direto com os garçons, sem sair do lugar.' },
