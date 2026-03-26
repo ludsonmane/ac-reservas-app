@@ -199,7 +199,20 @@ export async function trackReservationMade(ev: ReservationEvent) {
     status: norm(ev.status),
     source: norm(ev.source),
   };
+
+  // Meta Pixel
   fbqTrackCustomActive('Reservation Made', payload);
+
+  // Google Ads conversion tracking
+  if (window.gtag) {
+    window.gtag('event', 'conversion_event_book_appointment', {
+      value: 1.0,
+      currency: 'BRL',
+    });
+    dlog('gtag conversion_event_book_appointment sent');
+  }
+
+  // DataLayer (GA4 + GTM)
   (window as any).dataLayer?.push({ event: 'reservation_made', ...payload });
 }
 

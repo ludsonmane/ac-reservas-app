@@ -95,10 +95,14 @@ const theme = createTheme({
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const GA4 = process.env.NEXT_PUBLIC_GA4_ID;
+  const GADS = process.env.NEXT_PUBLIC_GADS_ID; // AW-16665013015
 
   // >>> Flags do snippet CSQ/HJ
   const ENABLE_CSQ = process.env.NEXT_PUBLIC_ENABLE_CSQ !== '0'; // defina 1 para ligar
   const CSQ_ID = process.env.NEXT_PUBLIC_CSQ_ID ?? '6581655';
+
+  // Google Ads ID as primary gtag loader, GA4 as secondary
+  const gtagPrimary = GADS || GA4;
 
   return (
     <html lang="pt-BR">
@@ -106,19 +110,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ColorSchemeScript defaultColorScheme="light" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
-        {/* GA4 base (só se houver ID configurado) */}
-        {GA4 ? (
+        {/* Google tag (gtag.js) — Google Ads + GA4 */}
+        {gtagPrimary ? (
           <>
-            <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA4}`} strategy="afterInteractive" />
-            <Script id="ga4" strategy="afterInteractive">
+            <Script src={`https://www.googletagmanager.com/gtag/js?id=${gtagPrimary}`} strategy="afterInteractive" />
+            <Script id="gtag-init" strategy="afterInteractive">
               {`
                 try {
                   window.dataLayer = window.dataLayer || [];
                   function gtag(){dataLayer.push(arguments);}
                   gtag('js', new Date());
-                  gtag('config', '${GA4}', { debug_mode: ${process.env.NODE_ENV !== 'production' ? 'true' : 'false'} });
+                  ${GADS ? `gtag('config', '${GADS}');` : ''}
+                  ${GA4 && GA4 !== 'G-XXXXXXXXXX' ? `gtag('config', '${GA4}', { debug_mode: ${process.env.NODE_ENV !== 'production' ? 'true' : 'false'} });` : ''}
                 } catch (e) {
-                  console.error('[GA4 init] ignorado:', e);
+                  console.error('[gtag init] ignorado:', e);
                 }
               `}
             </Script>
