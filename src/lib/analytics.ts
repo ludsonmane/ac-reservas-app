@@ -37,6 +37,18 @@ const UNIT_PIXEL_MAP: Record<string, string> = {
   'mané aguas claras': '1160688802149033',
   'mané águas claras': '1160688802149033',
   'mane águas claras': '1160688802149033',
+
+  'sp': '1262593178889667',
+  'sao paulo': '1262593178889667',
+  'são paulo': '1262593178889667',
+  'sao-paulo': '1262593178889667',
+  'perdizes': '1262593178889667',
+  'mane perdizes': '1262593178889667',
+  'mané perdizes': '1262593178889667',
+  'mane perdizes sp': '1262593178889667',
+  'mané perdizes sp': '1262593178889667',
+  'mane sao paulo': '1262593178889667',
+  'mané são paulo': '1262593178889667',
 };
 
 function normalizeKey(input?: string | null) {
