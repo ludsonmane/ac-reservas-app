@@ -22,13 +22,17 @@ const dlog = (...a: any[]) =>
 
 // ======= MAPA unidade → Pixel ID (ajuste conforme vem do seu /units) =======
 const UNIT_PIXEL_MAP: Record<string, string> = {
-  // Slugs esperados
+  // Slugs exatos da API + variações
   'bsb': '328827303217903',
+  'mane-bsb': '328827303217903',
   'brasilia': '328827303217903',
   'brasília': '328827303217903',
+  'mane brasilia': '328827303217903',
+  'mané brasilia': '328827303217903',
   'arena brasilia': '328827303217903',
   'arena brasília': '328827303217903',
 
+  'mane-aguas-claras': '1160688802149033',
   'aguas-claras': '1160688802149033',
   'águas-claras': '1160688802149033',
   'aguas claras': '1160688802149033',
@@ -38,6 +42,7 @@ const UNIT_PIXEL_MAP: Record<string, string> = {
   'mané águas claras': '1160688802149033',
   'mane águas claras': '1160688802149033',
 
+  'mane-west-plaza-sp': '1262593178889667',
   'sp': '1262593178889667',
   'sao paulo': '1262593178889667',
   'são paulo': '1262593178889667',
@@ -132,6 +137,9 @@ function findPixelForUnit(input?: string | null): string | undefined {
   }
   if (/agua/.test(n) && /clara/.test(n)) {
     return UNIT_PIXEL_MAP['aguas claras'];
+  }
+  if (/perdizes/.test(n) || /sao paulo/.test(n) || /west.plaza/.test(n) || n === 'sp') {
+    return UNIT_PIXEL_MAP['sp'];
   }
   return undefined;
 }
