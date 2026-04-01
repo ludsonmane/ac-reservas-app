@@ -56,7 +56,7 @@ dayjs.locale('pt-br');
 
 // ====== Configs
 const MAX_PEOPLE_WITHOUT_CONCIERGE = 40;
-const MIN_PEOPLE = 8;
+const MIN_PEOPLE = 2;
 
 // Concierge por unidade
 const CONCIERGE_PHONE_AC = '61999312284'; // 61 99931-2284
@@ -198,8 +198,17 @@ function joinDateTimeISO(date: Date | null, time: string) {
   return dt.toISOString();
 }
 
-// slots válidos
-const ALLOWED_SLOTS = ['12:00', '12:30', '13:00', '18:00', '18:30', '19:00'];
+// slots válidos — 11h às 22h, intervalos de 30min
+const ALLOWED_SLOTS = (() => {
+  const s: string[] = [];
+  for (let h = 11; h <= 22; h++) {
+    for (const m of [0, 30]) {
+      if (h === 22 && m > 0) break;
+      s.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
+  }
+  return s;
+})();
 function isValidSlot(v: string) {
   return ALLOWED_SLOTS.includes(v);
 }
@@ -209,10 +218,10 @@ const SLOT_ERROR_MSG = 'Escolha um horário válido da lista';
 // Usamos meio-dia para evitar problema de fuso (dia voltando 1)
 const TODAY_START = dayjs().startOf('day').add(12, 'hour').toDate();
 const TOMORROW_START = dayjs().add(1, 'day').startOf('day').add(12, 'hour').toDate();
-const OPEN_H = 12,
+const OPEN_H = 11,
   OPEN_M = 0,
-  CLOSE_H = 21,
-  CLOSE_M = 30;
+  CLOSE_H = 22,
+  CLOSE_M = 0;
 function isTimeOutsideWindow(hhmm: string) {
   if (!hhmm) return false;
   const [hh, mm] = hhmm.split(':').map(Number);
@@ -237,8 +246,8 @@ function isPastSelection(date: Date | null, time: string) {
   return when.isBefore(dayjs());
 }
 
-// 1 dia de antecedência
-const ONE_DAY_AHEAD_MSG = 'Reservas precisam ser feitas com 1 dia de antecedência.';
+// reserva mesmo dia: permitida desde que o horário seja futuro
+const ONE_DAY_AHEAD_MSG = ''; // não mais usado
 function isSameDayAsToday(d: Date | null) {
   return !!d && dayjs(d).isSame(dayjs(), 'day');
 }
@@ -689,7 +698,7 @@ function readUrlAttribution() {
 
 // ====== Página
 export default function ReservarMane() {
-  const [reservationType, setReservationType] = useState<ReservationType>('PARTICULAR');
+  const [reservationType, setReservationType] = useState<ReservationType>('ANIVERSARIO');
 
   const [step, setStep] = useState(0);
   const [stepLoading, setStepLoading] = useState(false);
@@ -732,7 +741,7 @@ export default function ReservarMane() {
 
   const [areasMeta, setAreasMeta] = useState<Record<string, AreaMeta>>({});
 
-  const [adultos, setAdultos] = useState<number | ''>(8);
+  const [adultos, setAdultos] = useState<number | ''>(2);
   const [criancas, setCriancas] = useState<number | ''>(0);
   const [data, setData] = useState<Date | null>(null);
   const [hora, setHora] = useState<string>('');
@@ -1079,8 +1088,8 @@ export default function ReservarMane() {
       setError(`Mínimo de ${MIN_PEOPLE} pessoas para reservar.`);
       return;
     }
-    if (isSameDayAsToday(data)) {
-      setError(ONE_DAY_AHEAD_MSG);
+    if (isPastSelection(data, hora)) {
+      setError('Esse horário já passou. Escolha um horário futuro.');
       return;
     }
     if (qty > MAX_PEOPLE_WITHOUT_CONCIERGE) {
@@ -1106,8 +1115,8 @@ export default function ReservarMane() {
         setSending(false);
         return;
       }
-      if (isSameDayAsToday(data)) {
-        setError(ONE_DAY_AHEAD_MSG);
+      if (isPastSelection(data, hora)) {
+        setError('Esse horário já passou. Escolha um horário futuro.');
         goToStep(1);
         setSending(false);
         return;
@@ -1558,6 +1567,146 @@ export default function ReservarMane() {
           {/* PASSO 0 — Tipo */}
           {step === 0 && (
             <Stack mt="xs" gap="md">
+
+              {/* Benefícios Aniversário */}
+              {reservationType === 'ANIVERSARIO' && (
+                <Card withBorder radius="lg" shadow="sm" p={0} style={{ overflow: 'hidden', background: '#fff' }}>
+                  <Box
+                    p="md"
+                    style={{
+                      background: '#034c46',
+                      borderBottom: '2px solid #F7C85A',
+                    }}
+                  >
+                    <Group gap={8} align="center" justify="center">
+                      <Text
+                        size="xs"
+                        fw={700}
+                        c="#F3E9D9"
+                        tt="uppercase"
+                        style={{ letterSpacing: '0.12em' }}
+                      >
+                        Pacotes de Aniversário
+                      </Text>
+                    </Group>
+                    <Text size="xs" c="rgba(243,233,217,0.7)" ta="center" mt={4}>
+                      Quanto mais convidados, mais vantagens
+                    </Text>
+                  </Box>
+
+                  <Grid gutter={0}>
+                    {[
+                      {
+                        pessoas: '8 a 15 pessoas',
+                        bonus: 'R$ 100',
+                        destaque: false,
+                        items: [
+                          { icon: '🧸', text: 'Brinquedoteca day use — 1 criança' },
+                        ],
+                      },
+                      {
+                        pessoas: '16 a 30 pessoas',
+                        bonus: 'R$ 150',
+                        destaque: false,
+                        items: [
+                          { icon: '🧸', text: 'Brinquedoteca day use — 2 crianças' },
+                        ],
+                      },
+                      {
+                        pessoas: 'Acima de 30 pessoas',
+                        bonus: 'R$ 200',
+                        destaque: true,
+                        items: [
+                          { icon: '🍹', text: 'Garrafa Caju do Mané' },
+                          { icon: '🧸', text: 'Brinquedoteca — 2 crianças' },
+                          { icon: '🍽️', text: 'Cardápio personalizado — Menu 3 etapas' },
+                        ],
+                      },
+                    ].map((tier, i) => (
+                      <Grid.Col span={12} key={tier.pessoas}>
+                        <Box
+                          p="md"
+                          style={{
+                            background: tier.destaque ? '#034c46' : '#fff',
+                            borderTop: i > 0 ? '1px solid rgba(14,122,127,0.08)' : 'none',
+                          }}
+                        >
+                          <Group justify="space-between" align="center" mb={8}>
+                            <div>
+                              <Text
+                                size="11px"
+                                fw={700}
+                                tt="uppercase"
+                                c={tier.destaque ? 'rgba(243,233,217,0.6)' : 'dimmed'}
+                                style={{ letterSpacing: '0.1em' }}
+                              >
+                                {tier.pessoas}
+                              </Text>
+                              {tier.destaque && (
+                                <Badge
+                                  color="#F7C85A"
+                                  c="#034c46"
+                                  variant="filled"
+                                  size="xs"
+                                  radius="xl"
+                                  mt={4}
+                                  fw={700}
+                                >
+                                  Melhor custo-benefício
+                                </Badge>
+                              )}
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <Text
+                                fw={900}
+                                style={{
+                                  fontSize: 28,
+                                  lineHeight: 1,
+                                  color: tier.destaque ? '#F7C85A' : '#034c46',
+                                  fontFamily: '"Merriweather", serif',
+                                }}
+                              >
+                                {tier.bonus}
+                              </Text>
+                              <Text
+                                size="10px"
+                                c={tier.destaque ? 'rgba(243,233,217,0.6)' : 'dimmed'}
+                                mt={2}
+                              >
+                                de bônus
+                              </Text>
+                            </div>
+                          </Group>
+
+                          <Box
+                            mt={8}
+                            pt={8}
+                            style={{
+                              borderTop: `1px solid ${tier.destaque ? 'rgba(255,255,255,0.12)' : 'rgba(14,122,127,0.08)'}`,
+                            }}
+                          >
+                            <Stack gap={6}>
+                              {tier.items.map((item) => (
+                                <Group key={item.text} gap={8} align="center" wrap="nowrap">
+                                  <Text size="sm" lh={1}>{item.icon}</Text>
+                                  <Text
+                                    size="xs"
+                                    c={tier.destaque ? '#F3E9D9' : '#333'}
+                                    lh={1.3}
+                                  >
+                                    {item.text}
+                                  </Text>
+                                </Group>
+                              ))}
+                            </Stack>
+                          </Box>
+                        </Box>
+                      </Grid.Col>
+                    ))}
+                  </Grid>
+                </Card>
+              )}
+
               <Card withBorder radius="lg" shadow="sm" p="md" style={{ background: '#FBF5E9' }}>
                 <Stack gap="md">
                   <Text size="sm" c="dimmed">
@@ -1652,8 +1801,8 @@ export default function ReservarMane() {
                     <Grid gutter="md">
                       <Grid.Col span={6}>
                         <NumberInput
-                          label="Adultos (mín. total 8)"
-                          min={1}
+                          label="Adultos (mín. total 2)"
+                          min={2}
                           value={adultos}
                           onChange={numberInputHandler(setAdultos)}
                           leftSection={<IconUsers size={16} />}
@@ -1689,13 +1838,10 @@ export default function ReservarMane() {
                               return;
                             }
 
-                            const isSameDay = isSameDayAsToday(dateValue);
-                            const isPast = dayjs(dateValue).isBefore(TOMORROW_START, 'day');
+                            const isPast = dayjs(dateValue).isBefore(dayjs().startOf('day'));
 
-                            if (isSameDay) {
-                              setDateError(ONE_DAY_AHEAD_MSG);
-                            } else if (isPast) {
-                              setDateError('Selecione uma data a partir de amanhã');
+                            if (isPast) {
+                              setDateError('Selecione uma data a partir de hoje');
                             } else {
                               setDateError(null);
                             }
@@ -1710,7 +1856,7 @@ export default function ReservarMane() {
                           valueFormat="DD/MM/YYYY"
                           leftSection={<IconCalendar size={16} />}
                           allowDeselect={false}
-                          minDate={TOMORROW_START}
+                          minDate={TODAY_START}
                           size="md"
                           styles={{ input: { height: rem(48) } }}
                           error={dateError}
