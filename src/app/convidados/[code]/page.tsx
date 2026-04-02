@@ -125,6 +125,16 @@ export default function ConvidadosPage() {
   const firstName = (reservation?.fullName || '').split(/\s+/)[0] || '';
   const guestCount = reservation?.guests?.length ?? 0;
 
+  // Benefícios por tier (só aniversário)
+  const isAniversario = (reservation?.reservationType || '').toUpperCase().includes('ANIVERSARIO');
+  const totalPeople = (reservation?.adults || 0) + (reservation?.kids || 0);
+  const tier = totalPeople >= 30 ? 3 : totalPeople >= 16 ? 2 : totalPeople >= 8 ? 1 : 0;
+  const tierInfo = {
+    1: { bonus: 'R$100', perks: ['Brinquedoteca day use para 1 criança'] },
+    2: { bonus: 'R$150', perks: ['Brinquedoteca day use para 2 crianças'] },
+    3: { bonus: 'R$200', perks: ['Garrafa de Caju do Mané', 'Brinquedoteca para 2 crianças', 'Cardápio personalizado — menu 3 etapas'] },
+  }[tier] || null;
+
   return (
     <Box style={{ background: 'linear-gradient(180deg, #034c46 0%, #022d29 100%)', minHeight: '100dvh' }}>
       <Container size="xs" px="md" py="xl" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 24px)' }}>
@@ -163,8 +173,9 @@ export default function ConvidadosPage() {
               >
                 {firstName}
               </Text>
-              <Text c="rgba(243,233,217,0.4)" size="xs" mt={2}>para uma experiência no</Text>
-              <Text c="#F3E9D9" fw={700} size="lg" mt={4}>MANÉ MERCADO</Text>
+              <Text c="rgba(243,233,217,0.5)" size="sm" mt={4} lh={1.4}>
+                {isAniversario ? `para seu Aniversário no Mané!` : `para uma experiência no Mané!`}
+              </Text>
             </Box>
 
             {/* Info da reserva */}
@@ -183,6 +194,38 @@ export default function ConvidadosPage() {
               </Group>
             </Card>
 
+            {/* Benefícios que o aniversariante ganhou */}
+            {isAniversario && tierInfo && (
+              <Card radius="lg" p="md" style={{ background: 'linear-gradient(135deg, #F7EDD5 0%, #EEDBB5 100%)', border: '1.5px solid rgba(200,144,42,0.3)' }}>
+                <Text size="xs" c="#B8842A" fw={600} ta="center">
+                  🎂 Aniversário de {firstName}
+                </Text>
+                <Text size="xs" c="#5a4a35" ta="center" mt={4} lh={1.4}>
+                  Com {totalPeople} convidados, {firstName} ganhou:
+                </Text>
+
+                <Box mt={10} p="sm" style={{ background: 'rgba(255,255,255,0.6)', borderRadius: 10 }}>
+                  <Text fw={900} c="#034c46" ta="center" size="xl" style={{ fontFamily: 'var(--font-merri), Merriweather, serif' }}>
+                    {tierInfo.bonus}
+                  </Text>
+                  <Text size="10px" c="#B8842A" ta="center" fw={600} tt="uppercase">de bônus em consumação</Text>
+
+                  <Stack gap={4} mt={8}>
+                    {tierInfo.perks.map((p) => (
+                      <Group key={p} gap={6} align="center" wrap="nowrap" justify="center">
+                        <Box style={{ width: 4, height: 4, borderRadius: '50%', background: '#C8902A', flexShrink: 0, opacity: 0.6 }} />
+                        <Text size="xs" c="#5a4a35" lh={1.4}>{p}</Text>
+                      </Group>
+                    ))}
+                  </Stack>
+                </Box>
+
+                <Text size="10px" c="#B8842A" mt={8} ta="center" lh={1.3} style={{ fontStyle: 'italic' }}>
+                  Registre-se abaixo para confirmar sua presença na celebração.
+                </Text>
+              </Card>
+            )}
+
             {/* Form ou sucesso */}
             {success ? (
               <Card radius="lg" p="lg" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', textAlign: 'center' as const }}>
@@ -191,6 +234,11 @@ export default function ConvidadosPage() {
                 <Text c="rgba(243,233,217,0.6)" size="sm" mt={4} lh={1.4}>
                   Você está na lista. Apresente seu CPF na entrada do Mané.
                 </Text>
+                {isAniversario && tierInfo && (
+                  <Text c="#F0D48A" size="sm" fw={600} mt={8}>
+                    Você faz parte da celebração de {firstName}! 🎉
+                  </Text>
+                )}
               </Card>
             ) : (
               <Card radius="lg" p="md" style={{ background: '#fff' }}>

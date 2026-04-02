@@ -1645,14 +1645,6 @@ export default function ReservarMane() {
           {step === 0 && (
             <Stack mt="xs" gap="sm">
 
-              {/* Social proof */}
-              <Group gap={6} justify="center">
-                <Box style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', animation: 'pulse 2s infinite' }} />
-                <Text size="10px" c="dimmed" fw={500}>
-                  {socialProofText}
-                </Text>
-              </Group>
-
               {/* ── Seleção de tipo: grid 2x2 ── */}
               <SimpleGrid cols={2} spacing={10}>
                 {(
@@ -2075,7 +2067,7 @@ export default function ReservarMane() {
                     {/* Divisor sutil */}
                     <Box my={4} style={{ borderTop: '1px solid rgba(3,76,70,0.06)' }} />
                     <Text size="10px" c="dimmed" style={{ marginTop: -2 }}>
-                      Para seu programa de fidelidade
+                      Para garantir os bônus na sua chegada
                     </Text>
 
                     <Grid gutter="sm">
