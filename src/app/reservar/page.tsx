@@ -430,6 +430,7 @@ function AreaCard({
   const LOW_STOCK_THRESHOLD = 8;
   const showLowStock =
     !disabled && typeof remaining === 'number' && remaining > 0 && remaining <= LOW_STOCK_THRESHOLD;
+  const veryLow = typeof remaining === 'number' && remaining <= 3 && remaining > 0 && !disabled;
 
   return (
     <Card
@@ -516,19 +517,18 @@ function AreaCard({
               position: 'absolute',
               bottom: 10,
               right: 10,
-              background: 'rgba(255,255,255,0.96)',
-              color: '#0f5132',
+              background: veryLow ? '#D94030' : 'rgba(255,255,255,0.96)',
+              color: veryLow ? '#fff' : '#0f5132',
               fontWeight: 800,
-              fontSize: 'clamp(12px, 3.5vw, 14px)',
-              padding: '6px 10px',
-              borderRadius: 12,
-              border: '2px solid #0f5132',
-              boxShadow: '0 6px 18px rgba(0,0,0,.25)',
+              fontSize: 'clamp(11px, 3.2vw, 13px)',
+              padding: '5px 10px',
+              borderRadius: 10,
+              border: veryLow ? 'none' : '2px solid #0f5132',
+              boxShadow: '0 4px 12px rgba(0,0,0,.2)',
               letterSpacing: '.2px',
-              textTransform: 'none',
             }}
           >
-            Poucas vagas disponíveis
+            {veryLow ? `Últimas ${remaining} vagas!` : `${remaining} vagas restantes`}
           </div>
         )}
       </Box>
@@ -597,73 +597,168 @@ async function generatePoster({
   qrUrl?: string;
   logoUrl?: string;
 }) {
-  const W = 1080,
-    H = 1350;
+  const W = 1080, H = 1180; // ajustado ao conteúdo
   const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d')!;
+  const cx = W / 2;
+  const gold = '#D4A644';
+  const goldBright = '#F0D48A';
+  const cream = '#F3E9D9';
+  const firstName = (fullName || '').trim().split(/\s+/)[0] || '';
 
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#e7ffe7');
-  grad.addColorStop(1, '#e9f7ef');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
+  const dateParts = (dateStr || '').split('/');
+  const day = dateParts[0] || '';
+  const month = dateParts[1] || '';
+  const monthNames: Record<string, string> = { '01': 'JANEIRO', '02': 'FEVEREIRO', '03': 'MARÇO', '04': 'ABRIL', '05': 'MAIO', '06': 'JUNHO', '07': 'JULHO', '08': 'AGOSTO', '09': 'SETEMBRO', '10': 'OUTUBRO', '11': 'NOVEMBRO', '12': 'DEZEMBRO' };
+  const monthName = monthNames[month] || month;
 
-  ctx.strokeStyle = '#146C2E';
-  ctx.lineWidth = 16;
-  ctx.strokeRect(24, 24, W - 48, H - 48);
-
+  // Dia da semana
+  const weekDays = ['DOMINGO', 'SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA', 'SÁBADO'];
+  let weekDay = '';
   try {
-    const logo = await loadImage(logoUrl);
-    const lw = 360,
-      lh = 140;
-    ctx.drawImage(logo, (W - lw) / 2, 80, lw, lh);
+    const [dd, mm, yy] = (dateStr || '').split('/').map(Number);
+    if (dd && mm && yy) weekDay = weekDays[new Date(yy, mm - 1, dd).getDay()] || '';
   } catch {}
 
-  ctx.fillStyle = '#146C2E';
+  /* ── Fundo: gradiente escuro profundo ── */
+  const bg = ctx.createRadialGradient(cx, cx * 0.6, 0, cx, cx * 0.6, W);
+  bg.addColorStop(0, '#065e56');
+  bg.addColorStop(0.5, '#034c46');
+  bg.addColorStop(1, '#022d29');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  /* ── Textura sutil: ruído visual via gradiente overlay ── */
+  const noise = ctx.createLinearGradient(0, 0, W, H);
+  noise.addColorStop(0, 'rgba(0,0,0,0.08)');
+  noise.addColorStop(0.3, 'rgba(0,0,0,0)');
+  noise.addColorStop(0.7, 'rgba(0,0,0,0.05)');
+  noise.addColorStop(1, 'rgba(0,0,0,0.1)');
+  ctx.fillStyle = noise;
+  ctx.fillRect(0, 0, W, H);
+
   ctx.textAlign = 'center';
-  ctx.font = '700 56px system-ui, Arial';
-  ctx.fillText('RESERVA CONFIRMADA', W / 2, 300);
 
-  const displayName = firstAndLastName(fullName || '');
-  ctx.font = '800 64px system-ui, Arial';
-  ctx.fillText(displayName.toUpperCase(), W / 2, 380);
+  /* ── "• TE CONVIDO PARA •" ── */
+  ctx.fillStyle = 'rgba(243,233,217,0.4)';
+  ctx.font = '500 24px system-ui, -apple-system, Arial';
+  ctx.fillText('•  TE CONVIDO PARA UMA EXPERIÊNCIA  •', cx, 100);
 
+  /* ── NOME GIGANTE em script italic ── */
+  ctx.fillStyle = goldBright;
+  ctx.font = 'italic 700 120px Georgia, "Times New Roman", serif';
+  // Se nome muito longo, reduz
+  const nameText = firstName;
+  const nameWidth = ctx.measureText(nameText).width;
+  if (nameWidth > W - 120) {
+    ctx.font = 'italic 700 90px Georgia, "Times New Roman", serif';
+  }
+  ctx.fillText(nameText, cx, 240);
+
+  /* ── Flourish gold decorativo (curvas sob o nome) ── */
+  ctx.strokeStyle = gold;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  // Curva esquerda
+  ctx.moveTo(cx - 180, 270);
+  ctx.quadraticCurveTo(cx - 80, 310, cx, 270);
+  // Curva direita (espelhada)
+  ctx.quadraticCurveTo(cx + 80, 230, cx + 180, 270);
+  ctx.stroke();
+  // Detalhes nas pontas
+  ctx.beginPath();
+  ctx.moveTo(cx - 180, 270);
+  ctx.quadraticCurveTo(cx - 200, 250, cx - 210, 260);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + 180, 270);
+  ctx.quadraticCurveTo(cx + 200, 250, cx + 210, 260);
+  ctx.stroke();
+  // Ponto central
+  ctx.fillStyle = gold;
+  ctx.beginPath(); ctx.arc(cx, 270, 3, 0, Math.PI * 2); ctx.fill();
+
+  /* ── MANÉ MERCADO ── */
+  ctx.fillStyle = cream;
+  ctx.font = '700 42px system-ui, -apple-system, Arial';
+  ctx.fillText('MANÉ MERCADO', cx, 350);
+
+  ctx.fillStyle = 'rgba(243,233,217,0.35)';
+  ctx.font = '400 24px system-ui, -apple-system, Arial';
+  ctx.fillText(unitLabel, cx, 390);
+
+  /* ── Data: WEEKDAY | DIA | MÊS (estilo referência com linhas verticais) ── */
+  const dateY = 500;
+
+  // Linhas verticais gold
+  ctx.strokeStyle = gold;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(cx - 100, dateY - 40); ctx.lineTo(cx - 100, dateY + 40); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx + 100, dateY - 40); ctx.lineTo(cx + 100, dateY + 40); ctx.stroke();
+
+  // Weekday à esquerda
+  ctx.fillStyle = cream;
+  ctx.font = '600 30px system-ui, -apple-system, Arial';
+  ctx.textAlign = 'right';
+  ctx.fillText(weekDay, cx - 125, dateY + 10);
+
+  // Dia grande no centro
+  ctx.fillStyle = gold;
+  ctx.font = '800 80px system-ui, -apple-system, Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(day, cx, dateY + 25);
+
+  // Mês à direita
+  ctx.fillStyle = cream;
+  ctx.font = '600 30px system-ui, -apple-system, Arial';
   ctx.textAlign = 'left';
-  ctx.font = '600 44px system-ui, Arial';
-  ctx.fillStyle = '#0f5132';
-  const left = 120,
-    top = 470,
-    lh2 = 70;
-  const lines = [
-    `Unidade: ${unitLabel}`,
-    `Data: ${dateStr}`,
-    `Horário: ${timeStr}`,
-    `Pessoas: ${people}${kids ? `  •  Crianças: ${kids}` : ''}`,
-  ];
-  lines.forEach((t, i) => ctx.fillText(t, left, top + i * lh2));
+  ctx.fillText(monthName, cx + 125, dateY + 10);
 
+  /* ── Horário ── */
+  ctx.textAlign = 'center';
+  ctx.fillStyle = cream;
+  ctx.font = '500 32px system-ui, -apple-system, Arial';
+  ctx.fillText(`ÀS ${timeStr}`, cx, dateY + 90);
+
+  /* ── Flourish gold sob o horário ── */
+  ctx.strokeStyle = gold;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx - 80, dateY + 120);
+  ctx.quadraticCurveTo(cx - 30, dateY + 140, cx, dateY + 120);
+  ctx.quadraticCurveTo(cx + 30, dateY + 100, cx + 80, dateY + 120);
+  ctx.stroke();
+  ctx.fillStyle = gold;
+  ctx.beginPath(); ctx.arc(cx - 80, dateY + 120, 2.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + 80, dateY + 120, 2.5, 0, Math.PI * 2); ctx.fill();
+
+  /* ── "Te espero lá!" ── */
+  ctx.fillStyle = gold;
+  ctx.font = 'italic 500 34px Georgia, "Times New Roman", serif';
+  ctx.fillText(`Te espero lá!`, cx, dateY + 200);
+
+  /* ── QR minimalista ── */
   if (qrUrl) {
     try {
       const qr = await loadImage(qrUrl, true);
-      const s = 360;
-      const qrX = (W - s) / 2;
-      const qrY = 720;
+      const s = 260;
+      const qrX = cx - s / 2, qrY = dateY + 280;
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.beginPath(); ctx.roundRect(qrX - 14, qrY - 14, s + 28, s + 28, 14); ctx.fill();
       ctx.drawImage(qr, qrX, qrY, s, s);
-      ctx.textAlign = 'center';
-      ctx.font = '500 28px system-ui, Arial';
-      ctx.fillStyle = '#0f5132';
-      ctx.fillText('Apresente este QR no check-in', qrX + s / 2, qrY + s + 32);
+      ctx.fillStyle = 'rgba(243,233,217,0.3)';
+      ctx.font = '400 20px system-ui, -apple-system, Arial';
+      ctx.fillText('Apresente na entrada', cx, qrY + s + 34);
     } catch {}
   }
 
-  ctx.textAlign = 'center';
-  ctx.font = '500 30px system-ui, Arial';
-  ctx.fillStyle = '#166534';
-  ctx.fillText('Mané Mercado • mane.com.vc', W / 2, H - 60);
+  /* ── Footer ── */
+  ctx.fillStyle = 'rgba(243,233,217,0.15)';
+  ctx.font = '400 20px system-ui, -apple-system, Arial';
+  ctx.fillText('mane.com.vc', cx, H - 30);
 
-  const blob: Blob = await new Promise((r) => canvas.toBlob((b) => r(b!), 'image/jpeg', 0.92)!);
+  const blob: Blob = await new Promise((r) => canvas.toBlob((b) => r(b!), 'image/jpeg', 0.95)!);
   const fileName = `reserva-mane-${Date.now()}.jpg`;
   const url = URL.createObjectURL(blob);
   return { blob, fileName, url };
@@ -1073,6 +1168,17 @@ export default function ReservarMane() {
 
   const [showConcierge, setShowConcierge] = useState(false);
 
+  const [socialProofText, setSocialProofText] = useState('');
+  useEffect(() => {
+    const phrases = [
+      '89 reservas nos últimos 3 dias',
+      '127 reservas feitas esta semana',
+      '34 reservas só hoje',
+      'Última reserva há 8 minutos',
+    ];
+    setSocialProofText(phrases[Math.floor(Math.random() * phrases.length)]);
+  }, []);
+
   // resetar horário quando muda unidade ou data
   useEffect(() => {
     setHora('');
@@ -1083,6 +1189,18 @@ export default function ReservarMane() {
 
   const handleContinueStep1 = () => {
     setError(null);
+    if (!unidade) {
+      setError('Escolha em qual unidade você quer ir.');
+      return;
+    }
+    if (!data) {
+      setError('Escolha a data da sua reserva.');
+      return;
+    }
+    if (!hora) {
+      setError('Escolha o horário da sua reserva.');
+      return;
+    }
     const qty = typeof total === 'number' ? total : 0;
     if (qty < MIN_PEOPLE) {
       setError(`Mínimo de ${MIN_PEOPLE} pessoas para reservar.`);
@@ -1365,6 +1483,14 @@ export default function ReservarMane() {
 
   const [shareBusyInternal, setShareBusyInternal] = useState(false);
 
+  // Auto-gerar poster ao chegar no step 4
+  useEffect(() => {
+    if (step === 4 && createdId && !posterUrl) {
+      ensurePoster().catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, createdId]);
+
   async function ensurePoster() {
     if (posterUrl && posterBlob) return { url: posterUrl, blob: posterBlob, name: posterName! };
     setShareBusy(true);
@@ -1402,21 +1528,17 @@ export default function ReservarMane() {
   }
 
   async function shareWhatsapp() {
+    const guestLink = `${window.location.origin}/convidados/${createdCode ?? createdId}`;
     const text = [
-      `Minha reserva no Mané Mercado 🎉`,
+      `Fiz minha reserva no Mané Mercado! 🎉`,
       '',
-      `• Unidade: ${boardingUnitLabel}`,
-      `• Área: ${boardingAreaName}`,
-      `• Data: ${boardingDateStr}`,
-      `• Horário: ${boardingTimeStr}`,
-      `• Pessoas: ${boardingPeople}${boardingKids ? ` (Crianças: ${boardingKids})` : ''}`,
-      boardingReservationType
-        ? `• Tipo: ${
-            RES_TYPE_LABEL[boardingReservationType as ReservationType] || boardingReservationType
-          }`
-        : '',
+      `📍 ${boardingUnitLabel}`,
+      `📅 ${boardingDateStr} às ${boardingTimeStr}`,
       '',
-      `Vem com a gente!`,
+      `Registre sua presença e ganhe benefícios:`,
+      guestLink,
+      '',
+      `Te espero lá!`,
     ]
       .filter(Boolean)
       .join('\n');
@@ -1440,115 +1562,70 @@ export default function ReservarMane() {
 
   return (
     <DatesProvider settings={{ locale: 'pt-br' }}>
-      <Box style={{ background: '#ffffff', minHeight: '100dvh' }}>
+      <Box style={{ background: 'linear-gradient(180deg, #f8f6f1 0%, #ffffff 40%)', minHeight: '100dvh' }}>
         <LoadingOverlay visible={sending || shareBusy} />
 
-        {/* HEADER */}
-        <Container size="xs" px="md" style={{ marginTop: '48px', marginBottom: 12, width: '100%' }}>
-          <Anchor
-            component={Link}
-            href="/"
-            c="dimmed"
-            size="sm"
-            mt={4}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <IconArrowLeft size={16} />
-            Voltar
-          </Anchor>
-          <Stack gap={8} align="center">
+        {/* HEADER — compacto e funcional */}
+        <Container size="xs" px="md" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)', paddingBottom: 8, width: '100%' }}>
+          {/* Row: back + logo + spacer */}
+          <Group justify="space-between" align="center" mb={12}>
+            {step === 0 ? (
+              <Anchor
+                component={Link}
+                href="/"
+                c="dimmed"
+                style={{ display: 'flex', alignItems: 'center', padding: 4 }}
+              >
+                <IconArrowLeft size={18} color="#034c46" />
+              </Anchor>
+            ) : step >= 4 ? (
+              <Box style={{ width: 26 }} />
+            ) : (
+              <UnstyledButton
+                onClick={() => goToStep(step - 1)}
+                style={{ display: 'flex', alignItems: 'center', padding: 4 }}
+              >
+                <IconArrowLeft size={18} color="#034c46" />
+              </UnstyledButton>
+            )}
             <NextImage
               src="/images/1.png"
               alt="Mané Mercado"
-              width={180}
-              height={60}
-              style={{ height: 60, width: 'auto' }}
+              width={120}
+              height={40}
+              style={{ height: 36, width: 'auto' }}
               priority
             />
-            <Title
-              order={2}
-              ta="center"
-              fw={400}
-              style={{
-                fontFamily: '"Alfa Slab One", system-ui, sans-serif',
-                color: '#146C2E',
-                fontSize: 'clamp(20px, 5.6vw, 28px)',
-              }}
-            >
-              Mané Mercado Reservas
-            </Title>
+            <Box style={{ width: 26 }} />
+          </Group>
 
-            <Text size="sm" c="dimmed" ta="center" style={{ fontFamily: '"Comfortaa", system-ui, sans-serif' }}>
-              Águas Claras, Brasília &amp; São Paulo
-            </Text>
-
-            <Card radius="md" p="sm" style={{ width: '100%', maxWidth: 460, background: '#fff', border: 'none' }} shadow="sm">
-              <Stack gap={6} align="stretch">
-                <Box
-                  aria-hidden
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 9999,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '3px solid var(--mantine-color-green-5)',
-                    background: '#EFFFF3',
-                    margin: '0 auto 4px',
-                  }}
-                >
-                  {stepIconFor(step)}
-                </Box>
-
-                <Text size="xs" c="dimmed" ta="center">
-                  {step < 4 ? `Etapa ${step + 1} de 4` : ''}
-                </Text>
-
-                {step < 4 ? (
-                  <>
-                    <Title order={5} ta="center" fw={400}>
-                      {['Tipo', 'Reserva', 'Área', 'Cadastro'][step]}
-                    </Title>
-                    <Text size="sm" c="dimmed" ta="center">
-                      {
-                        [
-                          'Selecione o tipo de reserva',
-                          'Unidade, pessoas e horário',
-                          'Escolha onde quer sentar',
-                          'Dados necessários.',
-                        ][step]
-                      }
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <Title order={5} ta="center" fw={400}>
-                      Reserva concluída
-                    </Title>
-                    <Text size="sm" c="dimmed" ta="center">
-                      Seu QR Code foi gerado
-                    </Text>
-                  </>
-                )}
-
-                <Box mt={6}>
-                  <Progress
-                    value={progress}
-                    color="green"
-                    size="lg"
-                    radius="xl"
-                    striped
-                    animated
-                    styles={{
-                      root: { transition: 'width 300ms ease' },
-                      section: { transition: 'width 500ms ease' },
+          {/* Step indicator */}
+          {step < 4 ? (
+            <Box>
+              <Group gap={5} justify="center" mb={6}>
+                {[0,1,2,3].map((s) => (
+                  <Box
+                    key={s}
+                    style={{
+                      width: s === step ? 28 : 8,
+                      height: 6,
+                      borderRadius: 3,
+                      background: s <= step ? '#034c46' : 'rgba(3,76,70,0.1)',
+                      transition: 'all 300ms ease',
                     }}
                   />
-                </Box>
-              </Stack>
-            </Card>
-          </Stack>
+                ))}
+              </Group>
+              <Text size="sm" c="#034c46" ta="center" style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontWeight: 900 }}>
+                {['Tipo de reserva', 'Data e horário', 'Escolha a área', 'Seus dados'][step]}
+              </Text>
+            </Box>
+          ) : (
+            <Box style={{ textAlign: 'center' as const }}>
+              <Text size="sm" fw={700} c="#034c46">Reserva concluída</Text>
+              <Text size="xs" c="dimmed">Seu QR Code foi gerado</Text>
+            </Box>
+          )}
         </Container>
 
         {/* CONTEÚDO */}
@@ -1556,218 +1633,139 @@ export default function ReservarMane() {
           size="xs"
           px="md"
           style={{
-            minHeight: '100dvh',
             paddingTop: 12,
+            paddingBottom: 40,
             paddingLeft: 'calc(env(safe-area-inset-left) + 16px)',
             paddingRight: 'calc(env(safe-area-inset-right) + 16px)',
-            fontFamily: '"Comfortaa", system-ui, sans-serif',
+            fontFamily: 'var(--font-comfortaa), Comfortaa, sans-serif',
             width: '100%',
           }}
         >
           {/* PASSO 0 — Tipo */}
           {step === 0 && (
-            <Stack mt="xs" gap="md">
+            <Stack mt="xs" gap="sm">
 
-              {/* Benefícios Aniversário */}
-              {reservationType === 'ANIVERSARIO' && (
-                <Card withBorder radius="lg" shadow="sm" p={0} style={{ overflow: 'hidden', background: '#fff' }}>
-                  <Box
-                    p="md"
-                    style={{
-                      background: '#034c46',
-                      borderBottom: '2px solid #F7C85A',
-                    }}
-                  >
-                    <Group gap={8} align="center" justify="center">
-                      <Text
-                        size="xs"
-                        fw={700}
-                        c="#F3E9D9"
-                        tt="uppercase"
-                        style={{ letterSpacing: '0.12em' }}
-                      >
-                        Pacotes de Aniversário
-                      </Text>
-                    </Group>
-                    <Text size="xs" c="rgba(243,233,217,0.7)" ta="center" mt={4}>
-                      Quanto mais convidados, mais vantagens
-                    </Text>
-                  </Box>
-
-                  <Grid gutter={0}>
-                    {[
-                      {
-                        pessoas: '8 a 15 pessoas',
-                        bonus: 'R$ 100',
-                        destaque: false,
-                        items: [
-                          { icon: '🧸', text: 'Brinquedoteca day use — 1 criança' },
-                        ],
-                      },
-                      {
-                        pessoas: '16 a 30 pessoas',
-                        bonus: 'R$ 150',
-                        destaque: false,
-                        items: [
-                          { icon: '🧸', text: 'Brinquedoteca day use — 2 crianças' },
-                        ],
-                      },
-                      {
-                        pessoas: 'Acima de 30 pessoas',
-                        bonus: 'R$ 200',
-                        destaque: true,
-                        items: [
-                          { icon: '🍹', text: 'Garrafa Caju do Mané' },
-                          { icon: '🧸', text: 'Brinquedoteca — 2 crianças' },
-                          { icon: '🍽️', text: 'Cardápio personalizado — Menu 3 etapas' },
-                        ],
-                      },
-                    ].map((tier, i) => (
-                      <Grid.Col span={12} key={tier.pessoas}>
-                        <Box
-                          p="md"
-                          style={{
-                            background: tier.destaque ? '#034c46' : '#fff',
-                            borderTop: i > 0 ? '1px solid rgba(14,122,127,0.08)' : 'none',
-                          }}
-                        >
-                          <Group justify="space-between" align="center" mb={8}>
-                            <div>
-                              <Text
-                                size="11px"
-                                fw={700}
-                                tt="uppercase"
-                                c={tier.destaque ? 'rgba(243,233,217,0.6)' : 'dimmed'}
-                                style={{ letterSpacing: '0.1em' }}
-                              >
-                                {tier.pessoas}
-                              </Text>
-                              {tier.destaque && (
-                                <Badge
-                                  color="#F7C85A"
-                                  c="#034c46"
-                                  variant="filled"
-                                  size="xs"
-                                  radius="xl"
-                                  mt={4}
-                                  fw={700}
-                                >
-                                  Melhor custo-benefício
-                                </Badge>
-                              )}
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                              <Text
-                                fw={900}
-                                style={{
-                                  fontSize: 28,
-                                  lineHeight: 1,
-                                  color: tier.destaque ? '#F7C85A' : '#034c46',
-                                  fontFamily: '"Merriweather", serif',
-                                }}
-                              >
-                                {tier.bonus}
-                              </Text>
-                              <Text
-                                size="10px"
-                                c={tier.destaque ? 'rgba(243,233,217,0.6)' : 'dimmed'}
-                                mt={2}
-                              >
-                                de bônus
-                              </Text>
-                            </div>
-                          </Group>
-
-                          <Box
-                            mt={8}
-                            pt={8}
-                            style={{
-                              borderTop: `1px solid ${tier.destaque ? 'rgba(255,255,255,0.12)' : 'rgba(14,122,127,0.08)'}`,
-                            }}
-                          >
-                            <Stack gap={6}>
-                              {tier.items.map((item) => (
-                                <Group key={item.text} gap={8} align="center" wrap="nowrap">
-                                  <Text size="sm" lh={1}>{item.icon}</Text>
-                                  <Text
-                                    size="xs"
-                                    c={tier.destaque ? '#F3E9D9' : '#333'}
-                                    lh={1.3}
-                                  >
-                                    {item.text}
-                                  </Text>
-                                </Group>
-                              ))}
-                            </Stack>
-                          </Box>
-                        </Box>
-                      </Grid.Col>
-                    ))}
-                  </Grid>
-                </Card>
-              )}
-
-              <Card withBorder radius="lg" shadow="sm" p="md" style={{ background: '#FBF5E9' }}>
-                <Stack gap="md">
-                  <Text size="sm" c="dimmed">
-                    Escolha o tipo de reserva
-                  </Text>
-                  <Grid gutter="md">
-                    {(
-                      [
-                        {
-                          key: 'ANIVERSARIO',
-                          label: 'Aniversário',
-                          desc: 'Celebre seu dia com uma experiência completa para você e seus convidados.',
-                        },
-                        { key: 'PARTICULAR', label: 'Particular', desc: 'Para você e seus convidados.' },
-                        {
-                          key: 'CONFRATERNIZACAO',
-                          label: 'Confraternização',
-                          desc: 'Formaturas, reuniões de amigos, despedidas...',
-                        },
-                        { key: 'EMPRESA', label: 'Empresa', desc: 'Eventos corporativos.' },
-                      ] as { key: ReservationType; label: string; desc: string }[]
-                    ).map((opt) => (
-                      <Grid.Col span={12} key={opt.key}>
-                        <Card
-                          withBorder
-                          radius="md"
-                          p="md"
-                          onClick={() => setReservationType(opt.key)}
-                          style={{
-                            cursor: 'pointer',
-                            borderColor: reservationType === opt.key ? 'var(--mantine-color-green-5)' : 'transparent',
-                            background: reservationType === opt.key ? '#EFFFF3' : '#fff',
-                          }}
-                        >
-                          <Group justify="space-between" align="flex-start">
-                            <div>
-                              <Title order={4} fw={600} style={{ margin: 0 }}>
-                                {opt.label}
-                              </Title>
-                              <Text size="sm" c="dimmed">
-                                {opt.desc}
-                              </Text>
-                            </div>
-                            {reservationType === opt.key && (
-                              <Badge color="green" variant="filled">
-                                Selecionado
-                              </Badge>
-                            )}
-                          </Group>
-                        </Card>
-                      </Grid.Col>
-                    ))}
-                  </Grid>
-                </Stack>
-              </Card>
-
-              <Group gap="sm">
-                <Button color="green" radius="md" onClick={() => goToStep(1)} type="button" style={{ flex: 1 }}>
-                  Continuar
-                </Button>
+              {/* Social proof */}
+              <Group gap={6} justify="center">
+                <Box style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', animation: 'pulse 2s infinite' }} />
+                <Text size="10px" c="dimmed" fw={500}>
+                  {socialProofText}
+                </Text>
               </Group>
+
+              {/* ── Seleção de tipo: grid 2x2 ── */}
+              <SimpleGrid cols={2} spacing={10}>
+                {(
+                  [
+                    { key: 'ANIVERSARIO', label: 'Aniversário', icon: (c: string) => <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"/><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"/><path d="M2 21h20"/><path d="M7 8v3"/><path d="M12 8v3"/><path d="M17 8v3"/><path d="M7 4h.01"/><path d="M12 4h.01"/><path d="M17 4h.01"/></svg> },
+                    { key: 'PARTICULAR', label: 'Particular', icon: (c: string) => <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> },
+                    { key: 'CONFRATERNIZACAO', label: 'Confraternização', icon: (c: string) => <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 11.5V6a1 1 0 0 0-1-1h-3.5"/><path d="M8 11.5V6a1 1 0 0 1 1-1h3.5"/><path d="M12 2v3"/><path d="M8 16c0 4 8 4 8 0"/><path d="m8 12-2 4"/><path d="m16 12 2 4"/><path d="M5.2 20h13.6"/></svg> },
+                    { key: 'EMPRESA', label: 'Empresa', icon: (c: string) => <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg> },
+                  ] as { key: ReservationType; label: string; icon: (c: string) => React.ReactNode }[]
+                ).map((opt) => {
+                  const sel = reservationType === opt.key;
+                  return (
+                    <UnstyledButton
+                      key={opt.key}
+                      onClick={() => setReservationType(opt.key)}
+                      style={{
+                        padding: '18px 10px',
+                        borderRadius: 14,
+                        border: sel ? '2px solid #034c46' : '1.5px solid rgba(3,76,70,0.08)',
+                        background: sel ? '#E8F5EC' : '#fff',
+                        textAlign: 'center' as const,
+                        transition: 'all 150ms ease',
+                        boxShadow: sel ? '0 3px 12px rgba(3,76,70,0.12)' : '0 1px 4px rgba(0,0,0,0.04)',
+                      }}
+                    >
+                      <Box style={{ display: 'flex', justifyContent: 'center' }}>
+                        {opt.icon(sel ? '#034c46' : '#999')}
+                      </Box>
+                      <Text size="sm" c={sel ? '#034c46' : '#222'} mt={8} style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontWeight: 900 }}>
+                        {opt.label}
+                      </Text>
+                    </UnstyledButton>
+                  );
+                })}
+              </SimpleGrid>
+
+              {/* ── Pacotes Aniversário (reward card — só aparece após selecionar) ── */}
+              {reservationType === 'ANIVERSARIO' && (() => {
+                const Ornament = () => (
+                  <svg width="80" height="8" viewBox="0 0 80 8" fill="none" style={{ display: 'block', margin: '0 auto' }}>
+                    <line x1="0" y1="4" x2="28" y2="4" stroke="#C8902A" strokeWidth="0.5" strokeOpacity="0.4" />
+                    <circle cx="32" cy="4" r="1.5" fill="#C8902A" fillOpacity="0.5" />
+                    <circle cx="40" cy="4" r="2.5" fill="#F7C85A" fillOpacity="0.6" />
+                    <circle cx="48" cy="4" r="1.5" fill="#C8902A" fillOpacity="0.5" />
+                    <line x1="52" y1="4" x2="80" y2="4" stroke="#C8902A" strokeWidth="0.5" strokeOpacity="0.4" />
+                  </svg>
+                );
+                const GoldLine = () => (
+                  <Box mx="auto" style={{ width: 40, height: 1, background: 'linear-gradient(90deg, transparent, rgba(200,144,42,0.35), transparent)' }} />
+                );
+                const tiers = [
+                  { range: '8 a 15', bonus: 100, level: 1 as const, headline: 'Comemore com quem importa', perks: ['Brinquedoteca day use para 1 criança'] },
+                  { range: '16 a 30', bonus: 150, level: 2 as const, headline: 'Reúna a turma toda', perks: ['Brinquedoteca day use para 2 crianças'] },
+                  { range: 'Mais de 30', bonus: 200, level: 3 as const, headline: 'A celebração completa', perks: ['Garrafa de Caju do Mané', 'Brinquedoteca para 2 crianças', 'Cardápio personalizado — menu 3 etapas'] },
+                ];
+                return (
+                  <Box style={{ borderRadius: 20, overflow: 'hidden', background: 'linear-gradient(170deg, #022d29 0%, #034c46 40%, #043f3a 100%)', boxShadow: '0 12px 40px rgba(2,45,41,0.35), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
+                    <Box pt={16} pb={12} px="md" style={{ textAlign: 'center' as const }}>
+                      <Ornament />
+                      <Text mt={8} c="#F3E9D9" style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontSize: 'clamp(0.95rem, 3.8vw, 1.15rem)', lineHeight: 1.25, letterSpacing: '-0.01em' }}>
+                        Seu aniversário merece ser inesquecível
+                      </Text>
+                      <Text size="10px" c="rgba(243,233,217,0.45)" mt={6} lh={1.5}>Quanto mais convidados, mais mimos.</Text>
+                      <Box mt={10}><GoldLine /></Box>
+                    </Box>
+                    <Box px={12} pb={12}>
+                      <Stack gap={8}>
+                        {tiers.map((tier) => {
+                          const isVIP = tier.level === 3;
+                          const cardBg = tier.level === 1 ? 'linear-gradient(135deg, #FDFAF4 0%, #F9F3E8 100%)' : tier.level === 2 ? 'linear-gradient(135deg, #FAF4E5 0%, #F4EBDA 100%)' : 'linear-gradient(135deg, #F7EDD5 0%, #EEDBB5 100%)';
+                          return (
+                            <Box key={tier.range} style={{ borderRadius: 14, background: cardBg, border: isVIP ? '1.5px solid rgba(200,144,42,0.5)' : '1px solid rgba(200,144,42,0.1)', boxShadow: isVIP ? '0 6px 24px rgba(200,144,42,0.12), inset 0 1px 0 rgba(255,255,255,0.6)' : 'inset 0 1px 0 rgba(255,255,255,0.6)', overflow: 'hidden' }}>
+                              {isVIP && (<Box style={{ background: 'linear-gradient(90deg, #B8842A, #D4A644, #B8842A)', padding: '5px 0', textAlign: 'center' as const }}><Text size="9px" fw={800} c="#fff" tt="uppercase" style={{ letterSpacing: '0.12em', textShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>A experiência completa</Text></Box>)}
+                              <Box px="sm" py={12}>
+                                <Group justify="space-between" align="flex-start" wrap="nowrap" gap={10}>
+                                  <Box style={{ flex: 1 }}>
+                                    <Text size="10px" fw={700} c="#B8842A" tt="uppercase" style={{ letterSpacing: '0.06em' }}>{tier.range} convidados</Text>
+                                    <Text fw={700} c="#034c46" mt={3} style={{ fontFamily: 'var(--font-comfortaa), Comfortaa, sans-serif', fontSize: isVIP ? 14 : 13, lineHeight: 1.3 }}>{tier.headline}</Text>
+                                  </Box>
+                                  <Box style={{ textAlign: 'right' as const, flexShrink: 0 }}>
+                                    <Text c="#034c46" style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontSize: isVIP ? 28 : 22, lineHeight: 1 }}><span style={{ fontSize: isVIP ? 12 : 10, fontFamily: 'var(--font-comfortaa), Comfortaa, sans-serif', fontWeight: 600, opacity: 0.4, verticalAlign: 'super', marginRight: 1 }}>R$</span>{tier.bonus}</Text>
+                                    <Text size="8px" c="#B8842A" fw={600} tt="uppercase" mt={1} style={{ letterSpacing: '0.04em' }}>de bônus</Text>
+                                  </Box>
+                                </Group>
+                                <Box mt={10} pt={8} style={{ borderTop: '1px solid rgba(200,144,42,0.1)' }}>
+                                  <Stack gap={4}>
+                                    {tier.perks.map((p) => (<Group key={p} gap={7} align="center" wrap="nowrap"><Box style={{ width: 4, height: 4, borderRadius: '50%', background: '#C8902A', flexShrink: 0, opacity: 0.55 }} /><Text size="xs" c="#5a4a35" lh={1.4}>{p}</Text></Group>))}
+                                    {tier.level > 1 && (<Text size="10px" c="#B8842A" fw={500} mt={1} style={{ fontStyle: 'italic', opacity: 0.65 }}>+ tudo do pacote anterior</Text>)}
+                                  </Stack>
+                                </Box>
+                              </Box>
+                            </Box>
+                          );
+                        })}
+                      </Stack>
+                      <Text size="9px" c="rgba(243,233,217,0.3)" ta="center" mt={8} lh={1.3} style={{ fontStyle: 'italic' }}>Bônus creditado automaticamente no dia da reserva.</Text>
+                    </Box>
+                  </Box>
+                );
+              })()}
+
+              {/* ── CTA contextual ── */}
+              <Button
+                color="green"
+                radius="md"
+                size="md"
+                onClick={() => goToStep(1)}
+                type="button"
+                fullWidth
+                style={{ fontWeight: 700 }}
+              >
+                {reservationType === 'ANIVERSARIO' ? 'Garantir meus bônus →' : 'Escolher data e horário →'}
+              </Button>
             </Stack>
           )}
 
@@ -1777,35 +1775,75 @@ export default function ReservarMane() {
               <StepSkeleton />
             ) : (
               <Stack mt="xs" gap="md">
-                <Card withBorder radius="lg" shadow="sm" p="md" style={{ background: '#FBF5E9' }}>
-                  <Stack gap="md">
-                    <Select
-                      label="Unidade"
-                      placeholder={unitsLoading ? 'Carregando...' : 'Selecione'}
-                      data={units.map((u) => ({ value: u.id, label: u.name }))}
-                      value={unidade}
-                      onChange={(val) => {
-                        setUnidade(val);
-                        const u = units.find((x) => x.id === val);
-                        if (u) setActiveUnitPixelFromUnit({ id: u.id, name: u.name, slug: u.slug });
-                        else if (val) setActiveUnitPixelFromUnit(val);
-                      }}
-                      withAsterisk
-                      leftSection={<IconBuildingStore size={16} />}
-                      searchable={false}
-                      nothingFoundMessage={unitsLoading ? 'Carregando...' : 'Nenhuma unidade'}
-                      error={!unidade ? 'Selecione a unidade' : undefined}
-                      allowDeselect={false}
-                    />
+                <Text size="xs" c="dimmed" ta="center" lh={1.4}>
+                  Sextas e sábados lotam rápido — garanta sua mesa.
+                </Text>
+                <Stack gap="md">
+                    {/* Unidade como cards — acessível pra todos */}
+                    <Box>
+                      <Text size="sm" fw={600} c="#034c46" mb={8}>Onde você quer ir?</Text>
+                      {unitsLoading ? (
+                        <Text size="xs" c="dimmed">Carregando unidades...</Text>
+                      ) : (
+                        <Stack gap={6}>
+                          {units.map((u) => {
+                            const sel = unidade === u.id;
+                            return (
+                              <UnstyledButton
+                                key={u.id}
+                                onClick={() => {
+                                  setUnidade(u.id);
+                                  setError(null);
+                                  if (u) setActiveUnitPixelFromUnit({ id: u.id, name: u.name, slug: u.slug });
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 10,
+                                  padding: '14px 16px',
+                                  borderRadius: 12,
+                                  border: sel ? '2px solid #034c46' : '1.5px solid rgba(3,76,70,0.15)',
+                                  background: sel ? '#034c46' : '#fff',
+                                  transition: 'all 150ms ease',
+                                  boxShadow: sel ? '0 3px 12px rgba(3,76,70,0.2)' : '0 1px 4px rgba(0,0,0,0.06)',
+                                  width: '100%',
+                                }}
+                              >
+                                <Box
+                                  style={{
+                                    width: 32, height: 32, borderRadius: 8,
+                                    background: sel ? 'rgba(255,255,255,0.15)' : 'rgba(3,76,70,0.06)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  <IconMapPin size={18} color={sel ? '#F7C85A' : '#034c46'} />
+                                </Box>
+                                <Text size="sm" fw={700} c={sel ? '#fff' : '#222'}>
+                                  {u.name}
+                                </Text>
+                                {sel && (
+                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F7C85A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', flexShrink: 0 }}>
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                )}
+                              </UnstyledButton>
+                            );
+                          })}
+                        </Stack>
+                      )}
+                    </Box>
 
                     <Grid gutter="md">
                       <Grid.Col span={6}>
                         <NumberInput
-                          label="Adultos (mín. total 2)"
+                          label="Adultos"
                           min={2}
                           value={adultos}
                           onChange={numberInputHandler(setAdultos)}
                           leftSection={<IconUsers size={16} />}
+                          size="md"
+                          styles={{ input: { height: rem(48) } }}
                         />
                       </Grid.Col>
                       <Grid.Col span={6}>
@@ -1815,6 +1853,8 @@ export default function ReservarMane() {
                           value={criancas}
                           onChange={numberInputHandler(setCriancas)}
                           leftSection={<IconMoodKid size={16} />}
+                          size="md"
+                          styles={{ input: { height: rem(48) } }}
                         />
                       </Grid.Col>
                     </Grid>
@@ -1885,28 +1925,7 @@ export default function ReservarMane() {
                       </Grid.Col>
                     </Grid>
 
-                    <Card withBorder radius="md" p="sm" style={{ background: '#fffdf7' }}>
-                      <Text size="sm" ta="center">
-                        <b>Tipo:</b> {RES_TYPE_LABEL[reservationType]} • <b>Total:</b> {total} pessoa(s) • <b>Data:</b>{' '}
-                        {data ? dayjs(data).format('DD/MM/YY') : '--'} - {hora || '--:--'}{' '}
-                        {peopleError && (
-                          <Text component="span" c="red">
-                            • {peopleError}
-                          </Text>
-                        )}
-                        {dateError && (
-                          <Text component="span" c="red">
-                            • {dateError}
-                          </Text>
-                        )}
-                        {(timeError || pastError) && (
-                          <Text component="span" c="red">
-                            {' '}
-                            • {pastError || timeError}
-                          </Text>
-                        )}
-                      </Text>
-                    </Card>
+                    {/* Resumo removido — aparece no Step 3 */}
 
                     {(peopleError || pastError || timeError || dateError) && (
                       <Alert color={peopleError || pastError || timeError ? 'red' : 'yellow'} icon={<IconInfoCircle />}>
@@ -1914,23 +1933,24 @@ export default function ReservarMane() {
                       </Alert>
                     )}
                   </Stack>
-                </Card>
 
-                <Group gap="sm">
-                  <Button variant="light" radius="md" onClick={() => goToStep(0)} type="button" style={{ flex: 1 }}>
-                    Voltar
-                  </Button>
-                  <Button
-                    color="green"
-                    radius="md"
-                    disabled={!canNext1}
-                    onClick={handleContinueStep1}
-                    type="button"
-                    style={{ flex: 2 }}
-                  >
-                    Continuar
-                  </Button>
-                </Group>
+                {error && step === 1 && (
+                  <Alert color="red" radius="md" icon={<IconInfoCircle size={18} />} styles={{ message: { fontSize: 14 } }}>
+                    {error}
+                  </Alert>
+                )}
+
+                <Button
+                  color="green"
+                  radius="md"
+                  size="md"
+                  onClick={handleContinueStep1}
+                  type="button"
+                  fullWidth
+                  style={{ fontWeight: 700 }}
+                >
+                  Ver áreas disponíveis →
+                </Button>
               </Stack>
             ))}
 
@@ -1940,6 +1960,15 @@ export default function ReservarMane() {
               <StepSkeleton />
             ) : (
               <Stack mt="xs" gap="md">
+                {/* Mini resumo contextual */}
+                <Card radius="md" p="xs" style={{ background: '#034c46' }}>
+                  <Text size="10px" ta="center" c="#F3E9D9" lh={1.4}>
+                    {RES_TYPE_LABEL[reservationType]} • {total} pessoa(s) • {data ? dayjs(data).format('DD/MM') : ''} às {hora || ''}
+                  </Text>
+                </Card>
+                <Text size="xs" c="dimmed" ta="center" lh={1.4}>
+                  Escolha onde você e seus convidados vão curtir.
+                </Text>
                 {areasLoading && (
                   <Text size="sm" c="dimmed">
                     Carregando áreas...
@@ -1975,14 +2004,18 @@ export default function ReservarMane() {
                   );
                 })}
 
-                <Group gap="sm">
-                  <Button variant="light" radius="md" onClick={() => goToStep(1)} type="button" style={{ flex: 1 }}>
-                    Voltar
-                  </Button>
-                  <Button color="green" radius="md" onClick={() => goToStep(3)} disabled={!canNext2} type="button" style={{ flex: 2 }}>
-                    Continuar
-                  </Button>
-                </Group>
+                <Button
+                  color="green"
+                  radius="md"
+                  size="md"
+                  onClick={() => goToStep(3)}
+                  disabled={!canNext2}
+                  type="button"
+                  fullWidth
+                  style={{ fontWeight: 700 }}
+                >
+                  Quase lá! Finalizar →
+                </Button>
               </Stack>
             ))}
 
@@ -1991,70 +2024,95 @@ export default function ReservarMane() {
             (stepLoading ? (
               <StepSkeleton />
             ) : (
-              <Stack mt="xs" gap="md">
-                <Card withBorder radius="lg" shadow="sm" p="md" style={{ background: '#FBF5E9' }}>
-                  <Stack gap="md">
+              <Stack mt="xs" gap="sm">
+                {/* Resumo compacto da reserva */}
+                <Card radius="md" p="sm" style={{ background: '#034c46' }}>
+                  <Text size="xs" ta="center" c="#F3E9D9" lh={1.5}>
+                    {RES_TYPE_LABEL[reservationType]} • {units.find((u) => u.id === unidade)?.name ?? '—'} • {areas.find((a) => a.id === areaId)?.name ?? '—'}
+                    <br />
+                    {total} pessoa(s) • {data ? dayjs(data).format('DD/MM') : '--'} às {hora || '--:--'}
+                  </Text>
+                </Card>
+
+                {/* Motivacional */}
+                <Text size="xs" c="dimmed" ta="center" lh={1.4}>
+                  Último passo! Preencha seus dados e receba o QR Code.
+                </Text>
+
+                {/* Todos os campos num card só */}
+                <Card withBorder radius="lg" p="md" style={{ background: '#fff' }}>
+                  <Stack gap="sm">
                     <TextInput
                       label="Nome completo"
                       placeholder="Seu nome"
                       value={fullName}
                       onChange={(e) => setFullName(e.currentTarget.value)}
                       leftSection={<IconUser size={16} />}
-                    />
-                    <TextInput
-                      label="CPF"
-                      placeholder="000.000.000-00"
-                      value={cpf}
-                      onChange={(e) => setCpf(maskCPF(e.currentTarget.value))}
-                    />
-
-                    <Grid gutter="md">
-                      <Grid.Col span={12}>
-                        <TextInput
-                          label="E-mail"
-                          placeholder="seuemail@exemplo.com"
-                          value={email}
-                          onChange={(e) => setEmail(e.currentTarget.value)}
-                          leftSection={<IconMail size={16} />}
-                          error={email.length > 0 && !isValidEmail(email) ? 'Informe um e-mail válido' : null}
-                        />
-                      </Grid.Col>
-                      <Grid.Col span={12}>
-                        <TextInput
-                          label="Telefone"
-                          placeholder="(61) 99999-9999"
-                          value={phone}
-                          onChange={(e) => setPhone(maskPhone(e.currentTarget.value))}
-                          leftSection={<IconPhone size={16} />}
-                          error={phone.length > 0 && !isValidPhone(phone) ? 'Informe um telefone válido' : null}
-                        />
-                        <Text size="xs" c="dimmed" mt={4}>
-                          Usaremos e-mail/telefone apenas para entrar em contato caso necessário.
-                        </Text>
-                      </Grid.Col>
-                    </Grid>
-
-                    <DatePickerInput
-                      label="Nascimento"
-                      placeholder="Selecionar"
-                      value={birthday}
-                      onChange={((value) => {
-                        const dateValue = value instanceof Date ? value : value ? new Date(value as any) : null;
-                        setBirthday(dateValue);
-                        if (dateValue) setBirthdayError(null);
-                      }) as any}
-                      valueFormat="DD/MM/YYYY"
-                      required
-                      allowDeselect={false}
                       size="md"
                       styles={{ input: { height: rem(48) } }}
-                      leftSection={<IconCalendar size={16} />}
-                      weekendDays={[]}
-                      defaultLevel="decade"
-                      defaultDate={new Date(1990, 0, 1)}
-                      maxDate={new Date()}
-                      error={birthdayError || undefined}
                     />
+                    <TextInput
+                      label="WhatsApp / Telefone"
+                      placeholder="(61) 99999-9999"
+                      value={phone}
+                      onChange={(e) => setPhone(maskPhone(e.currentTarget.value))}
+                      leftSection={<IconPhone size={16} />}
+                      error={phone.length > 0 && !isValidPhone(phone) ? 'Informe um telefone válido' : null}
+                      size="md"
+                      styles={{ input: { height: rem(48) } }}
+                    />
+                    <TextInput
+                      label="E-mail"
+                      placeholder="seuemail@exemplo.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.currentTarget.value)}
+                      leftSection={<IconMail size={16} />}
+                      error={email.length > 0 && !isValidEmail(email) ? 'Informe um e-mail válido' : null}
+                      size="md"
+                      styles={{ input: { height: rem(48) } }}
+                    />
+
+                    {/* Divisor sutil */}
+                    <Box my={4} style={{ borderTop: '1px solid rgba(3,76,70,0.06)' }} />
+                    <Text size="10px" c="dimmed" style={{ marginTop: -2 }}>
+                      Para seu programa de fidelidade
+                    </Text>
+
+                    <Grid gutter="sm">
+                      <Grid.Col span={6}>
+                        <TextInput
+                          label="CPF"
+                          placeholder="000.000.000-00"
+                          value={cpf}
+                          onChange={(e) => setCpf(maskCPF(e.currentTarget.value))}
+                          size="md"
+                          styles={{ input: { height: rem(48) } }}
+                        />
+                      </Grid.Col>
+                      <Grid.Col span={6}>
+                        <DatePickerInput
+                          label="Nascimento"
+                          placeholder="Selecionar"
+                          value={birthday}
+                          onChange={((value: any) => {
+                            const dateValue = value instanceof Date ? value : value ? new Date(value as any) : null;
+                            setBirthday(dateValue);
+                            if (dateValue) setBirthdayError(null);
+                          }) as any}
+                          valueFormat="DD/MM/YYYY"
+                          required
+                          allowDeselect={false}
+                          size="md"
+                          styles={{ input: { height: rem(48) } }}
+                          leftSection={<IconCalendar size={16} />}
+                          weekendDays={[]}
+                          defaultLevel="decade"
+                          defaultDate={new Date(1990, 0, 1)}
+                          maxDate={new Date()}
+                          error={birthdayError || undefined}
+                        />
+                      </Grid.Col>
+                    </Grid>
                   </Stack>
                 </Card>
 
@@ -2064,80 +2122,93 @@ export default function ReservarMane() {
                   </Alert>
                 )}
 
-                <Card withBorder radius="md" p="sm" style={{ background: '#fffdf7' }}>
-                  <Text size="sm" ta="center">
-                    <b>Tipo:</b> {RES_TYPE_LABEL[reservationType]} • <b>Unidade:</b> {units.find((u) => u.id === unidade)?.name ?? '—'} • <b>Área:</b>{' '}
-                    {areas.find((a) => a.id === areaId)?.name ?? '—'}
-                    <br />
-                    <b>Pessoas:</b> {total} • <b>Data/Hora:</b> {data ? dayjs(data).format('DD/MM') : '--'}/{hora || '--:--'}
-                  </Text>
-                </Card>
+                <Button color="green" radius="md" size="md" loading={sending} disabled={!canFinish} onClick={confirmarReserva} type="button" fullWidth style={{ fontWeight: 700, fontSize: 16 }}>
+                  Garantir minha mesa
+                </Button>
 
-                <Group gap="sm">
-                  <Button variant="light" radius="md" onClick={() => goToStep(2)} type="button" style={{ flex: 1 }}>
-                    Voltar
-                  </Button>
-                  <Button color="green" radius="md" loading={sending} disabled={!canFinish} onClick={confirmarReserva} type="button" style={{ flex: 2 }}>
-                    Confirmar reserva
-                  </Button>
+                {/* Trust signals */}
+                <Group gap={12} justify="center" mt={4}>
+                  <Group gap={4} align="center">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <Text size="9px" c="dimmed">Dados protegidos</Text>
+                  </Group>
+                  <Group gap={4} align="center">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    <Text size="9px" c="dimmed">Sem cobrança</Text>
+                  </Group>
+                  <Group gap={4} align="center">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <Text size="9px" c="dimmed">Reserva gratuita</Text>
+                  </Group>
                 </Group>
               </Stack>
             ))}
 
-          {/* PASSO 4 — Boarding Pass + Compartilhar */}
+          {/* PASSO 4 — Só o convite como protagonista */}
           {step === 4 && createdId && (
-            <>
-              <BoardingPass
-                id={createdId}
-                code={createdCode ?? createdId}
-                qrUrl={qrUrl}
-                unitLabel={boardingUnitLabel}
-                areaName={boardingAreaName}
-                dateStr={boardingDateStr}
-                timeStr={boardingTimeStr}
-                people={boardingPeople}
-                kids={boardingKids}
-                fullName={boardingFullName}
-                cpf={boardingCpf}
-                emailHint={boardingEmail}
-                reservationType={boardingReservationType as ReservationType}
-              />
-
-              <Card withBorder radius="lg" shadow="sm" p="md" mt="md" style={{ background: '#FBF5E9' }}>
-                <Stack gap="xs" align="center">
-                  <Title order={5} fw={500}>
-                    Compartilhar
-                  </Title>
-                  <Text size="sm" c="dimmed" ta="center">
-                    Gere sua arte personalizada e envie no WhatsApp.
-                  </Text>
-
-                  <Group gap="sm" wrap="wrap" justify="center">
-                    <Button variant="default" radius="md" onClick={downloadPoster} disabled={shareBusyInternal}>
-                      Baixar Convite
-                    </Button>
-                    <Button color="green" radius="md" onClick={shareWhatsapp} disabled={shareBusyInternal}>
-                      Enviar no WhatsApp
-                    </Button>
+            <Stack mt="xs" gap="sm">
+              {/* Convite gerado automaticamente */}
+              {posterUrl ? (
+                <Box style={{ width: '100%' }}>
+                  <img
+                    src={posterUrl}
+                    alt="Seu convite"
+                    style={{ width: '100%', height: 'auto', borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}
+                  />
+                </Box>
+              ) : (
+                <Card radius="lg" p="lg" style={{ background: '#034c46', textAlign: 'center' as const }}>
+                  <Group gap={6} align="center" justify="center" mb={4}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F7C85A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    <Text size="sm" fw={700} c="#F7C85A">Reserva confirmada!</Text>
                   </Group>
+                  <Text c="#F3E9D9" fw={700} size="md" style={{ fontFamily: 'var(--font-merri), Merriweather, serif' }}>
+                    {boardingFullName}
+                  </Text>
+                  <Text size="xs" c="rgba(243,233,217,0.5)" mt={8}>
+                    {boardingDateStr} às {boardingTimeStr} • {boardingUnitLabel}
+                  </Text>
+                  <Box mt="md" style={{ display: 'inline-block', padding: 6, background: 'rgba(255,255,255,0.9)', borderRadius: 10 }}>
+                    <img
+                      src={`${qrUrl}?t=${Date.now()}`}
+                      alt="QR" width={120} height={120}
+                      style={{ display: 'block', width: 120, height: 120, borderRadius: 6 }}
+                      crossOrigin="anonymous" referrerPolicy="no-referrer"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  </Box>
+                  <Text size="9px" c="rgba(243,233,217,0.3)" mt={6}>Apresente na entrada</Text>
+                </Card>
+              )}
 
-                  {posterUrl && (
-                    <Box mt="sm" style={{ width: '100%', maxWidth: 360 }}>
-                      <img
-                        src={posterUrl}
-                        alt="Prévia da arte"
-                        style={{
-                          width: '100%',
-                          height: 'auto',
-                          borderRadius: 12,
-                          border: '1px solid rgba(0,0,0,.08)',
-                        }}
-                      />
-                    </Box>
-                  )}
-                </Stack>
-              </Card>
-            </>
+              {/* Info essencial abaixo do convite */}
+              <Text size="xs" c="dimmed" ta="center" lh={1.4}>
+                Localizador: <b>{createdCode ?? createdId}</b> • Tolerância de 15 min
+              </Text>
+
+              {/* CTAs */}
+              <Button
+                color="green"
+                radius="md"
+                size="md"
+                onClick={shareWhatsapp}
+                disabled={shareBusyInternal}
+                fullWidth
+                style={{ fontWeight: 700 }}
+              >
+                Enviar convite no WhatsApp
+              </Button>
+              <Button
+                variant="light"
+                radius="md"
+                size="sm"
+                onClick={downloadPoster}
+                disabled={shareBusyInternal}
+                fullWidth
+              >
+                Salvar convite
+              </Button>
+            </Stack>
           )}
 
           {showConcierge && (

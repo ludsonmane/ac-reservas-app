@@ -174,380 +174,92 @@ export default function BoardingPass({
       ? `Falta ${fmtCountdown(msToReservation)} para sua reserva`
       : `Sua reserva é agora (${timeStr})`;
 
+  const resLabel = reservationTypeLabel(reservationType);
+
   return (
     <>
-      {/* ====== TOPO COM TIMER ====== */}
-      {reservationAt && (
-        <Box
-          className="bp-topbar"
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 10,
-            background: topBarColor,
-            color: '#fff',
-            borderRadius: 14,
-            padding: '8px 14px',
-            marginBottom: rem(10),
-            textAlign: 'center',
-          }}
-        >
-          <IconClock size={16} stroke={1.6} />
-          <Text fw={600} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 'clamp(12px, 2.8vw, 14px)' }}>
-            {topBarLabel}
+      <Card radius="lg" p={0} shadow="md" mt="sm" style={{ background: '#034c46', overflow: 'hidden' }}>
+        {/* Header verde */}
+        <Box py={16} px="md" style={{ textAlign: 'center' as const }}>
+          <Text size="xs" c="rgba(243,233,217,0.5)" fw={500}>Reserva confirmada</Text>
+          <Text c="#F3E9D9" fw={700} mt={4} style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontSize: 'clamp(1rem, 4vw, 1.3rem)' }}>
+            {fullName || 'Sua mesa está garantida'}
           </Text>
-
-          {/* mostra a tolerância também */}
-          <Badge color="white" variant="outline" size="xs">
-            {msToTolerance15 > 0 ? `Tolerância até ${fmtCountdown(msToTolerance15)}` : 'Tolerância encerrada'}
-          </Badge>
-        </Box>
-      )}
-
-      <Card withBorder radius="lg" p="lg" shadow="md" mt="sm" style={{ background: OUT_BG }}>
-        <Stack gap="xs" align="center">
-          {!hideHeader && (
-            <>
-              {/* Cabeçalho visual */}
-              <Box
-                aria-hidden
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 9999,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '3px solid var(--mantine-color-green-5)',
-                  background: '#EFFFF3',
-                }}
-              >
-                <IconQrcode size={34} color="var(--mantine-color-green-6)" />
-              </Box>
-
-              <Title order={3} mt="sm" ta="center" fw={700} style={{ fontSize: 'clamp(18px, 6vw, 28px)' }}>
-                Reserva criada!
-              </Title>
-
-              {/* Localizador */}
-              <Group gap={8} mt={4} wrap="wrap" justify="center">
-                <Text c="dimmed" style={{ fontSize: 'clamp(12px, 3.4vw, 14px)' }}>Localizador:</Text>
-                <Badge color="green" size="lg" radius="sm" variant="filled" style={{ letterSpacing: 2 }}>
-                  {code}
-                </Badge>
-              </Group>
-
-              {/* Aviso de e-mail */}
-              <Text size="sm" ta="center" style={{ fontSize: 'clamp(12px, 3.6vw, 14px)' }}>
-                Enviamos o <b>código de reserva</b> e o <b>link de consulta</b> para seu e-mail
-                {emailHint ? ` (${emailHint})` : ''}.
-              </Text>
-
-              <Divider my="md" w="100%" />
-            </>
-          )}
-
-          {/* ===== Cartão estilo boarding pass ===== */}
-          <Card
-            withBorder
-            radius="md"
-            p="md"
-            className="bp-card"
-            style={{
-              width: '100%',
-              background: '#fff',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            {/* ENTALHES LATERAIS */}
-            <Box aria-hidden style={{ position: 'absolute', top: 'calc(50% - 14px)', left: -3, width: 18, height: 28, background: OUT_BG, zIndex: 2 }} />
-            <Box
-              aria-hidden
-              style={{
-                position: 'absolute',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                left: -12,
-                width: 24,
-                height: 24,
-                borderRadius: '50%',
-                background: OUT_BG,
-                boxShadow: 'inset 0 0 0 2px #e3e3e3',
-                zIndex: 3,
-              }}
-            />
-            <Box aria-hidden style={{ position: 'absolute', top: 'calc(50% - 14px)', right: -3, width: 18, height: 28, background: OUT_BG, zIndex: 2 }} />
-            <Box
-              aria-hidden
-              style={{
-                position: 'absolute',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                right: -12,
-                width: 24,
-                height: 24,
-                borderRadius: '50%',
-                background: OUT_BG,
-                boxShadow: 'inset 0 0 0 2px #e3e3e3',
-                zIndex: 3,
-              }}
-            />
-
-            {/* Topo: Data / Horário */}
-            <Box
-              className="bp-toprow"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                alignItems: 'start',
-                gap: 12,
-                marginBottom: rem(8),
-              }}
-            >
-              <Box>
-                <Group gap={6} align="center">
-                  <IconCalendar size={14} />
-                  <Text size="xs" c="dimmed">Data</Text>
-                </Group>
-                <Text fw={700} style={{ fontSize: 'clamp(14px, 4.8vw, 16px)' }}>{dateStr}</Text>
-              </Box>
-
-              <Box style={{ textAlign: 'right' }}>
-                <Group gap={6} justify="right" align="center">
-                  <IconClockHour4 size={14} />
-                  <Text size="xs" c="dimmed">Horário</Text>
-                </Group>
-                <Text fw={700} style={{ fontSize: 'clamp(14px, 4.8vw, 16px)' }}>{timeStr}</Text>
-              </Box>
-            </Box>
-
-            {/* ====== FAIXA DE COUNTDOWN ====== */}
-            {reservationAt && (
-              <Box
-                className="bp-countdown"
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 8,
-                  border: '1px dashed var(--mantine-color-gray-4)',
-                  borderRadius: 10,
-                  padding: '8px 10px',
-                  marginBottom: rem(10),
-                  background: '#FCFEFF',
-                }}
-              >
-                {/* Tolerância +15 */}
-                <Box style={{ textAlign: 'center', minWidth: 0 }}>
-                  <Text size="xs" c="dimmed">Tolerância (+15 min)</Text>
-                  <Text fw={800} style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 0.4, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 'clamp(12px, 3.6vw, 15px)' }}>
-                    {fmtCountdown(msToTolerance15)}
-                  </Text>
-                  <Badge size="xs" color={msToTolerance15 > 0 ? 'green' : 'red'} variant="light">
-                    {statusLabel(msToTolerance15, 'válida', 'encerrada')}
-                  </Badge>
-                </Box>
-
-                {/* Convidados +45 */}
-                <Box style={{ textAlign: 'center', minWidth: 0 }}>
-                  <Text size="xs" c="dimmed">Convidados (+45 min)</Text>
-                  <Text fw={800} style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 0.4, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 'clamp(12px, 3.6vw, 15px)' }}>
-                    {fmtCountdown(msToGuests45)}
-                  </Text>
-                  <Badge size="xs" color={msToGuests45 > 0 ? 'teal' : 'gray'} variant="light">
-                    {statusLabel(msToGuests45, 'aberto', 'fechado')}
-                  </Badge>
-                </Box>
-              </Box>
-            )}
-
-            {/* Nome / CPF */}
-            <Box
-              className="bp-namerow"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 16,
-                marginTop: rem(2),
-                marginBottom: rem(6),
-              }}
-            >
-              <Box style={{ minWidth: 0 }}>
-                <Group gap={6} align="center">
-                  <IconUser size={14} />
-                  <Text size="xs" c="dimmed">Nome</Text>
-                </Group>
-                <Text fw={600} style={{ fontSize: 'clamp(14px, 4.6vw, 16px)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {fullName || '—'}
-                </Text>
-              </Box>
-              <Box style={{ textAlign: 'right', minWidth: 0 }}>
-                <Group gap={6} justify="right" align="center">
-                  <IconId size={14} />
-                  <Text size="xs" c="dimmed">CPF</Text>
-                </Group>
-                <Text fw={600} style={{ fontSize: 'clamp(14px, 4.6vw, 16px)' }}>{fmtCPF(cpf)}</Text>
-              </Box>
-            </Box>
-
-            {/* Faixa principal com códigos */}
-            <Box
-              className="bp-coderow"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                alignItems: 'baseline',
-                gap: 10,
-                marginTop: rem(2),
-                marginBottom: rem(6),
-              }}
-            >
-              <Box style={{ textAlign: 'left', minWidth: 0 }}>
-                <Title order={1} style={{ fontSize: 'clamp(16px, 7vw, 22px)', lineHeight: 1.05, letterSpacing: 0.5, margin: 0, padding: 0, display: 'inline-block', fontWeight: 700 }}>
-                  {unitAcr}
-                </Title>
-
-                <Group gap={6} mt={2} align="center" wrap="nowrap" style={{ minWidth: 0, maxWidth: '100%' }}>
-                  <IconBuildingStore size={14} />
-                  <Text size="xs" c="dimmed" style={{ marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: '100%' }} title={unitLabel}>
-                    {unitLabel}
-                  </Text>
-                </Group>
-              </Box>
-
-              <Box style={{ textAlign: 'right', minWidth: 0 }}>
-                <Title order={1} style={{ fontSize: 'clamp(16px, 7vw, 22px)', lineHeight: 1.05, letterSpacing: 0.5, margin: 0, padding: 0, display: 'inline-block', fontWeight: 700 }}>
-                  {areaAcr}
-                </Title>
-
-                <Group gap={6} mt={2} justify="right" wrap="nowrap" style={{ minWidth: 0, maxWidth: '100%' }}>
-                  <IconMapPin size={14} />
-                  <Text size="xs" c="dimmed" style={{ marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: '100%' }} title={areaName}>
-                    {areaName}
-                  </Text>
-                </Group>
-              </Box>
-            </Box>
-
-            <Divider my={6} />
-
-            {/* Linha de detalhes */}
-            <Box
-              className="bp-detailsrow"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 16,
-                paddingInline: 8,
-                marginTop: rem(6),
-                marginBottom: rem(6),
-              }}
-            >
-              <Box style={{ textAlign: 'center' }}>
-                <Group gap={6} justify="center" align="center">
-                  <IconUsers size={14} />
-                  <Text size="xs" c="dimmed">Pessoas</Text>
-                </Group>
-                <Text fw={700} style={{ color: '#111', marginTop: 2, lineHeight: 1, fontSize: 'clamp(16px, 5vw, 18px)' }}>
-                  {people}
-                </Text>
-              </Box>
-
-              <Box style={{ textAlign: 'center' }}>
-                <Group gap={6} justify="center" align="center">
-                  <IconMoodKid size={14} />
-                  <Text size="xs" c="dimmed">Crianças</Text>
-                </Group>
-                <Text fw={700} style={{ color: '#111', marginTop: 2, lineHeight: 1, fontSize: 'clamp(16px, 5vw, 18px)' }}>
-                  {kids}
-                </Text>
-              </Box>
-            </Box>
-
-            {/* Tipo de Reserva (sempre ANTES dos furinhos/QR) */}
-            {!!reservationTypeLabel(reservationType) && (
-              <Box
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr',
-                  gap: 8,
-                  paddingInline: 8,
-                  marginTop: rem(6),
-                  marginBottom: rem(6),
-                }}
-              >
-                <Box style={{ textAlign: 'center' }}>
-                  <Text size="xs" c="dimmed">Tipo de Reserva</Text>
-                  <Text fw={700} style={{ color: '#111', marginTop: 2, lineHeight: 1, fontSize: 'clamp(16px, 5vw, 18px)' }}>
-                    {reservationTypeLabel(reservationType)}
-                  </Text>
-                </Box>
-              </Box>
-            )}
-
-            {/* Faixa de furinhos */}
-            <Box style={{ position: 'relative', marginTop: rem(6), marginBottom: rem(10) }}>
-              <Box aria-hidden style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 16, background: '#fff', zIndex: 2 }} />
-              <Box aria-hidden style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 16, background: '#fff', zIndex: 2 }} />
-              <Box
-                aria-hidden
-                style={{
-                  width: '100%',
-                  height: 14,
-                  backgroundImage: 'radial-gradient(circle, #d0d0d0 4px, rgba(0,0,0,0) 4.8px)',
-                  backgroundSize: '20px 14px',
-                  backgroundRepeat: 'repeat-x',
-                  backgroundPosition: 'center',
-                  filter: 'drop-shadow(0 1px 0 rgba(0,0,0,.04))',
-                }}
-              />
-            </Box>
-
-            {/* QR central (abaixo, separado e com legenda) */}
-            <Divider my={10} />
-
-            <Stack align="center" gap={6} mt={4} mb={4}>
-              <Box
-                style={{
-                  padding: 10,
-                  background: '#ffffff',
-                  borderRadius: 12,
-                  border: '2px solid #146C2E',
-                  boxShadow: '0 8px 20px rgba(0,0,0,.08)',
-                }}
-              >
-                <img
-                  src={`${qrUrl}?t=${Date.now()}`}
-                  alt="QR de check-in"
-                  width={188}
-                  height={188}
-                  style={{
-                    display: 'block',
-                    width: 'clamp(148px, 48vw, 200px)',
-                    height: 'clamp(148px, 48vw, 200px)',
-                    objectFit: 'contain',
-                    background: 'transparent',
-                    borderRadius: 8,
-                  }}
-                  crossOrigin="anonymous"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              </Box>
-              <Text size="xs" c="dimmed">Apresente este QR no check-in</Text>
-            </Stack>
-          </Card>
-
-          {/* rodapé curto somente quando header está visível */}
-          {!hideHeader && (
-            <Text size="xs" c="dimmed" ta="center" mt="sm" style={{ maxWidth: rem(520), fontSize: 'clamp(12px, 3.4vw, 14px)' }}>
-              Guarde o localizador <b>{code}</b>. Você pode usá-lo para buscar sua reserva rapidamente.
+          <Group gap={8} mt={8} justify="center">
+            <Badge color="rgba(255,255,255,0.15)" c="#F7C85A" variant="filled" size="sm" radius="sm" style={{ letterSpacing: 1.5, fontWeight: 800 }}>
+              {code}
+            </Badge>
+          </Group>
+          {emailHint && (
+            <Text size="10px" c="rgba(243,233,217,0.35)" mt={6}>
+              Código enviado para {emailHint}
             </Text>
           )}
-        </Stack>
+        </Box>
+
+        {/* Card branco interno */}
+        <Box mx={10} mb={10} style={{ borderRadius: 14, background: '#fff', overflow: 'hidden' }}>
+          {/* Data + Hora + Local — as 3 infos essenciais */}
+          <Box p="md">
+            <Group justify="space-between" align="flex-start" mb={12}>
+              <Box>
+                <Text size="10px" c="dimmed" tt="uppercase" fw={600} style={{ letterSpacing: '0.04em' }}>Quando</Text>
+                <Text fw={700} size="md" c="#111" mt={2}>{dateStr} às {timeStr}</Text>
+              </Box>
+              <Box style={{ textAlign: 'right' as const }}>
+                <Text size="10px" c="dimmed" tt="uppercase" fw={600} style={{ letterSpacing: '0.04em' }}>Pessoas</Text>
+                <Text fw={700} size="md" c="#111" mt={2}>{people}{kids > 0 ? ` + ${kids} criança${kids > 1 ? 's' : ''}` : ''}</Text>
+              </Box>
+            </Group>
+
+            <Box py={10} style={{ borderTop: '1px solid rgba(0,0,0,0.05)', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+              <Group gap={6} align="center">
+                <IconMapPin size={16} color="#034c46" />
+                <Box>
+                  <Text size="sm" fw={700} c="#034c46">{unitLabel}</Text>
+                  <Text size="xs" c="dimmed">{areaName}{resLabel ? ` • ${resLabel}` : ''}</Text>
+                </Box>
+              </Group>
+            </Box>
+
+            {/* Tolerância — uma linha simples */}
+            <Text size="xs" c="dimmed" ta="center" mt={10}>
+              Tolerância de 15 min • Convidados podem chegar até 45 min após
+            </Text>
+          </Box>
+
+          {/* QR centralizado */}
+          <Box py="md" style={{ textAlign: 'center' as const, background: '#fafafa' }}>
+            <Box
+              style={{
+                display: 'inline-block',
+                padding: 8,
+                background: '#fff',
+                borderRadius: 12,
+                border: '2px solid #034c46',
+                boxShadow: '0 4px 12px rgba(0,0,0,.06)',
+              }}
+            >
+              <img
+                src={`${qrUrl}?t=${Date.now()}`}
+                alt="QR de check-in"
+                width={160}
+                height={160}
+                style={{
+                  display: 'block',
+                  width: 'clamp(130px, 40vw, 170px)',
+                  height: 'clamp(130px, 40vw, 170px)',
+                  objectFit: 'contain',
+                  borderRadius: 6,
+                }}
+                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            </Box>
+            <Text size="10px" c="dimmed" mt={6}>Apresente na entrada</Text>
+          </Box>
+        </Box>
       </Card>
 
       {/* CSS responsivo local */}

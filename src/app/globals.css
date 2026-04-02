@@ -45,6 +45,12 @@ h1, h2, h3, h4 {
   }
 }
 
+/* Pulse animation for social proof dot */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 /* ajuda o Safari a não reescalar texto automaticamente */
 html {
   -webkit-text-size-adjust: 100%;
