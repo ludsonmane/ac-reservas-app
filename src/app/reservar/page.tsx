@@ -1737,16 +1737,16 @@ export default function ReservarMane() {
                           const cardBg = tier.level === 1 ? 'linear-gradient(135deg, #FDFAF4 0%, #F9F3E8 100%)' : tier.level === 2 ? 'linear-gradient(135deg, #FAF4E5 0%, #F4EBDA 100%)' : 'linear-gradient(135deg, #F7EDD5 0%, #EEDBB5 100%)';
                           return (
                             <Box key={tier.range} style={{ borderRadius: 14, background: cardBg, border: isVIP ? '1.5px solid rgba(200,144,42,0.5)' : '1px solid rgba(200,144,42,0.1)', boxShadow: isVIP ? '0 6px 24px rgba(200,144,42,0.12), inset 0 1px 0 rgba(255,255,255,0.6)' : 'inset 0 1px 0 rgba(255,255,255,0.6)', overflow: 'hidden' }}>
-                              {isVIP && (<Box style={{ background: 'linear-gradient(90deg, #B8842A, #D4A644, #B8842A)', padding: '5px 0', textAlign: 'center' as const }}><Text size="9px" fw={800} c="#fff" tt="uppercase" style={{ letterSpacing: '0.12em', textShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>A experiência completa</Text></Box>)}
+                              {isVIP && (<Box style={{ background: 'linear-gradient(90deg, #B8842A, #D4A644, #B8842A)', padding: '5px 0', textAlign: 'center' as const }}><Text size="9px" fw={800} c="#fff" tt="uppercase" style={{ letterSpacing: '0.12em', textShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>Experiência completa</Text></Box>)}
                               <Box px="sm" py={12}>
                                 <Group justify="space-between" align="flex-start" wrap="nowrap" gap={10}>
                                   <Box style={{ flex: 1 }}>
-                                    <Text size="10px" fw={700} c="#B8842A" tt="uppercase" style={{ letterSpacing: '0.06em' }}>{tier.range} convidados</Text>
-                                    <Text fw={700} c="#034c46" mt={3} style={{ fontFamily: 'var(--font-comfortaa), Comfortaa, sans-serif', fontSize: isVIP ? 14 : 13, lineHeight: 1.3 }}>{tier.headline}</Text>
+                                    <Text size="14px" fw={900} c="#B8842A" tt="uppercase" style={{ fontFamily: 'var(--font-merri), Merriweather, serif', letterSpacing: '0.06em' }}>{tier.range} convidados</Text>
+                                    <Text fw={800} c="#034c46" mt={3} style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontSize: isVIP ? 15 : 14, lineHeight: 1.3 }}>{tier.headline}</Text>
                                   </Box>
                                   <Box style={{ textAlign: 'right' as const, flexShrink: 0 }}>
-                                    <Text c="#034c46" style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontSize: isVIP ? 28 : 22, lineHeight: 1 }}><span style={{ fontSize: isVIP ? 12 : 10, fontFamily: 'var(--font-comfortaa), Comfortaa, sans-serif', fontWeight: 600, opacity: 0.4, verticalAlign: 'super', marginRight: 1 }}>R$</span>{tier.bonus}</Text>
-                                    <Text size="8px" c="#B8842A" fw={600} tt="uppercase" mt={1} style={{ letterSpacing: '0.04em' }}>de bônus</Text>
+                                    <Text c="#034c46" fw={900} style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontSize: isVIP ? 36 : 28, lineHeight: 1 }}><span style={{ fontSize: isVIP ? 14 : 12, fontFamily: 'var(--font-comfortaa), Comfortaa, sans-serif', fontWeight: 700, opacity: 0.4, verticalAlign: 'super', marginRight: 1 }}>R$</span>{tier.bonus}</Text>
+                                    <Text size="12px" c="#B8842A" fw={800} tt="uppercase" mt={2} style={{ letterSpacing: '0.04em' }}>DE BÔNUS</Text>
                                   </Box>
                                 </Group>
                                 <Box mt={10} pt={8} style={{ borderTop: '1px solid rgba(200,144,42,0.1)' }}>
