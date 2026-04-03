@@ -1641,7 +1641,7 @@ export default function ReservarMane() {
           ) : (
             <Box style={{ textAlign: 'center' as const }}>
               <Text size="sm" fw={700} c="#0b2b2c">Reserva concluída</Text>
-              <Text size="xs" c="dimmed">Seu QR Code foi gerado</Text>
+              <Text size="xs" c="dimmed">Reserva confirmada e seu convite foi gerado</Text>
             </Box>
           )}
         </Container>
