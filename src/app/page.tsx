@@ -69,12 +69,6 @@ const BENEFITS = [
   { icon: '🎉', title: 'Perfeito para grupos', desc: 'Reserve e garanta espaço suficiente para a turma inteira.' },
   { icon: '🏆', title: 'Experiência garantida', desc: 'Quando você reserva, a experiência Mané começa antes de sair de casa.' },
 ];
-const RESTAURANTS = [
-  'Superquadra Bar', 'Casa Baco', 'Lima Cocina Peruana', 'Marzuk Empório Árabe',
-  'Meu Galeto', 'Ricco Burger', 'Maré', 'Mahalo Poke', 'Tudo de Porco',
-  'Strogonoff do Paulo Tarso', 'Italianíssimo', 'Café e um Chêro', 'Casa Doce',
-  'Juá', 'Quintal do Coco', 'De Paulina', '+ novidades',
-];
 const IMAGES = {
   sobre1: 'https://mane.com.vc/wp-content/uploads/2025/04/Imagem-do-WhatsApp.jpg',
   sobre2: 'https://mane.com.vc/wp-content/uploads/2023/10/A91A1578-1.png',
@@ -415,29 +409,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ══ RESTAURANTES ═══════════════════════════════════ */}
-        <section style={{ background: '#111', padding: 'clamp(56px,10vw,100px) clamp(16px,5vw,64px)' }}>
-          <div style={{ maxWidth: 1140, margin: '0 auto' }}>
-            <Rv style={{ textAlign: 'center', marginBottom: 44 }}>
-              <Eyebrow color="#a8dbd4">15 restaurantes + 6 bares</Eyebrow>
-              <SecTitle>De gelato a cuscuz, de hambúrguer<br />a frutos do mar. Aqui tem pra todo mundo!</SecTitle>
-              <p style={{ fontSize: 'clamp(.9rem,2vw,1.05rem)', lineHeight: 1.7, opacity: .7, maxWidth: 540, margin: '0 auto' }}>
-                Chefs renomados da cidade fazem, do nosso Mercado, uma pluralidade de gostos, texturas e culturas.
-              </p>
-            </Rv>
-            <Rv>
-              <div className="rest-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 10 }}>
-                {RESTAURANTS.map(r => (
-                  <div key={r} style={{
-                    background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)',
-                    borderRadius: 999, padding: '11px 18px', fontSize: 13, fontWeight: 600,
-                    textAlign: 'center', color: 'rgba(255,255,255,.75)',
-                  }}>{r}</div>
-                ))}
-              </div>
-            </Rv>
-          </div>
-        </section>
 
         {/* ══ CTA FINAL ══════════════════════════════════════ */}
         <section style={{
