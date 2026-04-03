@@ -75,14 +75,6 @@ const RESTAURANTS = [
   'Strogonoff do Paulo Tarso', 'Italianíssimo', 'Café e um Chêro', 'Casa Doce',
   'Juá', 'Quintal do Coco', 'De Paulina', '+ novidades',
 ];
-const CHIPS = [
-  { icon: '🕐', text: 'Seg–Qui: 12h às 00h' },
-  { icon: '🌙', text: 'Sex–Sáb: 12h às 02h' },
-  { icon: '☀️', text: 'Dom: 11h às 23h' },
-  { icon: '🍽️', text: 'Atendimento na mesa' },
-  { icon: '🌿', text: 'Vegano & Sem Glúten' },
-  { icon: '🅿️', text: 'Estacionamento R$10/3h' },
-];
 const IMAGES = {
   sobre1: 'https://mane.com.vc/wp-content/uploads/2025/04/Imagem-do-WhatsApp.jpg',
   sobre2: 'https://mane.com.vc/wp-content/uploads/2023/10/A91A1578-1.png',
@@ -441,20 +433,6 @@ export default function Home() {
                     borderRadius: 999, padding: '11px 18px', fontSize: 13, fontWeight: 600,
                     textAlign: 'center', color: 'rgba(255,255,255,.75)',
                   }}>{r}</div>
-                ))}
-              </div>
-            </Rv>
-            <Rv>
-              <div className="chips-wrap" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 44, justifyContent: 'center' }}>
-                {CHIPS.map(c => (
-                  <div key={c.text} style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)',
-                    borderRadius: 12, padding: '9px 16px', fontSize: 13, fontWeight: 600,
-                    color: 'rgba(255,255,255,.7)',
-                  }}>
-                    <span style={{ fontSize: 16 }}>{c.icon}</span>{c.text}
-                  </div>
                 ))}
               </div>
             </Rv>
