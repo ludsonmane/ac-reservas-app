@@ -201,7 +201,7 @@ function joinDateTimeISO(date: Date | null, time: string) {
 // slots válidos — 11h às 22h, intervalos de 30min
 const ALLOWED_SLOTS = (() => {
   const s: string[] = [];
-  for (let h = 11; h <= 22; h++) {
+  for (let h = 12; h <= 22; h++) {
     for (const m of [0, 30]) {
       if (h === 22 && m > 0) break;
       s.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
@@ -218,7 +218,7 @@ const SLOT_ERROR_MSG = 'Escolha um horário válido da lista';
 // Usamos meio-dia para evitar problema de fuso (dia voltando 1)
 const TODAY_START = dayjs().startOf('day').add(12, 'hour').toDate();
 const TOMORROW_START = dayjs().add(1, 'day').startOf('day').add(12, 'hour').toDate();
-const OPEN_H = 11,
+const OPEN_H = 12,
   OPEN_M = 0,
   CLOSE_H = 22,
   CLOSE_M = 0;
@@ -333,7 +333,7 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
         padding: 16,
       }}
     >
-      <Card shadow="md" radius="lg" withBorder p="xl" style={{ textAlign: 'center', width: 320 }}>
+      <Card shadow="md" radius={24} withBorder p="xl" style={{ textAlign: 'center', width: 320 }}>
         <Box
           aria-hidden
           style={{
@@ -342,7 +342,7 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
             borderRadius: '9999px',
             margin: '0 auto 12px',
             border: '4px solid #E5F7EC',
-            borderTopColor: 'var(--mantine-color-green-6)',
+            borderTopColor: '#0e7a7f',
             animation: 'spin 0.9s linear infinite',
           }}
         />
@@ -368,7 +368,7 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
 function StepSkeleton() {
   return (
     <Stack mt="xs" gap="md">
-      <Card withBorder radius="lg" shadow="sm" p="md" style={{ background: '#FBF5E9' }}>
+      <Card withBorder radius={24} shadow="sm" p="md" style={{ background: '#fff' }}>
         <Stack gap="md">
           <Skeleton height={44} radius="md" />
           <Grid gutter="md">
@@ -435,16 +435,17 @@ function AreaCard({
   return (
     <Card
       withBorder
-      radius="lg"
+      radius={24}
       p={0}
       onClick={() => !disabled && onSelect()}
       style={{
         cursor: disabled ? 'not-allowed' : 'pointer',
         overflow: 'hidden',
-        borderColor: selected ? 'var(--mantine-color-green-5)' : 'transparent',
-        boxShadow: selected ? '0 8px 20px rgba(16, 185, 129, .15)' : '0 2px 10px rgba(0,0,0,.06)',
+        borderRadius: 24,
+        borderColor: selected ? '#0e7a7f' : 'transparent',
+        boxShadow: selected ? '0 8px 32px rgba(14,122,127,.15)' : '0 8px 32px rgba(0,0,0,.06)',
         transition: 'transform .15s ease',
-        background: disabled ? '#F4F4F4' : '#FBF5E9',
+        background: disabled ? '#F4F4F4' : '#fff',
         opacity: disabled ? 0.7 : 1,
       }}
       onMouseEnter={(e) => {
@@ -597,14 +598,23 @@ async function generatePoster({
   qrUrl?: string;
   logoUrl?: string;
 }) {
-  const W = 1080, H = 1180; // ajustado ao conteúdo
+  const W = 1080, H = 1080;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d')!;
   const cx = W / 2;
-  const gold = '#D4A644';
-  const goldBright = '#F0D48A';
-  const cream = '#F3E9D9';
+  const R = 48;
+
+  // Cores da referência
+  const tealDark = '#0a4f48';
+  const yellow = '#f0c850';
+  const darkGreen = '#0b2b2c';
+  const cyan = '#8bd8d8';
+  const pink = '#e86bab';
+  const magenta = '#d44088';
+  const red = '#cc3355';
+  const hotpink = '#e05580';
+
   const firstName = (fullName || '').trim().split(/\s+/)[0] || '';
 
   const dateParts = (dateStr || '').split('/');
@@ -613,150 +623,151 @@ async function generatePoster({
   const monthNames: Record<string, string> = { '01': 'JANEIRO', '02': 'FEVEREIRO', '03': 'MARÇO', '04': 'ABRIL', '05': 'MAIO', '06': 'JUNHO', '07': 'JULHO', '08': 'AGOSTO', '09': 'SETEMBRO', '10': 'OUTUBRO', '11': 'NOVEMBRO', '12': 'DEZEMBRO' };
   const monthName = monthNames[month] || month;
 
-  // Dia da semana
-  const weekDays = ['DOMINGO', 'SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA', 'SÁBADO'];
+  const weekDays = ['DOMINGO', 'SEGUNDA-FEIRA', 'TERÇA-FEIRA', 'QUARTA-FEIRA', 'QUINTA-FEIRA', 'SEXTA-FEIRA', 'SÁBADO'];
   let weekDay = '';
   try {
     const [dd, mm, yy] = (dateStr || '').split('/').map(Number);
     if (dd && mm && yy) weekDay = weekDays[new Date(yy, mm - 1, dd).getDay()] || '';
   } catch {}
 
-  /* ── Fundo: gradiente escuro profundo ── */
-  const bg = ctx.createRadialGradient(cx, cx * 0.6, 0, cx, cx * 0.6, W);
-  bg.addColorStop(0, '#065e56');
-  bg.addColorStop(0.5, '#034c46');
-  bg.addColorStop(1, '#022d29');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
+  // Proporções baseadas na referência (1080x1080)
+  // Banner topo: ~65px | Nome: ~250px | Conteúdo: ~700px | Footer: ~65px
+  const bannerH = 65;
+  const nameH = 250;
+  const footerH = 65;
+  const contentY = bannerH + nameH;
+  const contentH = H - contentY - footerH;
+  const sideW = 80; // laterais ~7.4% da largura
 
-  /* ── Textura sutil: ruído visual via gradiente overlay ── */
-  const noise = ctx.createLinearGradient(0, 0, W, H);
-  noise.addColorStop(0, 'rgba(0,0,0,0.08)');
-  noise.addColorStop(0.3, 'rgba(0,0,0,0)');
-  noise.addColorStop(0.7, 'rgba(0,0,0,0.05)');
-  noise.addColorStop(1, 'rgba(0,0,0,0.1)');
-  ctx.fillStyle = noise;
-  ctx.fillRect(0, 0, W, H);
+  /* ── Clip arredondado ── */
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(0, 0, W, H, R);
+  ctx.clip();
 
+  /* ── 1. Banner amarelo topo ── */
+  ctx.fillStyle = yellow;
+  ctx.fillRect(0, 0, W, bannerH);
+  ctx.fillStyle = tealDark;
+  ctx.font = 'italic 700 26px Georgia, "Times New Roman", serif';
   ctx.textAlign = 'center';
+  ctx.fillText('●  Uma nova experiência  ●', cx, bannerH / 2 + 9);
 
-  /* ── "• TE CONVIDO PARA •" ── */
-  ctx.fillStyle = 'rgba(243,233,217,0.4)';
-  ctx.font = '500 24px system-ui, -apple-system, Arial';
-  ctx.fillText('•  TE CONVIDO PARA UMA EXPERIÊNCIA  •', cx, 100);
-
-  /* ── NOME GIGANTE em script italic ── */
-  ctx.fillStyle = goldBright;
-  ctx.font = 'italic 700 120px Georgia, "Times New Roman", serif';
-  // Se nome muito longo, reduz
-  const nameText = firstName;
-  const nameWidth = ctx.measureText(nameText).width;
-  if (nameWidth > W - 120) {
-    ctx.font = 'italic 700 90px Georgia, "Times New Roman", serif';
+  /* ── 2. Faixa teal com nome ── */
+  ctx.fillStyle = tealDark;
+  ctx.fillRect(0, bannerH, W, nameH);
+  ctx.fillStyle = '#c9a84c';
+  let nameFS = 140;
+  ctx.font = `italic 700 ${nameFS}px Georgia, "Times New Roman", serif`;
+  ctx.textAlign = 'center';
+  let nameW = ctx.measureText(firstName).width;
+  while (nameW > W - 160 && nameFS > 50) {
+    nameFS -= 8;
+    ctx.font = `italic 700 ${nameFS}px Georgia, "Times New Roman", serif`;
+    nameW = ctx.measureText(firstName).width;
   }
-  ctx.fillText(nameText, cx, 240);
+  ctx.fillText(firstName, cx, bannerH + nameH / 2 + nameFS * 0.32);
 
-  /* ── Flourish gold decorativo (curvas sob o nome) ── */
-  ctx.strokeStyle = gold;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  // Curva esquerda
-  ctx.moveTo(cx - 180, 270);
-  ctx.quadraticCurveTo(cx - 80, 310, cx, 270);
-  // Curva direita (espelhada)
-  ctx.quadraticCurveTo(cx + 80, 230, cx + 180, 270);
-  ctx.stroke();
-  // Detalhes nas pontas
-  ctx.beginPath();
-  ctx.moveTo(cx - 180, 270);
-  ctx.quadraticCurveTo(cx - 200, 250, cx - 210, 260);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(cx + 180, 270);
-  ctx.quadraticCurveTo(cx + 200, 250, cx + 210, 260);
-  ctx.stroke();
-  // Ponto central
-  ctx.fillStyle = gold;
-  ctx.beginPath(); ctx.arc(cx, 270, 3, 0, Math.PI * 2); ctx.fill();
+  /* ── 3. Fundo amarelo do conteúdo ── */
+  ctx.fillStyle = yellow;
+  ctx.fillRect(0, contentY, W, contentH);
 
-  /* ── MANÉ MERCADO ── */
-  ctx.fillStyle = cream;
-  ctx.font = '700 42px system-ui, -apple-system, Arial';
-  ctx.fillText('MANÉ MERCADO', cx, 350);
-
-  ctx.fillStyle = 'rgba(243,233,217,0.35)';
-  ctx.font = '400 24px system-ui, -apple-system, Arial';
-  ctx.fillText(unitLabel, cx, 390);
-
-  /* ── Data: WEEKDAY | DIA | MÊS (estilo referência com linhas verticais) ── */
-  const dateY = 500;
-
-  // Linhas verticais gold
-  ctx.strokeStyle = gold;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(cx - 100, dateY - 40); ctx.lineTo(cx - 100, dateY + 40); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx + 100, dateY - 40); ctx.lineTo(cx + 100, dateY + 40); ctx.stroke();
-
-  // Weekday à esquerda
-  ctx.fillStyle = cream;
-  ctx.font = '600 30px system-ui, -apple-system, Arial';
-  ctx.textAlign = 'right';
-  ctx.fillText(weekDay, cx - 125, dateY + 10);
-
-  // Dia grande no centro
-  ctx.fillStyle = gold;
-  ctx.font = '800 80px system-ui, -apple-system, Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(day, cx, dateY + 25);
-
-  // Mês à direita
-  ctx.fillStyle = cream;
-  ctx.font = '600 30px system-ui, -apple-system, Arial';
-  ctx.textAlign = 'left';
-  ctx.fillText(monthName, cx + 125, dateY + 10);
-
-  /* ── Horário ── */
-  ctx.textAlign = 'center';
-  ctx.fillStyle = cream;
-  ctx.font = '500 32px system-ui, -apple-system, Arial';
-  ctx.fillText(`ÀS ${timeStr}`, cx, dateY + 90);
-
-  /* ── Flourish gold sob o horário ── */
-  ctx.strokeStyle = gold;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(cx - 80, dateY + 120);
-  ctx.quadraticCurveTo(cx - 30, dateY + 140, cx, dateY + 120);
-  ctx.quadraticCurveTo(cx + 30, dateY + 100, cx + 80, dateY + 120);
-  ctx.stroke();
-  ctx.fillStyle = gold;
-  ctx.beginPath(); ctx.arc(cx - 80, dateY + 120, 2.5, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(cx + 80, dateY + 120, 2.5, 0, Math.PI * 2); ctx.fill();
-
-  /* ── "Te espero lá!" ── */
-  ctx.fillStyle = gold;
-  ctx.font = 'italic 500 34px Georgia, "Times New Roman", serif';
-  ctx.fillText(`Te espero lá!`, cx, dateY + 200);
-
-  /* ── QR minimalista ── */
-  if (qrUrl) {
-    try {
-      const qr = await loadImage(qrUrl, true);
-      const s = 260;
-      const qrX = cx - s / 2, qrY = dateY + 280;
-      ctx.fillStyle = 'rgba(255,255,255,0.95)';
-      ctx.beginPath(); ctx.roundRect(qrX - 14, qrY - 14, s + 28, s + 28, 14); ctx.fill();
-      ctx.drawImage(qr, qrX, qrY, s, s);
-      ctx.fillStyle = 'rgba(243,233,217,0.3)';
-      ctx.font = '400 20px system-ui, -apple-system, Arial';
-      ctx.fillText('Apresente na entrada', cx, qrY + s + 34);
-    } catch {}
+  /* ── 4. Lateral esquerda — losangos teal sobre cyan ── */
+  ctx.fillStyle = cyan;
+  ctx.fillRect(0, contentY, sideW, contentH);
+  const dSize = 40;
+  const dSpacing = 54;
+  for (let row = 0; row < Math.ceil(contentH / dSpacing) + 1; row++) {
+    for (let col = 0; col < 2; col++) {
+      const dx = 18 + col * 44;
+      const dy = contentY + 30 + row * dSpacing + (col === 1 ? dSpacing / 2 : 0);
+      if (dy > contentY + contentH + dSize) continue;
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = tealDark;
+      ctx.translate(dx, dy);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-dSize / 2, -dSize / 2, dSize, dSize);
+      ctx.restore();
+    }
   }
+  ctx.globalAlpha = 1;
 
-  /* ── Footer ── */
-  ctx.fillStyle = 'rgba(243,233,217,0.15)';
-  ctx.font = '400 20px system-ui, -apple-system, Arial';
-  ctx.fillText('mane.com.vc', cx, H - 30);
+  /* ── 5. Lateral direita — xadrez rosa/vermelho ── */
+  const chkS = sideW / 2; // 40px cada quadrado, 2 colunas
+  const chkColors = [pink, magenta, red, hotpink];
+  for (let row = 0; row < Math.ceil(contentH / chkS) + 1; row++) {
+    for (let col = 0; col < 2; col++) {
+      const x = W - sideW + col * chkS;
+      const y = contentY + row * chkS;
+      if (y > contentY + contentH) continue;
+      ctx.fillStyle = chkColors[(row * 2 + col) % 4];
+      ctx.globalAlpha = 0.9;
+      ctx.fillRect(x, y, chkS, chkS);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  /* ── 6. Conteúdo central ── */
+  const innerTop = contentY + 55;
+
+  // Badge da data — verde oliva
+  const bdgW = 280, bdgH = 72;
+  const bdgX = cx - bdgW / 2, bdgY = innerTop;
+  ctx.fillStyle = '#7a9a6e';
+  ctx.beginPath(); ctx.roundRect(bdgX, bdgY, bdgW, bdgH, 10); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.font = '800 50px system-ui, -apple-system, Arial';
+  const dayNumW = ctx.measureText(day).width;
+  ctx.fillText(day, cx - 32, bdgY + bdgH / 2 + 17);
+  ctx.font = '600 30px system-ui, -apple-system, Arial';
+  ctx.fillText(`/${monthName}`, cx + dayNumW / 2 + 10, bdgY + bdgH / 2 + 12);
+
+  // Dia da semana
+  const line1Y = bdgY + bdgH + 70;
+  ctx.fillStyle = darkGreen;
+  ctx.font = '900 58px system-ui, -apple-system, Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(weekDay, cx, line1Y);
+
+  // "às HH:MM"
+  const line2Y = line1Y + 68;
+  ctx.font = '900 58px system-ui, -apple-system, Arial';
+  ctx.fillText(`às ${timeStr}`, cx, line2Y);
+
+  // Pin de localização (vetor)
+  const pinY = line2Y + 70;
+  ctx.fillStyle = darkGreen;
+  ctx.beginPath();
+  ctx.arc(cx, pinY, 22, Math.PI, 0);
+  ctx.lineTo(cx, pinY + 32);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = yellow;
+  ctx.beginPath();
+  ctx.arc(cx, pinY, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // MANÉ MERCADO
+  const maneY = pinY + 78;
+  ctx.fillStyle = darkGreen;
+  ctx.font = '900 58px system-ui, -apple-system, Arial';
+  ctx.fillText('MANÉ MERCADO', cx, maneY);
+
+  // Unidade
+  ctx.font = '400 34px system-ui, -apple-system, Arial';
+  ctx.fillText(unitLabel, cx, maneY + 50);
+
+  /* ── 7. Footer teal ── */
+  ctx.fillStyle = tealDark;
+  ctx.fillRect(0, H - footerH, W, footerH);
+  ctx.fillStyle = yellow;
+  ctx.font = '700 24px system-ui, -apple-system, Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('mane.com.vc', cx, H - footerH / 2 + 8);
+
+  ctx.restore();
 
   const blob: Blob = await new Promise((r) => canvas.toBlob((b) => r(b!), 'image/jpeg', 0.95)!);
   const fileName = `reserva-mane-${Date.now()}.jpg`;
@@ -849,6 +860,7 @@ export default function ReservarMane() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [birthday, setBirthday] = useState<Date | null>(null);
+  const [birthdayRaw, setBirthdayRaw] = useState<string | null>(null);
   const [birthdayError, setBirthdayError] = useState<string | null>(null);
 
   const [sending, setSending] = useState(false);
@@ -1562,11 +1574,17 @@ export default function ReservarMane() {
 
   return (
     <DatesProvider settings={{ locale: 'pt-br' }}>
-      <Box style={{ background: 'linear-gradient(180deg, #f8f6f1 0%, #ffffff 40%)', minHeight: '100dvh' }}>
+      <Box style={{ background: '#ffffff', minHeight: '100dvh', position: 'relative', overflow: 'hidden' }}>
+        {/* Decorative blobs — smaller on mobile */}
+        <Box className="deco-blob" style={{ position: 'absolute', top: -60, left: -60, width: 110, height: 110, borderRadius: '50%', background: '#e34b4b', opacity: 0.4, pointerEvents: 'none', zIndex: 0 }} />
+        <Box className="deco-blob" style={{ position: 'absolute', top: -30, right: -40, width: 80, height: 80, borderRadius: '50%', background: '#6dc7d1', opacity: 0.35, pointerEvents: 'none', zIndex: 0 }} />
+        <Box className="deco-blob" style={{ position: 'absolute', top: 400, left: -40, width: 60, height: 90, borderRadius: '50%', background: '#4f8e72', opacity: 0.2, pointerEvents: 'none', zIndex: 0 }} />
+        <Box className="deco-blob" style={{ position: 'absolute', bottom: 200, left: -30, width: 80, height: 70, borderRadius: '50%', background: '#f5c4c4', opacity: 0.35, pointerEvents: 'none', zIndex: 0 }} />
+        <Box className="deco-blob" style={{ position: 'absolute', top: 220, right: -35, width: 70, height: 70, borderRadius: '50%', background: '#f7c85a', opacity: 0.2, pointerEvents: 'none', zIndex: 0 }} />
         <LoadingOverlay visible={sending || shareBusy} />
 
         {/* HEADER — compacto e funcional */}
-        <Container size="xs" px="md" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)', paddingBottom: 8, width: '100%' }}>
+        <Container size="xs" px="md" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)', paddingBottom: 8, width: '100%', position: 'relative', zIndex: 1 }}>
           {/* Row: back + logo + spacer */}
           <Group justify="space-between" align="center" mb={12}>
             {step === 0 ? (
@@ -1576,7 +1594,7 @@ export default function ReservarMane() {
                 c="dimmed"
                 style={{ display: 'flex', alignItems: 'center', padding: 4 }}
               >
-                <IconArrowLeft size={18} color="#034c46" />
+                <IconArrowLeft size={18} color="#0b2b2c" />
               </Anchor>
             ) : step >= 4 ? (
               <Box style={{ width: 26 }} />
@@ -1585,7 +1603,7 @@ export default function ReservarMane() {
                 onClick={() => goToStep(step - 1)}
                 style={{ display: 'flex', alignItems: 'center', padding: 4 }}
               >
-                <IconArrowLeft size={18} color="#034c46" />
+                <IconArrowLeft size={18} color="#0b2b2c" />
               </UnstyledButton>
             )}
             <NextImage
@@ -1610,19 +1628,19 @@ export default function ReservarMane() {
                       width: s === step ? 28 : 8,
                       height: 6,
                       borderRadius: 3,
-                      background: s <= step ? '#034c46' : 'rgba(3,76,70,0.1)',
+                      background: s <= step ? '#0e7a7f' : 'rgba(14,122,127,0.12)',
                       transition: 'all 300ms ease',
                     }}
                   />
                 ))}
               </Group>
-              <Text size="sm" c="#034c46" ta="center" style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontWeight: 900 }}>
+              <Text size="sm" c="#0b2b2c" ta="center" style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontWeight: 900 }}>
                 {['Tipo de reserva', 'Data e horário', 'Escolha a área', 'Seus dados'][step]}
               </Text>
             </Box>
           ) : (
             <Box style={{ textAlign: 'center' as const }}>
-              <Text size="sm" fw={700} c="#034c46">Reserva concluída</Text>
+              <Text size="sm" fw={700} c="#0b2b2c">Reserva concluída</Text>
               <Text size="xs" c="dimmed">Seu QR Code foi gerado</Text>
             </Box>
           )}
@@ -1639,6 +1657,8 @@ export default function ReservarMane() {
             paddingRight: 'calc(env(safe-area-inset-right) + 16px)',
             fontFamily: 'var(--font-comfortaa), Comfortaa, sans-serif',
             width: '100%',
+            position: 'relative',
+            zIndex: 1,
           }}
         >
           {/* PASSO 0 — Tipo */}
@@ -1662,18 +1682,18 @@ export default function ReservarMane() {
                       onClick={() => setReservationType(opt.key)}
                       style={{
                         padding: '18px 10px',
-                        borderRadius: 14,
-                        border: sel ? '2px solid #034c46' : '1.5px solid rgba(3,76,70,0.08)',
-                        background: sel ? '#E8F5EC' : '#fff',
+                        borderRadius: 20,
+                        border: sel ? '2px solid #0e7a7f' : '1.5px solid rgba(0,0,0,0.08)',
+                        background: sel ? 'rgba(14,122,127,0.08)' : '#fff',
                         textAlign: 'center' as const,
                         transition: 'all 150ms ease',
-                        boxShadow: sel ? '0 3px 12px rgba(3,76,70,0.12)' : '0 1px 4px rgba(0,0,0,0.04)',
+                        boxShadow: sel ? '0 4px 16px rgba(14,122,127,0.12)' : '0 2px 8px rgba(0,0,0,0.04)',
                       }}
                     >
                       <Box style={{ display: 'flex', justifyContent: 'center' }}>
-                        {opt.icon(sel ? '#034c46' : '#999')}
+                        {opt.icon(sel ? '#0e7a7f' : '#999')}
                       </Box>
-                      <Text size="sm" c={sel ? '#034c46' : '#222'} mt={8} style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontWeight: 900 }}>
+                      <Text size="sm" c={sel ? '#0e7a7f' : '#0b2b2c'} mt={8} style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontWeight: 900 }}>
                         {opt.label}
                       </Text>
                     </UnstyledButton>
@@ -1698,10 +1718,10 @@ export default function ReservarMane() {
                 const tiers = [
                   { range: '8 a 15', bonus: 100, level: 1 as const, headline: 'Comemore com quem importa', perks: ['Brinquedoteca day use para 1 criança'] },
                   { range: '16 a 30', bonus: 150, level: 2 as const, headline: 'Reúna a turma toda', perks: ['Brinquedoteca day use para 2 crianças'] },
-                  { range: 'Mais de 30', bonus: 200, level: 3 as const, headline: 'A celebração completa', perks: ['Garrafa de Caju do Mané', 'Brinquedoteca para 2 crianças', 'Cardápio personalizado — menu 3 etapas'] },
+                  { range: 'Mais de 30', bonus: 200, level: 3 as const, headline: 'A celebração completa', perks: ['Garrafa de Caju do Mané', 'Brinquedoteca day use para 2 crianças', 'Cardápio personalizado — menu 3 etapas'] },
                 ];
                 return (
-                  <Box style={{ borderRadius: 20, overflow: 'hidden', background: 'linear-gradient(170deg, #022d29 0%, #034c46 40%, #043f3a 100%)', boxShadow: '0 12px 40px rgba(2,45,41,0.35), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
+                  <Box style={{ borderRadius: 24, overflow: 'hidden', background: 'linear-gradient(170deg, #022d29 0%, #034c46 40%, #043f3a 100%)', boxShadow: '0 12px 40px rgba(2,45,41,0.35), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
                     <Box pt={16} pb={12} px="md" style={{ textAlign: 'center' as const }}>
                       <Ornament />
                       <Text mt={8} c="#F3E9D9" style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontSize: 'clamp(0.95rem, 3.8vw, 1.15rem)', lineHeight: 1.25, letterSpacing: '-0.01em' }}>
@@ -1732,7 +1752,7 @@ export default function ReservarMane() {
                                 <Box mt={10} pt={8} style={{ borderTop: '1px solid rgba(200,144,42,0.1)' }}>
                                   <Stack gap={4}>
                                     {tier.perks.map((p) => (<Group key={p} gap={7} align="center" wrap="nowrap"><Box style={{ width: 4, height: 4, borderRadius: '50%', background: '#C8902A', flexShrink: 0, opacity: 0.55 }} /><Text size="xs" c="#5a4a35" lh={1.4}>{p}</Text></Group>))}
-                                    {tier.level > 1 && (<Text size="10px" c="#B8842A" fw={500} mt={1} style={{ fontStyle: 'italic', opacity: 0.65 }}>+ tudo do pacote anterior</Text>)}
+                                    {false && tier.level > 1 && (<Text size="10px" c="#B8842A" fw={500} mt={1} style={{ fontStyle: 'italic', opacity: 0.65 }}>+ tudo do pacote anterior</Text>)}
                                   </Stack>
                                 </Box>
                               </Box>
@@ -1748,13 +1768,11 @@ export default function ReservarMane() {
 
               {/* ── CTA contextual ── */}
               <Button
-                color="green"
-                radius="md"
                 size="md"
                 onClick={() => goToStep(1)}
                 type="button"
                 fullWidth
-                style={{ fontWeight: 700 }}
+                style={{ fontWeight: 700, borderRadius: 999, background: '#f7c85a', color: '#0b2b2c', height: 50 }}
               >
                 {reservationType === 'ANIVERSARIO' ? 'Garantir meus bônus →' : 'Escolher data e horário →'}
               </Button>
@@ -1773,7 +1791,7 @@ export default function ReservarMane() {
                 <Stack gap="md">
                     {/* Unidade como cards — acessível pra todos */}
                     <Box>
-                      <Text size="sm" fw={600} c="#034c46" mb={8}>Onde você quer ir?</Text>
+                      <Text size="sm" fw={600} c="#0b2b2c" mb={8}>Onde você quer ir?</Text>
                       {unitsLoading ? (
                         <Text size="xs" c="dimmed">Carregando unidades...</Text>
                       ) : (
@@ -1794,22 +1812,22 @@ export default function ReservarMane() {
                                   gap: 10,
                                   padding: '14px 16px',
                                   borderRadius: 12,
-                                  border: sel ? '2px solid #034c46' : '1.5px solid rgba(3,76,70,0.15)',
-                                  background: sel ? '#034c46' : '#fff',
+                                  border: sel ? '2px solid #0e7a7f' : '1.5px solid rgba(0,0,0,0.1)',
+                                  background: sel ? '#0e7a7f' : '#fff',
                                   transition: 'all 150ms ease',
-                                  boxShadow: sel ? '0 3px 12px rgba(3,76,70,0.2)' : '0 1px 4px rgba(0,0,0,0.06)',
+                                  boxShadow: sel ? '0 4px 16px rgba(14,122,127,0.2)' : '0 2px 8px rgba(0,0,0,0.04)',
                                   width: '100%',
                                 }}
                               >
                                 <Box
                                   style={{
                                     width: 32, height: 32, borderRadius: 8,
-                                    background: sel ? 'rgba(255,255,255,0.15)' : 'rgba(3,76,70,0.06)',
+                                    background: sel ? 'rgba(255,255,255,0.15)' : 'rgba(14,122,127,0.08)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     flexShrink: 0,
                                   }}
                                 >
-                                  <IconMapPin size={18} color={sel ? '#F7C85A' : '#034c46'} />
+                                  <IconMapPin size={18} color={sel ? '#F7C85A' : '#0e7a7f'} />
                                 </Box>
                                 <Text size="sm" fw={700} c={sel ? '#fff' : '#222'}>
                                   {u.name}
@@ -1913,6 +1931,19 @@ export default function ReservarMane() {
                           label="Horário"
                           placeholder="Selecionar"
                           error={timeError || pastError}
+                          disabledSlots={(() => {
+                            if (!data || !unidade) return [];
+                            const unitName = (units.find((u) => u.id === unidade)?.name || '').toLowerCase();
+                            const isBSB = unitName.includes('brasília') || unitName.includes('brasilia') || unitName.includes('bsb');
+                            if (!isBSB) return [];
+                            const dow = dayjs(data).day(); // 0=dom, 6=sab
+                            if (dow !== 0 && dow !== 6) return [];
+                            // Sáb/Dom em BSB: bloquear 14:00-17:00
+                            return ALLOWED_SLOTS.filter((s) => {
+                              const h = Number(s.split(':')[0]);
+                              return h >= 14 && h < 17;
+                            });
+                          })()}
                         />
                       </Grid.Col>
                     </Grid>
@@ -1933,13 +1964,11 @@ export default function ReservarMane() {
                 )}
 
                 <Button
-                  color="green"
-                  radius="md"
                   size="md"
                   onClick={handleContinueStep1}
                   type="button"
                   fullWidth
-                  style={{ fontWeight: 700 }}
+                  style={{ fontWeight: 700, borderRadius: 999, background: '#f7c85a', color: '#0b2b2c', height: 50 }}
                 >
                   Ver áreas disponíveis →
                 </Button>
@@ -1953,7 +1982,7 @@ export default function ReservarMane() {
             ) : (
               <Stack mt="xs" gap="md">
                 {/* Mini resumo contextual */}
-                <Card radius="md" p="xs" style={{ background: '#034c46' }}>
+                <Card radius={16} p="xs" style={{ background: '#0e7a7f' }}>
                   <Text size="10px" ta="center" c="#F3E9D9" lh={1.4}>
                     {RES_TYPE_LABEL[reservationType]} • {total} pessoa(s) • {data ? dayjs(data).format('DD/MM') : ''} às {hora || ''}
                   </Text>
@@ -1997,14 +2026,12 @@ export default function ReservarMane() {
                 })}
 
                 <Button
-                  color="green"
-                  radius="md"
                   size="md"
                   onClick={() => goToStep(3)}
                   disabled={!canNext2}
                   type="button"
                   fullWidth
-                  style={{ fontWeight: 700 }}
+                  style={{ fontWeight: 700, borderRadius: 999, background: !canNext2 ? undefined : '#f7c85a', color: '#0b2b2c', height: 50 }}
                 >
                   Quase lá! Finalizar →
                 </Button>
@@ -2018,7 +2045,7 @@ export default function ReservarMane() {
             ) : (
               <Stack mt="xs" gap="sm">
                 {/* Resumo compacto da reserva */}
-                <Card radius="md" p="sm" style={{ background: '#034c46' }}>
+                <Card radius={16} p="sm" style={{ background: '#0e7a7f' }}>
                   <Text size="xs" ta="center" c="#F3E9D9" lh={1.5}>
                     {RES_TYPE_LABEL[reservationType]} • {units.find((u) => u.id === unidade)?.name ?? '—'} • {areas.find((a) => a.id === areaId)?.name ?? '—'}
                     <br />
@@ -2032,7 +2059,7 @@ export default function ReservarMane() {
                 </Text>
 
                 {/* Todos os campos num card só */}
-                <Card withBorder radius="lg" p="md" style={{ background: '#fff' }}>
+                <Card withBorder radius={24} p="md" style={{ background: '#fff', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}>
                   <Stack gap="sm">
                     <TextInput
                       label="Nome completo"
@@ -2065,7 +2092,7 @@ export default function ReservarMane() {
                     />
 
                     {/* Divisor sutil */}
-                    <Box my={4} style={{ borderTop: '1px solid rgba(3,76,70,0.06)' }} />
+                    <Box my={4} style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
                     <Text size="10px" c="dimmed" style={{ marginTop: -2 }}>
                       Para garantir os bônus na sua chegada
                     </Text>
@@ -2082,25 +2109,34 @@ export default function ReservarMane() {
                         />
                       </Grid.Col>
                       <Grid.Col span={6}>
-                        <DatePickerInput
+                        <TextInput
                           label="Nascimento"
-                          placeholder="Selecionar"
-                          value={birthday}
-                          onChange={((value: any) => {
-                            const dateValue = value instanceof Date ? value : value ? new Date(value as any) : null;
-                            setBirthday(dateValue);
-                            if (dateValue) setBirthdayError(null);
-                          }) as any}
-                          valueFormat="DD/MM/YYYY"
+                          placeholder="DD/MM/AAAA"
+                          value={birthday ? dayjs(birthday).format('DD/MM/YYYY') : (birthdayRaw ?? '')}
+                          onChange={(e) => {
+                            const raw = e.currentTarget.value.replace(/\D/g, '').slice(0, 8);
+                            let masked = raw;
+                            if (raw.length > 2) masked = raw.slice(0, 2) + '/' + raw.slice(2);
+                            if (raw.length > 4) masked = raw.slice(0, 2) + '/' + raw.slice(2, 4) + '/' + raw.slice(4);
+                            setBirthdayRaw(masked);
+                            if (raw.length === 8) {
+                              const [dd, mm, yyyy] = [Number(raw.slice(0, 2)), Number(raw.slice(2, 4)), Number(raw.slice(4, 8))];
+                              const d = new Date(yyyy, mm - 1, dd);
+                              if (d.getDate() === dd && d.getMonth() === mm - 1 && d <= new Date() && yyyy >= 1900) {
+                                setBirthday(d);
+                                setBirthdayError(null);
+                              } else {
+                                setBirthday(null);
+                                setBirthdayError('Data inválida');
+                              }
+                            } else {
+                              setBirthday(null);
+                            }
+                          }}
                           required
-                          allowDeselect={false}
                           size="md"
                           styles={{ input: { height: rem(48) } }}
                           leftSection={<IconCalendar size={16} />}
-                          weekendDays={[]}
-                          defaultLevel="decade"
-                          defaultDate={new Date(1990, 0, 1)}
-                          maxDate={new Date()}
                           error={birthdayError || undefined}
                         />
                       </Grid.Col>
@@ -2114,7 +2150,7 @@ export default function ReservarMane() {
                   </Alert>
                 )}
 
-                <Button color="green" radius="md" size="md" loading={sending} disabled={!canFinish} onClick={confirmarReserva} type="button" fullWidth style={{ fontWeight: 700, fontSize: 16 }}>
+                <Button size="md" loading={sending} disabled={!canFinish} onClick={confirmarReserva} type="button" fullWidth style={{ fontWeight: 700, fontSize: 16, borderRadius: 999, background: !canFinish ? undefined : '#f7c85a', color: '#0b2b2c', height: 50 }}>
                   Garantir minha mesa
                 </Button>
 
@@ -2145,11 +2181,11 @@ export default function ReservarMane() {
                   <img
                     src={posterUrl}
                     alt="Seu convite"
-                    style={{ width: '100%', height: 'auto', borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}
+                    style={{ width: '100%', height: 'auto', borderRadius: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}
                   />
                 </Box>
               ) : (
-                <Card radius="lg" p="lg" style={{ background: '#034c46', textAlign: 'center' as const }}>
+                <Card radius={24} p="lg" style={{ background: '#0e7a7f', textAlign: 'center' as const }}>
                   <Group gap={6} align="center" justify="center" mb={4}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F7C85A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                     <Text size="sm" fw={700} c="#F7C85A">Reserva confirmada!</Text>
@@ -2173,30 +2209,25 @@ export default function ReservarMane() {
                 </Card>
               )}
 
-              {/* Info essencial abaixo do convite */}
-              <Text size="xs" c="dimmed" ta="center" lh={1.4}>
-                Localizador: <b>{createdCode ?? createdId}</b> • Tolerância de 15 min
-              </Text>
+              {/* Info removida — localizador/tolerância */}
 
               {/* CTAs */}
               <Button
-                color="green"
-                radius="md"
                 size="md"
                 onClick={shareWhatsapp}
                 disabled={shareBusyInternal}
                 fullWidth
-                style={{ fontWeight: 700 }}
+                style={{ fontWeight: 700, borderRadius: 999, background: '#f7c85a', color: '#0b2b2c', height: 50 }}
               >
                 Enviar convite no WhatsApp
               </Button>
               <Button
-                variant="light"
-                radius="md"
+                variant="outline"
                 size="sm"
                 onClick={downloadPoster}
                 disabled={shareBusyInternal}
                 fullWidth
+                style={{ borderRadius: 999, borderColor: 'rgba(0,0,0,0.18)', color: '#0b2b2c' }}
               >
                 Salvar convite
               </Button>
@@ -2218,7 +2249,7 @@ export default function ReservarMane() {
               role="dialog"
               aria-modal="true"
             >
-              <Card withBorder radius="lg" shadow="md" p={0} style={{ width: 480, maxWidth: '100%', overflow: 'hidden' }}>
+              <Card withBorder radius={24} shadow="md" p={0} style={{ width: 480, maxWidth: '100%', overflow: 'hidden' }}>
                 <Box px="md" py="sm" style={{ borderBottom: '1px solid rgba(0,0,0,.08)', background: '#fff' }}>
                   <Title order={4} fw={500} m={0}>
                     Reserva para grupo grande
@@ -2267,12 +2298,14 @@ function SlotTimePicker({
   label = 'Horário',
   placeholder = 'Selecionar',
   error,
+  disabledSlots = [],
 }: {
   value: string;
   onChange: (v: string) => void;
   label?: string;
   placeholder?: string;
   error?: string | null;
+  disabledSlots?: string[];
 }) {
   const [opened, { open, close, toggle }] = useDisclosure(false);
 
@@ -2295,26 +2328,33 @@ function SlotTimePicker({
 
       <Popover.Dropdown>
         <SimpleGrid cols={3} spacing={8}>
-          {ALLOWED_SLOTS.map((slot) => (
-            <UnstyledButton
-              key={slot}
-              onClick={() => {
-                onChange(slot);
-                close();
-              }}
-              style={{
-                padding: '8px 10px',
-                borderRadius: 8,
-                border: value === slot ? '2px solid var(--mantine-color-green-6)' : '1px solid rgba(0,0,0,.12)',
-                background: value === slot ? 'rgba(34,197,94,.08)' : '#fff',
-                fontWeight: 400,
-                fontSize: 14,
-                textAlign: 'center',
-              }}
-            >
-              {slot}
-            </UnstyledButton>
-          ))}
+          {ALLOWED_SLOTS.map((slot) => {
+            const blocked = disabledSlots.includes(slot);
+            return (
+              <UnstyledButton
+                key={slot}
+                onClick={() => {
+                  if (blocked) return;
+                  onChange(slot);
+                  close();
+                }}
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  border: value === slot ? '2px solid #0e7a7f' : '1px solid rgba(0,0,0,.12)',
+                  background: blocked ? '#f0f0f0' : value === slot ? 'rgba(14,122,127,.08)' : '#fff',
+                  fontWeight: 400,
+                  fontSize: 14,
+                  textAlign: 'center',
+                  opacity: blocked ? 0.4 : 1,
+                  cursor: blocked ? 'not-allowed' : 'pointer',
+                  textDecoration: blocked ? 'line-through' : 'none',
+                }}
+              >
+                {slot}
+              </UnstyledButton>
+            );
+          })}
         </SimpleGrid>
       </Popover.Dropdown>
     </Popover>
