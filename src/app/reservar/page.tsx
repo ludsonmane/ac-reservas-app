@@ -949,6 +949,15 @@ export default function ReservarMane() {
         const normalized: UnitOption[] = (list ?? [])
           .map((u: any) => [String(u.id ?? u._id ?? u.slug ?? u.name), String(u.name ?? u.title ?? u.slug ?? '')])
           .map(([id, name]) => ({ id, name }));
+        // SP primeiro, depois ordem original
+        const SP_KEYS = ['sp', 'sao-paulo', 'sao paulo', 'são paulo', 'perdizes', 'west-plaza', 'mane-west-plaza-sp'];
+        normalized.sort((a, b) => {
+          const aIsSP = SP_KEYS.some(k => a.id.toLowerCase().includes(k) || a.name.toLowerCase().includes(k));
+          const bIsSP = SP_KEYS.some(k => b.id.toLowerCase().includes(k) || b.name.toLowerCase().includes(k));
+          if (aIsSP && !bIsSP) return -1;
+          if (!aIsSP && bIsSP) return 1;
+          return 0;
+        });
         if (!alive) return;
         setUnits(normalized);
       } catch (e: any) {
