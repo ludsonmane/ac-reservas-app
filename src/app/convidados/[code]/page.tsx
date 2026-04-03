@@ -132,7 +132,7 @@ export default function ConvidadosPage() {
   const tierInfo = {
     1: { bonus: 'R$100', perks: ['Brinquedoteca day use para 1 criança'] },
     2: { bonus: 'R$150', perks: ['Brinquedoteca day use para 2 crianças'] },
-    3: { bonus: 'R$200', perks: ['Garrafa de Caju do Mané', 'Brinquedoteca para 2 crianças', 'Cardápio personalizado — menu 3 etapas'] },
+    3: { bonus: 'R$200', perks: ['Garrafa de Caju do Mané', 'Brinquedoteca para 2 crianças', 'Cardápio personalizado'] },
   }[tier] || null;
 
   return (

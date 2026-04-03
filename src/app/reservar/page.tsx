@@ -1727,7 +1727,7 @@ export default function ReservarMane() {
                 const tiers = [
                   { range: '8 a 15', bonus: 100, level: 1 as const, headline: 'Comemore com quem importa', perks: ['Brinquedoteca day use para 1 criança'] },
                   { range: '16 a 30', bonus: 150, level: 2 as const, headline: 'Reúna a turma toda', perks: ['Brinquedoteca day use para 2 crianças'] },
-                  { range: 'Mais de 30', bonus: 200, level: 3 as const, headline: 'A celebração completa', perks: ['Garrafa de Caju do Mané', 'Brinquedoteca day use para 2 crianças', 'Cardápio personalizado — menu 3 etapas'] },
+                  { range: 'Mais de 30', bonus: 200, level: 3 as const, headline: 'A celebração completa', perks: ['Garrafa de Caju do Mané', 'Brinquedoteca day use para 2 crianças', 'Cardápio personalizado'] },
                 ];
                 return (
                   <Box style={{ borderRadius: 24, overflow: 'hidden', background: 'linear-gradient(170deg, #022d29 0%, #034c46 40%, #043f3a 100%)', boxShadow: '0 12px 40px rgba(2,45,41,0.35), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
