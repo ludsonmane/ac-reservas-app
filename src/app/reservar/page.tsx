@@ -218,6 +218,19 @@ const SLOT_ERROR_MSG = 'Escolha um horário válido da lista';
 // Usamos meio-dia para evitar problema de fuso (dia voltando 1)
 const TODAY_START = dayjs().startOf('day').add(12, 'hour').toDate();
 const TOMORROW_START = dayjs().add(1, 'day').startOf('day').add(12, 'hour').toDate();
+
+// Regra de distância entre períodos: não dá pra reservar no mesmo período atual.
+// - Antes de 12:00 → libera hoje 12:00 (tarde)
+// - Tarde (12:00–17:29) → libera hoje 17:30 (noite)
+// - Noite (≥17:30) → libera amanhã 12:00 (tarde)
+const EVENING_CUTOFF_MIN = 17 * 60 + 30;
+function getMinReservationDate(now: Date = new Date()): Date {
+  const n = dayjs(now);
+  const mins = n.hour() * 60 + n.minute();
+  if (mins < 12 * 60) return n.startOf('day').add(12, 'hour').toDate();
+  if (mins < EVENING_CUTOFF_MIN) return n.startOf('day').add(17, 'hour').add(30, 'minute').toDate();
+  return n.add(1, 'day').startOf('day').add(12, 'hour').toDate();
+}
 const OPEN_H = 12,
   OPEN_M = 0,
   CLOSE_H = 22,
@@ -1915,7 +1928,12 @@ export default function ReservarMane() {
                           valueFormat="DD/MM/YYYY"
                           leftSection={<IconCalendar size={16} />}
                           allowDeselect={false}
-                          minDate={TODAY_START}
+                          minDate={(() => {
+                            // Se estamos dentro do período da noite, hoje fica inteiro bloqueado
+                            const mins = dayjs().hour() * 60 + dayjs().minute();
+                            if (mins >= EVENING_CUTOFF_MIN) return TOMORROW_START;
+                            return TODAY_START;
+                          })()}
                           size="md"
                           styles={{ input: { height: rem(48) } }}
                           error={dateError}
@@ -1941,17 +1959,33 @@ export default function ReservarMane() {
                           placeholder="Selecionar"
                           error={timeError || pastError}
                           disabledSlots={(() => {
-                            if (!data || !unidade) return [];
-                            const unitName = (units.find((u) => u.id === unidade)?.name || '').toLowerCase();
-                            const isBSB = unitName.includes('brasília') || unitName.includes('brasilia') || unitName.includes('bsb');
-                            if (!isBSB) return [];
-                            const dow = dayjs(data).day(); // 0=dom, 6=sab
-                            if (dow !== 0 && dow !== 6) return [];
-                            // Sáb/Dom em BSB: bloquear 14:00-17:00
-                            return ALLOWED_SLOTS.filter((s) => {
-                              const h = Number(s.split(':')[0]);
-                              return h >= 14 && h < 17;
+                            if (!data) return [];
+                            const blocked = new Set<string>();
+
+                            // Regra de distância entre períodos (mesmo período atual fica bloqueado)
+                            const minAllowed = getMinReservationDate();
+                            ALLOWED_SLOTS.forEach((s) => {
+                              const [h, m] = s.split(':').map(Number);
+                              const slotDate = dayjs(data).hour(h).minute(m).second(0).millisecond(0).toDate();
+                              if (slotDate.getTime() < minAllowed.getTime()) blocked.add(s);
                             });
+
+                            // Regra BSB: sáb/dom bloqueia 14:00–17:00
+                            if (unidade) {
+                              const unitName = (units.find((u) => u.id === unidade)?.name || '').toLowerCase();
+                              const isBSB = unitName.includes('brasília') || unitName.includes('brasilia') || unitName.includes('bsb');
+                              if (isBSB) {
+                                const dow = dayjs(data).day(); // 0=dom, 6=sab
+                                if (dow === 0 || dow === 6) {
+                                  ALLOWED_SLOTS.forEach((s) => {
+                                    const h = Number(s.split(':')[0]);
+                                    if (h >= 14 && h < 17) blocked.add(s);
+                                  });
+                                }
+                              }
+                            }
+
+                            return Array.from(blocked);
                           })()}
                         />
                       </Grid.Col>
