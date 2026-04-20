@@ -220,14 +220,13 @@ const TODAY_START = dayjs().startOf('day').add(12, 'hour').toDate();
 const TOMORROW_START = dayjs().add(1, 'day').startOf('day').add(12, 'hour').toDate();
 
 // Regra de distância entre períodos: não dá pra reservar no mesmo período atual.
-// - Antes de 12:00 → libera hoje 12:00 (tarde)
+// - Madrugada (00:00–11:59) → libera hoje 17:30 (noite)
 // - Tarde (12:00–17:29) → libera hoje 17:30 (noite)
 // - Noite (≥17:30) → libera amanhã 12:00 (tarde)
 const EVENING_CUTOFF_MIN = 17 * 60 + 30;
 function getMinReservationDate(now: Date = new Date()): Date {
   const n = dayjs(now);
   const mins = n.hour() * 60 + n.minute();
-  if (mins < 12 * 60) return n.startOf('day').add(12, 'hour').toDate();
   if (mins < EVENING_CUTOFF_MIN) return n.startOf('day').add(17, 'hour').add(30, 'minute').toDate();
   return n.add(1, 'day').startOf('day').add(12, 'hour').toDate();
 }
