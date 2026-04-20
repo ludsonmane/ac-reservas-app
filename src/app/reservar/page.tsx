@@ -218,8 +218,13 @@ const SLOT_ERROR_MSG = 'Escolha um horário válido da lista';
 
 /**
  * Regra de janela de reservas (espelha ac-reservas-api/src/domain/booking-window.ts):
- *   Agora 00:00–15:00 → só pode reservar ≥ jantar do mesmo dia (17:30+)
+ *   Agora (hora local do usuário) 00:00–15:00 → só pode reservar ≥ jantar do mesmo dia (17:30+)
  *   Agora 15:01–23:59 → só pode reservar ≥ almoço do dia seguinte (12:00+)
+ *
+ * Observação: o backend calcula em BRT (servidor UTC). No browser usamos a hora
+ * local do usuário — que para clientes do Mané (Brasil) é BRT. Se o cliente estiver
+ * em outro fuso, a UI pode divergir levemente do backend; nesse caso, o endpoint
+ * GET /reservations/public/booking-window é a fonte canônica.
  */
 function getEarliestBookable(now: Date = new Date()): { date: Date; period: 'AFTERNOON' | 'NIGHT' } {
   const totalMin = now.getHours() * 60 + now.getMinutes();
