@@ -3,6 +3,8 @@
 import type React from 'react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+dayjs.extend(customParseFormat);
 import { DatesProvider, DatePickerInput } from '@mantine/dates';
 import {
   Popover,
@@ -214,10 +216,40 @@ function isValidSlot(v: string) {
 }
 const SLOT_ERROR_MSG = 'Escolha um horário válido da lista';
 
+/**
+ * Regra de janela de reservas (espelha ac-reservas-api/src/domain/booking-window.ts):
+ *   Agora 00:00–15:00 → só pode reservar ≥ jantar do mesmo dia (17:30+)
+ *   Agora 15:01–23:59 → só pode reservar ≥ almoço do dia seguinte (12:00+)
+ */
+function getEarliestBookable(now: Date = new Date()): { date: Date; period: 'AFTERNOON' | 'NIGHT' } {
+  const totalMin = now.getHours() * 60 + now.getMinutes();
+  if (totalMin <= 15 * 60) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 30, 0, 0);
+    return { date: d, period: 'NIGHT' };
+  }
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 12, 0, 0, 0);
+  return { date: d, period: 'AFTERNOON' };
+}
+
+/** Slots válidos pra uma data selecionada, dado o cutoff atual. */
+function allowedSlotsForDate(selectedDate: Date | null): string[] {
+  if (!selectedDate) return ALLOWED_SLOTS;
+  const earliest = getEarliestBookable();
+  const sameDay = dayjs(selectedDate).isSame(earliest.date, 'day');
+  if (!sameDay) return ALLOWED_SLOTS;
+  const earliestMin = earliest.date.getHours() * 60 + earliest.date.getMinutes();
+  return ALLOWED_SLOTS.filter((s) => {
+    const [hh, mm] = s.split(':').map(Number);
+    return hh * 60 + mm >= earliestMin;
+  });
+}
+
 // janela de horário
 // Usamos meio-dia para evitar problema de fuso (dia voltando 1)
 const TODAY_START = dayjs().startOf('day').add(12, 'hour').toDate();
 const TOMORROW_START = dayjs().add(1, 'day').startOf('day').add(12, 'hour').toDate();
+/** Dia mínimo reservável dado o cutoff atual — usado como minDate do DatePicker. */
+const MIN_BOOKABLE_DAY = dayjs(getEarliestBookable().date).startOf('day').add(12, 'hour').toDate();
 const OPEN_H = 11,
   OPEN_M = 0,
   CLOSE_H = 22,
@@ -849,6 +881,7 @@ export default function ReservarMane() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [birthday, setBirthday] = useState<Date | null>(null);
+  const [birthdayRaw, setBirthdayRaw] = useState<string | null>(null);
   const [birthdayError, setBirthdayError] = useState<string | null>(null);
 
   const [sending, setSending] = useState(false);
@@ -1698,7 +1731,7 @@ export default function ReservarMane() {
                 const tiers = [
                   { range: '8 a 15', bonus: 100, level: 1 as const, headline: 'Comemore com quem importa', perks: ['Brinquedoteca day use para 1 criança'] },
                   { range: '16 a 30', bonus: 150, level: 2 as const, headline: 'Reúna a turma toda', perks: ['Brinquedoteca day use para 2 crianças'] },
-                  { range: 'Mais de 30', bonus: 200, level: 3 as const, headline: 'A celebração completa', perks: ['Garrafa de Caju do Mané', 'Brinquedoteca para 2 crianças', 'Cardápio personalizado — menu 3 etapas'] },
+                  { range: 'Mais de 30', bonus: 200, level: 3 as const, headline: 'Celebração completa', perks: ['Garrafa de Caju do Mané', 'Brinquedoteca para 2 crianças', 'Cardápio personalizado — menu 3 etapas'] },
                 ];
                 return (
                   <Box style={{ borderRadius: 20, overflow: 'hidden', background: 'linear-gradient(170deg, #022d29 0%, #034c46 40%, #043f3a 100%)', boxShadow: '0 12px 40px rgba(2,45,41,0.35), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
@@ -1717,16 +1750,16 @@ export default function ReservarMane() {
                           const cardBg = tier.level === 1 ? 'linear-gradient(135deg, #FDFAF4 0%, #F9F3E8 100%)' : tier.level === 2 ? 'linear-gradient(135deg, #FAF4E5 0%, #F4EBDA 100%)' : 'linear-gradient(135deg, #F7EDD5 0%, #EEDBB5 100%)';
                           return (
                             <Box key={tier.range} style={{ borderRadius: 14, background: cardBg, border: isVIP ? '1.5px solid rgba(200,144,42,0.5)' : '1px solid rgba(200,144,42,0.1)', boxShadow: isVIP ? '0 6px 24px rgba(200,144,42,0.12), inset 0 1px 0 rgba(255,255,255,0.6)' : 'inset 0 1px 0 rgba(255,255,255,0.6)', overflow: 'hidden' }}>
-                              {isVIP && (<Box style={{ background: 'linear-gradient(90deg, #B8842A, #D4A644, #B8842A)', padding: '5px 0', textAlign: 'center' as const }}><Text size="9px" fw={800} c="#fff" tt="uppercase" style={{ letterSpacing: '0.12em', textShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>A experiência completa</Text></Box>)}
+                              {isVIP && (<Box style={{ background: 'linear-gradient(90deg, #B8842A, #D4A644, #B8842A)', padding: '5px 0', textAlign: 'center' as const }}><Text size="9px" fw={800} c="#fff" tt="uppercase" style={{ letterSpacing: '0.12em', textShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>Celebração completa</Text></Box>)}
                               <Box px="sm" py={12}>
                                 <Group justify="space-between" align="flex-start" wrap="nowrap" gap={10}>
                                   <Box style={{ flex: 1 }}>
-                                    <Text size="10px" fw={700} c="#B8842A" tt="uppercase" style={{ letterSpacing: '0.06em' }}>{tier.range} convidados</Text>
+                                    <Text size="13px" fw={800} c="#B8842A" tt="uppercase" style={{ letterSpacing: '0.08em', fontFamily: 'var(--font-merri), Merriweather, serif' }}>{tier.range} convidados</Text>
                                     <Text fw={700} c="#034c46" mt={3} style={{ fontFamily: 'var(--font-comfortaa), Comfortaa, sans-serif', fontSize: isVIP ? 14 : 13, lineHeight: 1.3 }}>{tier.headline}</Text>
                                   </Box>
                                   <Box style={{ textAlign: 'right' as const, flexShrink: 0 }}>
-                                    <Text c="#034c46" style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontSize: isVIP ? 28 : 22, lineHeight: 1 }}><span style={{ fontSize: isVIP ? 12 : 10, fontFamily: 'var(--font-comfortaa), Comfortaa, sans-serif', fontWeight: 600, opacity: 0.4, verticalAlign: 'super', marginRight: 1 }}>R$</span>{tier.bonus}</Text>
-                                    <Text size="8px" c="#B8842A" fw={600} tt="uppercase" mt={1} style={{ letterSpacing: '0.04em' }}>de bônus</Text>
+                                    <Text c="#034c46" fw={800} style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontSize: isVIP ? 38 : 30, lineHeight: 1 }}><span style={{ fontSize: isVIP ? 14 : 12, fontFamily: 'var(--font-comfortaa), Comfortaa, sans-serif', fontWeight: 700, opacity: 0.5, verticalAlign: 'super', marginRight: 2 }}>R$</span>{tier.bonus}</Text>
+                                    <Text size="15px" c="#B8842A" fw={800} tt="uppercase" mt={3} style={{ letterSpacing: '0.08em', fontFamily: 'var(--font-merri), Merriweather, serif' }}>de bônus</Text>
                                   </Box>
                                 </Group>
                                 <Box mt={10} pt={8} style={{ borderTop: '1px solid rgba(200,144,42,0.1)' }}>
@@ -1870,12 +1903,17 @@ export default function ReservarMane() {
                               return;
                             }
 
-                            const isPast = dayjs(dateValue).isBefore(dayjs().startOf('day'));
-
-                            if (isPast) {
-                              setDateError('Selecione uma data a partir de hoje');
+                            const beforeBookable = dayjs(dateValue).isBefore(MIN_BOOKABLE_DAY, 'day');
+                            if (beforeBookable) {
+                              setDateError('Reservas para esta data já encerraram.');
                             } else {
                               setDateError(null);
+                            }
+
+                            // se hora atual não é válida pra nova data, limpa
+                            if (hora) {
+                              const avail = allowedSlotsForDate(dateValue);
+                              if (!avail.includes(hora)) setHora('');
                             }
 
                             setPastError(() => {
@@ -1888,7 +1926,7 @@ export default function ReservarMane() {
                           valueFormat="DD/MM/YYYY"
                           leftSection={<IconCalendar size={16} />}
                           allowDeselect={false}
-                          minDate={TODAY_START}
+                          minDate={MIN_BOOKABLE_DAY}
                           size="md"
                           styles={{ input: { height: rem(48) } }}
                           error={dateError}
@@ -1913,6 +1951,7 @@ export default function ReservarMane() {
                           label="Horário"
                           placeholder="Selecionar"
                           error={timeError || pastError}
+                          slots={allowedSlotsForDate(data)}
                         />
                       </Grid.Col>
                     </Grid>
@@ -2082,25 +2121,36 @@ export default function ReservarMane() {
                         />
                       </Grid.Col>
                       <Grid.Col span={6}>
-                        <DatePickerInput
+                        <TextInput
                           label="Nascimento"
-                          placeholder="Selecionar"
-                          value={birthday}
-                          onChange={((value: any) => {
-                            const dateValue = value instanceof Date ? value : value ? new Date(value as any) : null;
-                            setBirthday(dateValue);
-                            if (dateValue) setBirthdayError(null);
-                          }) as any}
-                          valueFormat="DD/MM/YYYY"
+                          placeholder="DD/MM/AAAA"
+                          value={birthday ? dayjs(birthday).format('DD/MM/YYYY') : (birthdayRaw ?? '')}
+                          onChange={(e) => {
+                            let v = e.currentTarget.value.replace(/\D/g, '');
+                            if (v.length > 8) v = v.slice(0, 8);
+                            if (v.length >= 5) v = v.slice(0, 2) + '/' + v.slice(2, 4) + '/' + v.slice(4);
+                            else if (v.length >= 3) v = v.slice(0, 2) + '/' + v.slice(2);
+                            setBirthdayRaw(v);
+                            if (v.length === 10) {
+                              const parsed = dayjs(v, 'DD/MM/YYYY');
+                              if (parsed.isValid() && parsed.isBefore(dayjs()) && parsed.year() >= 1900) {
+                                setBirthday(parsed.toDate());
+                                setBirthdayError(null);
+                              } else {
+                                setBirthday(null);
+                                setBirthdayError('Data inválida');
+                              }
+                            } else {
+                              setBirthday(null);
+                              setBirthdayError(null);
+                            }
+                          }}
                           required
-                          allowDeselect={false}
                           size="md"
+                          maxLength={10}
+                          inputMode="numeric"
                           styles={{ input: { height: rem(48) } }}
                           leftSection={<IconCalendar size={16} />}
-                          weekendDays={[]}
-                          defaultLevel="decade"
-                          defaultDate={new Date(1990, 0, 1)}
-                          maxDate={new Date()}
                           error={birthdayError || undefined}
                         />
                       </Grid.Col>
@@ -2267,12 +2317,14 @@ function SlotTimePicker({
   label = 'Horário',
   placeholder = 'Selecionar',
   error,
+  slots = ALLOWED_SLOTS,
 }: {
   value: string;
   onChange: (v: string) => void;
   label?: string;
   placeholder?: string;
   error?: string | null;
+  slots?: string[];
 }) {
   const [opened, { open, close, toggle }] = useDisclosure(false);
 
@@ -2295,7 +2347,12 @@ function SlotTimePicker({
 
       <Popover.Dropdown>
         <SimpleGrid cols={3} spacing={8}>
-          {ALLOWED_SLOTS.map((slot) => (
+          {slots.length === 0 && (
+            <Text size="xs" c="dimmed" style={{ gridColumn: '1 / -1', textAlign: 'center' }}>
+              Sem horários disponíveis nesta data.
+            </Text>
+          )}
+          {slots.map((slot) => (
             <UnstyledButton
               key={slot}
               onClick={() => {
