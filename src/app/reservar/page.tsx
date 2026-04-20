@@ -218,31 +218,50 @@ const SLOT_ERROR_MSG = 'Escolha um horário válido da lista';
 
 /**
  * Regra de janela de reservas (espelha ac-reservas-api/src/domain/booking-window.ts):
- *   Agora (hora local do usuário) 00:00–15:00 → só pode reservar ≥ jantar do mesmo dia (17:30+)
- *   Agora 15:01–23:59 → só pode reservar ≥ almoço do dia seguinte (12:00+)
+ *   Agora (BRT, UTC-3) 00:00–15:00 → só pode reservar ≥ jantar do mesmo dia (17:30+)
+ *   Agora (BRT)       15:01–23:59 → só pode reservar ≥ almoço do dia seguinte (12:00+)
  *
- * Observação: o backend calcula em BRT (servidor UTC). No browser usamos a hora
- * local do usuário — que para clientes do Mané (Brasil) é BRT. Se o cliente estiver
- * em outro fuso, a UI pode divergir levemente do backend; nesse caso, o endpoint
- * GET /reservations/public/booking-window é a fonte canônica.
+ * Sempre em BRT (America/Sao_Paulo, sem DST) — independente do fuso do navegador.
+ * O servidor roda em UTC e também aplica a regra em BRT.
  */
+const BRT_OFFSET_MS = -3 * 60 * 60 * 1000;
 function getEarliestBookable(now: Date = new Date()): { date: Date; period: 'AFTERNOON' | 'NIGHT' } {
-  const totalMin = now.getHours() * 60 + now.getMinutes();
-  if (totalMin <= 15 * 60) {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 30, 0, 0);
-    return { date: d, period: 'NIGHT' };
+  const brt = new Date(now.getTime() + BRT_OFFSET_MS);
+  const y   = brt.getUTCFullYear();
+  const m   = brt.getUTCMonth();
+  const d   = brt.getUTCDate();
+  const min = brt.getUTCHours() * 60 + brt.getUTCMinutes();
+  // monta wall-clock BRT como Date absoluto (BRT + 3h = UTC)
+  const brtAt = (yy: number, mm: number, dd: number, hh: number, mi: number) =>
+    new Date(Date.UTC(yy, mm, dd, hh + 3, mi, 0, 0));
+
+  if (min <= 15 * 60) {
+    return { date: brtAt(y, m, d,     17, 30), period: 'NIGHT' };
   }
-  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 12, 0, 0, 0);
-  return { date: d, period: 'AFTERNOON' };
+  return   { date: brtAt(y, m, d + 1, 12,  0), period: 'AFTERNOON' };
 }
 
-/** Slots válidos pra uma data selecionada, dado o cutoff atual. */
+/** Converte um Date absoluto para wall-clock BRT (partes y/m/d/h/min) */
+function toBrtParts(d: Date) {
+  const brt = new Date(d.getTime() + BRT_OFFSET_MS);
+  return {
+    y: brt.getUTCFullYear(),
+    m: brt.getUTCMonth(),
+    d: brt.getUTCDate(),
+    h: brt.getUTCHours(),
+    min: brt.getUTCMinutes(),
+  };
+}
+
+/** Slots válidos pra uma data selecionada, dado o cutoff atual — tudo em BRT. */
 function allowedSlotsForDate(selectedDate: Date | null): string[] {
   if (!selectedDate) return ALLOWED_SLOTS;
   const earliest = getEarliestBookable();
-  const sameDay = dayjs(selectedDate).isSame(earliest.date, 'day');
+  const eP = toBrtParts(earliest.date);
+  const sP = toBrtParts(selectedDate);
+  const sameDay = eP.y === sP.y && eP.m === sP.m && eP.d === sP.d;
   if (!sameDay) return ALLOWED_SLOTS;
-  const earliestMin = earliest.date.getHours() * 60 + earliest.date.getMinutes();
+  const earliestMin = eP.h * 60 + eP.min;
   return ALLOWED_SLOTS.filter((s) => {
     const [hh, mm] = s.split(':').map(Number);
     return hh * 60 + mm >= earliestMin;
