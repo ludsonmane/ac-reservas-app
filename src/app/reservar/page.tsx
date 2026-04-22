@@ -198,6 +198,18 @@ function joinDateTimeISO(date: Date | null, time: string) {
   return dt.toISOString();
 }
 
+// Regras específicas da área Maneco: só aceita reservas a partir das 18:00.
+// Demais regras (slots 12-22h, cutoff de período, etc.) seguem normais.
+const MANECO_MIN_HOUR = 18;
+function isManecoArea(name: string | null | undefined) {
+  return String(name || '').trim().toLowerCase() === 'maneco';
+}
+function isBeforeManecoMin(hhmm: string) {
+  if (!hhmm) return false;
+  const [h] = hhmm.split(':').map(Number);
+  return Number.isFinite(h) && h < MANECO_MIN_HOUR;
+}
+
 // slots válidos — 11h às 22h, intervalos de 30min
 const ALLOWED_SLOTS = (() => {
   const s: string[] = [];
@@ -423,6 +435,7 @@ function AreaCard({
   selected,
   onSelect,
   disabled,
+  disabledReason,
   remaining,
 }: {
   foto: string;
@@ -432,6 +445,7 @@ function AreaCard({
   selected: boolean;
   onSelect: () => void;
   disabled?: boolean;
+  disabledReason?: string | null;
   remaining?: number;
 }) {
   const [src, setSrc] = useState(foto || FALLBACK_IMG);
@@ -510,7 +524,7 @@ function AreaCard({
 
         {disabled && (
           <Badge
-            color="red"
+            color={disabledReason ? 'orange' : 'red'}
             variant="filled"
             style={{
               position: 'absolute',
@@ -518,9 +532,15 @@ function AreaCard({
               right: 10,
               fontWeight: 800,
               boxShadow: '0 6px 18px rgba(0,0,0,.25)',
+              maxWidth: 'calc(100% - 20px)',
+              whiteSpace: 'normal',
+              height: 'auto',
+              lineHeight: 1.2,
+              padding: '6px 10px',
+              textAlign: 'center',
             }}
           >
-            ESGOTADO
+            {disabledReason || 'ESGOTADO'}
           </Badge>
         )}
 
@@ -1163,10 +1183,16 @@ export default function ReservarMane() {
 
         setAreaId((curr) => {
           const need = typeof total === 'number' ? total : 0;
+          const isAreaOk = (x: AreaOption) => {
+            const left = x.available ?? 0;
+            if (left < need) return false;
+            // Maneco só conta como "ok" se horário for >= 18:00
+            if (isManecoArea(x.name) && isBeforeManecoMin(hora)) return false;
+            return true;
+          };
           const chosen = normalized.find((x) => x.id === curr);
-          const left = chosen ? chosen.available ?? 0 : 0;
-          if (!chosen || left < need) {
-            const firstOk = normalized.find((x) => (x.available ?? 0) >= need);
+          if (!chosen || !isAreaOk(chosen)) {
+            const firstOk = normalized.find(isAreaOk);
             return firstOk?.id ?? null;
           }
           return curr;
@@ -1289,6 +1315,19 @@ export default function ReservarMane() {
         goToStep(1);
         setSending(false);
         return;
+      }
+      // Safety net: Maneco só aceita horário >= 18:00
+      {
+        const selectedArea = areas.find((a) => a.id === areaId);
+        if (selectedArea && isManecoArea(selectedArea.name) && isBeforeManecoMin(hora)) {
+          setError(
+            `A área Maneco só aceita reservas a partir das ${String(MANECO_MIN_HOUR).padStart(2, '0')}:00. ` +
+              `Volte e escolha um horário mais tarde ou outra área.`,
+          );
+          goToStep(1);
+          setSending(false);
+          return;
+        }
       }
       if (!contactOk) {
         setError('Preencha um e-mail e telefone válidos.');
@@ -2051,7 +2090,15 @@ export default function ReservarMane() {
                 {areas.map((a) => {
                   const left = a.available ?? a.capacity ?? 0;
                   const need = typeof total === 'number' ? total : 0;
-                  const disabled = left < need;
+                  const outOfStock = left < need;
+                  // Maneco: só libera se horário selecionado for ≥ 18:00
+                  const manecoBlocked = isManecoArea(a.name) && isBeforeManecoMin(hora);
+                  const disabled = outOfStock || manecoBlocked;
+                  const disabledReason = outOfStock
+                    ? null // usa o default "ESGOTADO"
+                    : manecoBlocked
+                    ? `Só a partir das ${String(MANECO_MIN_HOUR).padStart(2, '0')}:00`
+                    : null;
                   return (
                     <AreaCard
                       key={a.id}
@@ -2062,6 +2109,7 @@ export default function ReservarMane() {
                       selected={areaId === a.id}
                       onSelect={() => !disabled && setAreaId(a.id)}
                       disabled={disabled}
+                      disabledReason={disabledReason}
                       remaining={left}
                     />
                   );
