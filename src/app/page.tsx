@@ -70,14 +70,14 @@ const BENEFITS = [
   { icon: '🏆', title: 'Experiência garantida', desc: 'Quando você reserva, a experiência Mané começa antes de sair de casa.' },
 ];
 const IMAGES = {
-  sobre1: 'https://mane.com.vc/wp-content/uploads/2025/04/Imagem-do-WhatsApp.jpg',
-  sobre2: 'https://mane.com.vc/wp-content/uploads/2023/10/A91A1578-1.png',
-  sobre3: 'https://mane.com.vc/wp-content/uploads/2023/10/A91A0040-3.png',
-  mos1: 'https://mane.com.vc/wp-content/uploads/2025/04/Imagem-do-WhatsApp.jpg',
-  mos2: 'https://mane.com.vc/wp-content/uploads/2023/03/Mask-group-5.png',
-  mos3: 'https://mane.com.vc/wp-content/uploads/2023/03/Mask-group-3.png',
-  mos4: 'https://mane.com.vc/wp-content/uploads/2023/10/A91A1578-1.png',
-  mos5: 'https://mane.com.vc/wp-content/uploads/2023/10/A91A0040-3.png',
+  sobre1: '/images/hero.jpg',
+  sobre2: '/images/happy.jpg',
+  sobre3: '/images/mane-famili.jpg',
+  mos1: '/images/hero2.jpg',
+  mos2: '/images/happyh.png',
+  mos3: '/images/mane-sp.png',
+  mos4: '/images/hero-aniversario.jpg',
+  mos5: '/images/mane-aguas.png',
 };
 
 /* ─── main ────────────────────────────────────────────── */
@@ -278,7 +278,7 @@ export default function Home() {
             {/* Logo oficial Mané (mantida como estava antes: branca) */}
             <img
               className="hero-logo-w"
-              src="https://mane.com.vc/wp-content/uploads/2023/03/Camada-1.svg"
+              src="/images/logo-mane.svg"
               alt="Mané Mercado"
               style={{
                 height: 'clamp(48px,8vw,72px)',
@@ -367,7 +367,7 @@ export default function Home() {
               }}>
                 {o.featured ? (
                   <div style={{ width: '100%', height: 180, overflow: 'hidden', marginBottom: 0 }}>
-                    <img src="https://mane.com.vc/wp-content/uploads/2023/03/Group-205.png"
+                    <img src="/images/hero-aniversario.jpg"
                       alt="Aniversário no Mané"
                       style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }} />
                   </div>
@@ -420,7 +420,7 @@ export default function Home() {
           <div style={{ position: 'absolute', borderRadius: '50%', border: '70px solid rgba(255,255,255,.04)', width: 380, height: 380, bottom: -140, left: -80, pointerEvents: 'none' }} />
           <div style={{ position: 'relative', zIndex: 2, maxWidth: 580, margin: '0 auto' }}>
             <Rv>
-              <img src="https://mane.com.vc/wp-content/uploads/2023/03/Camada-1.svg" alt="Mané"
+              <img src="/images/logo-mane.svg" alt="Mané"
                 style={{ height: 56, width: 'auto', display: 'block', margin: '0 auto 28px', filter: 'brightness(0) invert(1)' }} />
             </Rv>
             <Rv delay={80}>
