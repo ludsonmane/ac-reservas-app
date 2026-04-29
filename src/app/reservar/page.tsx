@@ -1600,15 +1600,11 @@ export default function ReservarMane() {
   }
 
   async function shareWhatsapp() {
-    const guestLink = `${window.location.origin}/convidados/${createdCode ?? createdId}`;
     const text = [
       `Fiz minha reserva no Mané Mercado! 🎉`,
       '',
       `📍 ${boardingUnitLabel}`,
       `📅 ${boardingDateStr} às ${boardingTimeStr}`,
-      '',
-      `Registre sua presença e ganhe benefícios:`,
-      guestLink,
       '',
       `Te espero lá!`,
     ]
