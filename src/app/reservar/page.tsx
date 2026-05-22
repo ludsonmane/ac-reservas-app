@@ -879,6 +879,18 @@ export default function ReservarMane() {
 
   const [areasMeta, setAreasMeta] = useState<Record<string, AreaMeta>>({});
 
+  // Regras recorrentes (DOW) cadastradas no admin
+  type RecurringRule = {
+    id: string;
+    unitId: string;
+    areaId: string | null;
+    dow: number;
+    fromTime: string;
+    toTime: string;
+    reason?: string | null;
+  };
+  const [recurringBlocks, setRecurringBlocks] = useState<RecurringRule[]>([]);
+
   const [adultos, setAdultos] = useState<number | ''>(2);
   const [criancas, setCriancas] = useState<number | ''>(0);
   const [data, setData] = useState<Date | null>(null);
@@ -1083,6 +1095,31 @@ export default function ReservarMane() {
       }
     })();
 
+    return () => {
+      alive = false;
+    };
+  }, [unidade]);
+
+  // Busca regras recorrentes (DOW) da unidade
+  useEffect(() => {
+    let alive = true;
+    if (!unidade) {
+      setRecurringBlocks([]);
+      return;
+    }
+    (async () => {
+      try {
+        const list = await apiGet<RecurringRule[]>(
+          `/v1/blocks/public/recurring?unitId=${encodeURIComponent(unidade)}`,
+        );
+        if (!alive) return;
+        setRecurringBlocks(Array.isArray(list) ? list : []);
+      } catch (err) {
+        if (!alive) return;
+        console.warn('[recurring-blocks] erro:', err);
+        setRecurringBlocks([]);
+      }
+    })();
     return () => {
       alive = false;
     };
@@ -2004,18 +2041,23 @@ export default function ReservarMane() {
                               if (slotDate.getTime() < minAllowed.getTime()) blocked.add(s);
                             });
 
-                            // Regra BSB: sáb/dom bloqueia 14:00–17:00
-                            if (unidade) {
-                              const unitName = (units.find((u) => u.id === unidade)?.name || '').toLowerCase();
-                              const isBSB = unitName.includes('brasília') || unitName.includes('brasilia') || unitName.includes('bsb');
-                              if (isBSB) {
-                                const dow = dayjs(data).day(); // 0=dom, 6=sab
-                                if (dow === 0 || dow === 6) {
-                                  ALLOWED_SLOTS.forEach((s) => {
-                                    const h = Number(s.split(':')[0]);
-                                    if (h >= 14 && h < 17) blocked.add(s);
-                                  });
-                                }
+                            // Regras recorrentes (DOW) vindas do admin
+                            if (recurringBlocks.length > 0) {
+                              const dow = dayjs(data).day(); // 0=dom, 6=sab
+                              const rulesForDay = recurringBlocks.filter((r) => r.dow === dow);
+                              if (rulesForDay.length > 0) {
+                                ALLOWED_SLOTS.forEach((s) => {
+                                  for (const rule of rulesForDay) {
+                                    // bloqueia se cair em [fromTime, toTime)
+                                    if (s >= rule.fromTime && s < rule.toTime) {
+                                      // se a regra é por área específica e o usuário não escolheu, ainda assim bloqueia
+                                      // (vai impedir só os slots cobertos por TODAS as áreas — versão conservadora abaixo)
+                                      // Aqui aplicamos só regras de unidade inteira (areaId=null);
+                                      // regras por área são tratadas no step de seleção de área.
+                                      if (!rule.areaId) blocked.add(s);
+                                    }
+                                  }
+                                });
                               }
                             }
 
