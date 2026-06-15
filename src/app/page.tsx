@@ -22,8 +22,8 @@ const sans = 'var(--font-comfortaa), Comfortaa, system-ui, sans-serif';
 
 /* ─── Próximo jogo da Seleção (editar aqui) ────────────── */
 const NEXT_MATCH = {
-  label: 'Brasil x Sérvia',           // adversário
-  kickoff: '2026-06-18T16:00:00-03:00' // data/hora (horário de Brasília)
+  label: 'Brasil x Haiti',            // Grupo C, Copa 2026 (Filadélfia)
+  kickoff: '2026-06-19T21:30:00-03:00' // sexta-feira 21:30 (horário de Brasília)
 };
 
 /* ─── hook: detecta mobile ────────────────────────────── */
