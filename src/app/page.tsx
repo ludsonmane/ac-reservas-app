@@ -11,6 +11,11 @@ const G = {
   cream: '#FBF5E9', red: '#D94030', gold: '#C8902A', goldLight: '#F0C66A',
   white: '#ffffff',
   heroAccent: '#D7675E', // destaque do hero
+  /* ─── Copa / Seleção Brasileira ─── */
+  brVerde: '#009C3B',   // verde-bandeira
+  brAmarelo: '#FFDF00', // amarelo-canarinho
+  brAzul: '#002776',    // azul da bandeira
+  brVerdeDark: '#00782d',
 };
 const serif = 'var(--font-merri), Merriweather, serif';
 const sans = 'var(--font-comfortaa), Comfortaa, system-ui, sans-serif';
@@ -216,9 +221,39 @@ export default function Home() {
 
         /* only show FAB on mobile */
         @media (min-width:769px) { .fab { display:none !important; } }
+
+        /* ── Copa: faixa rolante + brilho ── */
+        @keyframes copaMarquee { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+        @keyframes copaShine   { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+        @keyframes ballSpin    { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+        .copa-bar-track { display:inline-flex; white-space:nowrap; animation: copaMarquee 22s linear infinite; }
+        .copa-ball { display:inline-block; animation: ballSpin 3.5s linear infinite; }
       `}</style>
 
       <main style={{ fontFamily: sans, color: G.white, background: '#000' }}>
+
+        {/* ══ FAIXA COPA (anúncio rolante) ═══════════════════ */}
+        <div style={{
+          position: 'relative', overflow: 'hidden', zIndex: 8,
+          background: `linear-gradient(90deg, ${G.brVerde} 0%, ${G.brVerdeDark} 50%, ${G.brVerde} 100%)`,
+          borderBottom: `3px solid ${G.brAmarelo}`,
+          color: G.brAmarelo, fontWeight: 800, fontSize: 13, letterSpacing: '.04em',
+          textTransform: 'uppercase', padding: '8px 0',
+        }}>
+          <div className="copa-bar-track">
+            {[0, 1].map(rep => (
+              <span key={rep} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                {['⚽ É Copa no Mané', '🇧🇷 Assista a Seleção no telão', '🍻 Garanta sua mesa pros jogos', '🏆 Cada gol é uma festa']
+                  .map(t => (
+                    <span key={t} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 28px' }}>
+                      {t}
+                      <span style={{ color: 'rgba(255,255,255,.55)', marginLeft: 28 }}>•</span>
+                    </span>
+                  ))}
+              </span>
+            ))}
+          </div>
+        </div>
 
         {/* ══ HERO ═══════════════════════════════════════════ */}
         <section style={{
@@ -262,17 +297,18 @@ export default function Home() {
             maxWidth: 820, width: '100%',
             display: 'flex', flexDirection: 'column', alignItems: 'center',
           }}>
-            {/* badge */}
+            {/* badge — Copa */}
             <div className="hero-badge" style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '5px 14px', borderRadius: 999,
-              border: '1.5px solid rgba(255,255,255,.25)',
-              background: 'rgba(255,255,255,.08)', backdropFilter: 'blur(12px)',
-              fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase',
-              color: '#a8dbd4', marginBottom: 20,
+              padding: '6px 16px', borderRadius: 999,
+              border: `1.5px solid ${G.brAmarelo}`,
+              background: 'rgba(0,156,59,.22)', backdropFilter: 'blur(12px)',
+              fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase',
+              color: G.brAmarelo, marginBottom: 20,
+              boxShadow: '0 4px 18px rgba(0,156,59,.35)',
             }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: G.goldLight, flexShrink: 0, display: 'inline-block' }} className="pulse-dot" />
-              Brasília · Águas Claras · São Paulo
+              <span className="copa-ball" style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>⚽</span>
+              É Copa no Mané · Vem torcer com a gente
             </div>
 
             {/* Logo oficial Mané (mantida como estava antes: branca) */}
@@ -298,7 +334,7 @@ export default function Home() {
               margin: 0, width: '100%',
             }}>
               Sua mesa garantida<br />
-              <span style={{ color: G.heroAccent }}>para viver a experiência Mané</span>
+              <span style={{ color: G.brAmarelo }}>pra viver a Copa no Mané</span> 🇧🇷
             </h1>
 
             {/* sub (copy nova) */}
@@ -307,8 +343,8 @@ export default function Home() {
               lineHeight: 1.65, opacity: .85,
               maxWidth: 520, marginTop: 20,
             }}>
-              15 restaurantes e 6 bares com atendimento direto na mesa.
-              {' '}Reserve e garanta sua experiência Mané.
+              Telão, cerveja gelada e aquele clima de Seleção.
+              {' '}15 restaurantes e 6 bares com atendimento na mesa — reserve e torça com a gente.
             </p>
 
             {/* CTAs */}
@@ -345,6 +381,9 @@ export default function Home() {
             ))}
           </div>
         </section>
+
+        {/* ══ COPA ═══════════════════════════════════════════ */}
+        <Copa withQuery={withQuery} />
 
         {/* ══ SOBRE ══════════════════════════════════════════ */}
         <Sobre withQuery={withQuery} />
@@ -441,7 +480,7 @@ export default function Home() {
             </Rv>
             <Rv delay={320}>
               <div className="cta-tags" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 24 }}>
-                {['🎂 Aniversários', '🥂 Confraternizações', '💼 Empresas', '👨‍👩‍👧 Famílias', '🍽️ Atendimento na mesa'].map(t => (
+                {['⚽ Jogos da Copa', '🎂 Aniversários', '🥂 Confraternizações', '💼 Empresas', '👨‍👩‍👧 Famílias', '🍽️ Atendimento na mesa'].map(t => (
                   <span key={t} style={{ background: 'rgba(255,255,255,.1)', borderRadius: 999, padding: '5px 14px', fontSize: 12, fontWeight: 600, opacity: .75 }}>{t}</span>
                 ))}
               </div>
@@ -463,6 +502,76 @@ export default function Home() {
 }
 
 /* ─── sub-pages ────────────────────────────────────────── */
+function Copa({ withQuery }: { withQuery: (s: string) => string }) {
+  const COPA_FEATS = [
+    { icon: '📺', title: 'Telão em alta', desc: 'Todos os jogos da Seleção ao vivo, no telão, com som de estádio.' },
+    { icon: '🍺', title: 'Chope sempre gelado', desc: 'Atendimento direto na mesa: peça sem perder nenhum lance.' },
+    { icon: '🟢🟡', title: 'Clima de torcida', desc: 'Verde e amarelo por todo canto. Cada gol vira festa no Mané.' },
+    { icon: '🪑', title: 'Lugar garantido', desc: 'Dia de jogo lota. Reserve e chegue com sua mesa esperando.' },
+  ];
+  return (
+    <section style={{
+      position: 'relative', overflow: 'hidden',
+      background: `linear-gradient(135deg, ${G.brVerde} 0%, ${G.brVerdeDark} 55%, ${G.brAzul} 140%)`,
+      color: G.white,
+      padding: 'clamp(56px,10vw,100px) clamp(16px,5vw,64px)',
+    }}>
+      {/* losangos decorativos (bandeira) */}
+      <div style={{ position: 'absolute', top: -90, right: -60, width: 320, height: 320, transform: 'rotate(45deg)', background: 'rgba(255,223,0,.10)', borderRadius: 40, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: -120, left: -70, width: 360, height: 360, transform: 'rotate(45deg)', background: 'rgba(0,39,118,.18)', borderRadius: 48, pointerEvents: 'none' }} />
+
+      <div style={{ position: 'relative', zIndex: 2, maxWidth: 1140, margin: '0 auto' }}>
+        <Rv style={{ textAlign: 'center', marginBottom: 44 }}>
+          <Eyebrow color={G.brAmarelo}>⚽ Copa do Mundo 2026</Eyebrow>
+          <h2 style={{
+            fontFamily: serif, fontWeight: 900,
+            fontSize: 'clamp(1.9rem,5vw,3rem)', lineHeight: 1.08, letterSpacing: '-.02em',
+            marginBottom: 14, textShadow: '0 2px 24px rgba(0,0,0,.35)',
+          }}>
+            Viva a Copa no Mané<br />
+            <span style={{ color: G.brAmarelo }}>do jeito que o brasileiro gosta</span>
+          </h2>
+          <p style={{ fontSize: 'clamp(.92rem,2vw,1.08rem)', lineHeight: 1.7, opacity: .9, maxWidth: 560, margin: '0 auto' }}>
+            Telão, torcida, churrasco e cerveja gelada. Reúna a turma, vista o verde e amarelo
+            e garanta sua mesa pros dias de Seleção.
+          </p>
+        </Rv>
+
+        <div className="benef-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 16, marginBottom: 40 }}>
+          {COPA_FEATS.map((f, i) => (
+            <Rv key={f.title} delay={i * 70} style={{
+              background: 'rgba(255,255,255,.08)', backdropFilter: 'blur(8px)',
+              border: `1.5px solid ${G.brAmarelo}55`, borderRadius: 18,
+              padding: '26px 22px', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>{f.icon}</div>
+              <h3 style={{ fontFamily: serif, fontWeight: 900, fontSize: 17, color: G.brAmarelo, marginBottom: 8 }}>{f.title}</h3>
+              <p style={{ fontSize: 13.5, lineHeight: 1.6, opacity: .82, margin: 0 }}>{f.desc}</p>
+            </Rv>
+          ))}
+        </div>
+
+        <Rv style={{ textAlign: 'center' }}>
+          <Link href={withQuery('/reservar')} style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+            height: 56, padding: '0 36px', borderRadius: 14,
+            fontFamily: sans, fontWeight: 800, fontSize: 16,
+            textDecoration: 'none', letterSpacing: '.01em',
+            background: G.brAmarelo, color: G.brAzul,
+            boxShadow: '0 10px 30px rgba(0,0,0,.35)',
+          }}>
+            <span className="copa-ball" style={{ fontSize: 18, lineHeight: 1 }}>⚽</span>
+            Reserve pra Copa
+          </Link>
+          <p style={{ marginTop: 14, fontSize: 12.5, opacity: .8 }}>
+            Em dia de jogo o Mané lota — garanta seu lugar antes do apito inicial.
+          </p>
+        </Rv>
+      </div>
+    </section>
+  );
+}
+
 function Sobre({ withQuery }: { withQuery: (s: string) => string }) {
   const refL = useRef<HTMLDivElement>(null);
   const refR = useRef<HTMLDivElement>(null);
