@@ -20,6 +20,12 @@ const G = {
 const serif = 'var(--font-merri), Merriweather, serif';
 const sans = 'var(--font-comfortaa), Comfortaa, system-ui, sans-serif';
 
+/* ─── Próximo jogo da Seleção (editar aqui) ────────────── */
+const NEXT_MATCH = {
+  label: 'Brasil x Sérvia',           // adversário
+  kickoff: '2026-06-18T16:00:00-03:00' // data/hora (horário de Brasília)
+};
+
 /* ─── hook: detecta mobile ────────────────────────────── */
 function useIsMobile(bp = 768) {
   const [is, setIs] = useState(false);
@@ -225,8 +231,14 @@ export default function Home() {
         /* ── Copa: faixa rolante refinada ── */
         @keyframes copaMarquee { from{transform:translateX(0)} to{transform:translateX(-50%)} }
         .copa-bar-track { display:inline-flex; white-space:nowrap; animation: copaMarquee 32s linear infinite; }
+        /* brilho dourado varrendo o título */
+        @keyframes goldShimmer { 0%{background-position:0% 50%} 100%{background-position:-200% 50%} }
+        .gold-shimmer { background-size:200% auto; animation: goldShimmer 4s linear infinite; }
+        /* pulso do contador */
+        @keyframes cdPulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+        .cd-dot { animation: cdPulse 1.4s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) {
-          .copa-bar-track { animation: none; }
+          .copa-bar-track, .gold-shimmer, .cd-dot { animation: none; }
         }
       `}</style>
 
@@ -338,8 +350,8 @@ export default function Home() {
             }}>
               Sua mesa garantida<br />
               <span style={{ position: 'relative', display: 'inline-block' }}>
-                <span style={{
-                  backgroundImage: `linear-gradient(100deg, ${G.gold} 0%, ${G.goldLight} 45%, #FFE9A8 70%, ${G.goldLight} 100%)`,
+                <span className="gold-shimmer" style={{
+                  backgroundImage: `linear-gradient(100deg, ${G.gold} 0%, ${G.goldLight} 25%, #FFF6DC 50%, ${G.goldLight} 75%, ${G.gold} 100%)`,
                   WebkitBackgroundClip: 'text', backgroundClip: 'text',
                   WebkitTextFillColor: 'transparent', color: G.goldLight,
                 }}>pra viver a Copa no Mané</span>
@@ -373,6 +385,9 @@ export default function Home() {
                 <SearchIcon /> Localizar Reserva
               </HeroBtn>
             </div>
+
+            {/* contagem regressiva do próximo jogo */}
+            <MatchCountdown />
           </div>
 
           {/* stats ribbon */}
@@ -755,6 +770,65 @@ function CtaBtn({ href, children, primary }: { href: string; children: React.Rea
     }}>
       {children}
     </Link>
+  );
+}
+
+/* ─── Contagem regressiva do próximo jogo ──────────────── */
+function MatchCountdown() {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  if (now == null) return null; // evita mismatch de hidratação
+
+  const target = new Date(NEXT_MATCH.kickoff).getTime();
+  const diff = target - now;
+  const live = diff <= 0;
+  const d = Math.max(0, Math.floor(diff / 86400000));
+  const h = Math.max(0, Math.floor((diff % 86400000) / 3600000));
+  const m = Math.max(0, Math.floor((diff % 3600000) / 60000));
+  const s = Math.max(0, Math.floor((diff % 60000) / 1000));
+  const pad = (n: number) => String(n).padStart(2, '0');
+
+  const Block = ({ v, lbl }: { v: string; lbl: string }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 46 }}>
+      <span style={{ fontFamily: serif, fontWeight: 900, fontSize: 'clamp(1.3rem,4.5vw,1.7rem)', color: G.cream, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{v}</span>
+      <span style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: G.goldLight, marginTop: 5, opacity: .85 }}>{lbl}</span>
+    </div>
+  );
+  const Sep = () => <span style={{ fontFamily: serif, fontWeight: 900, fontSize: 'clamp(1.1rem,4vw,1.5rem)', color: 'rgba(240,198,106,.5)', lineHeight: 1, marginTop: -8 }}>:</span>;
+
+  return (
+    <div style={{
+      display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+      marginTop: 28, padding: '16px 24px 14px', borderRadius: 18,
+      background: 'rgba(3,76,70,.42)', backdropFilter: 'blur(14px)',
+      border: '1px solid rgba(240,198,106,.35)',
+      boxShadow: '0 12px 40px rgba(0,0,0,.4), inset 0 1px 0 rgba(240,198,106,.15)',
+      position: 'relative', overflow: 'hidden',
+    }}>
+      {/* fio tricolor no topo do card */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${G.brVerde} 0 33%, ${G.brAmarelo} 33% 66%, ${G.brAzul} 66% 100%)` }} />
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: G.goldLight }}>
+        <span className="cd-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: live ? '#ff5a4d' : G.brAmarelo, display: 'inline-block', boxShadow: live ? '0 0 8px #ff5a4d' : '0 0 8px rgba(255,223,0,.7)' }} />
+        <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase' }}>
+          {live ? 'Agora no telão' : 'Próximo jogo da Seleção'}
+        </span>
+      </div>
+      <span style={{ fontFamily: serif, fontWeight: 900, fontSize: 'clamp(1rem,3.4vw,1.25rem)', color: G.white }}>{NEXT_MATCH.label}</span>
+      {live ? (
+        <span style={{ fontSize: 12, color: G.goldLight, fontWeight: 700, letterSpacing: '.06em' }}>Reserve e venha torcer!</span>
+      ) : (
+        <div style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 10 }}>
+          <Block v={String(d)} lbl="dias" /><Sep />
+          <Block v={pad(h)} lbl="horas" /><Sep />
+          <Block v={pad(m)} lbl="min" /><Sep />
+          <Block v={pad(s)} lbl="seg" />
+        </div>
+      )}
+    </div>
   );
 }
 
