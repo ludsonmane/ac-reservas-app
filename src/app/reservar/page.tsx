@@ -1669,41 +1669,48 @@ export default function ReservarMane() {
     <DatesProvider settings={{ locale: 'pt-br' }}>
       <Box style={{ background: '#ffffff', minHeight: '100dvh', position: 'relative', overflow: 'hidden' }}>
         {/* Decorative blobs — smaller on mobile */}
-        <Box className="deco-blob" style={{ position: 'absolute', top: -60, left: -60, width: 110, height: 110, borderRadius: '50%', background: '#009C3B', opacity: 0.4, pointerEvents: 'none', zIndex: 0 }} />
-        <Box className="deco-blob" style={{ position: 'absolute', top: -30, right: -40, width: 80, height: 80, borderRadius: '50%', background: '#FFDF00', opacity: 0.45, pointerEvents: 'none', zIndex: 0 }} />
-        <Box className="deco-blob" style={{ position: 'absolute', top: 400, left: -40, width: 60, height: 90, borderRadius: '50%', background: '#009C3B', opacity: 0.2, pointerEvents: 'none', zIndex: 0 }} />
-        <Box className="deco-blob" style={{ position: 'absolute', bottom: 200, left: -30, width: 80, height: 70, borderRadius: '50%', background: '#002776', opacity: 0.22, pointerEvents: 'none', zIndex: 0 }} />
-        <Box className="deco-blob" style={{ position: 'absolute', top: 220, right: -35, width: 70, height: 70, borderRadius: '50%', background: '#FFDF00', opacity: 0.25, pointerEvents: 'none', zIndex: 0 }} />
+        <Box className="deco-blob" style={{ position: 'absolute', top: -60, left: -60, width: 110, height: 110, borderRadius: '50%', background: '#034c46', opacity: 0.22, pointerEvents: 'none', zIndex: 0 }} />
+        <Box className="deco-blob" style={{ position: 'absolute', top: -30, right: -40, width: 80, height: 80, borderRadius: '50%', background: '#F0C66A', opacity: 0.3, pointerEvents: 'none', zIndex: 0 }} />
+        <Box className="deco-blob" style={{ position: 'absolute', top: 400, left: -40, width: 60, height: 90, borderRadius: '50%', background: '#009C3B', opacity: 0.14, pointerEvents: 'none', zIndex: 0 }} />
+        <Box className="deco-blob" style={{ position: 'absolute', bottom: 200, left: -30, width: 80, height: 70, borderRadius: '50%', background: '#034c46', opacity: 0.16, pointerEvents: 'none', zIndex: 0 }} />
+        <Box className="deco-blob" style={{ position: 'absolute', top: 220, right: -35, width: 70, height: 70, borderRadius: '50%', background: '#F0C66A', opacity: 0.18, pointerEvents: 'none', zIndex: 0 }} />
         <LoadingOverlay visible={sending || shareBusy} />
 
         {/* Copa: keyframes da faixa rolante */}
         <style jsx global>{`
           @keyframes copaMarqueeR { from { transform: translateX(0) } to { transform: translateX(-50%) } }
-          @keyframes ballSpinR { from { transform: rotate(0) } to { transform: rotate(360deg) } }
-          .copa-bar-track-r { display: inline-flex; white-space: nowrap; animation: copaMarqueeR 22s linear infinite; }
-          .copa-ball-r { display: inline-block; animation: ballSpinR 3.5s linear infinite; }
+          .copa-bar-track-r { display: inline-flex; white-space: nowrap; animation: copaMarqueeR 32s linear infinite; }
+          @media (prefers-reduced-motion: reduce) { .copa-bar-track-r { animation: none; } }
         `}</style>
 
-        {/* ══ FAIXA COPA (anúncio rolante) ═══════════════════ */}
+        {/* ══ FAIXA COPA (anúncio rolante — refinada) ════════ */}
         <Box style={{
           position: 'relative', overflow: 'hidden', zIndex: 2,
-          background: 'linear-gradient(90deg, #009C3B 0%, #00782d 50%, #009C3B 100%)',
-          borderBottom: '3px solid #FFDF00',
-          color: '#FFDF00', fontWeight: 800, fontSize: 12.5, letterSpacing: '.04em',
-          textTransform: 'uppercase', padding: '7px 0',
+          background: 'linear-gradient(90deg, #034c46 0%, #022d29 50%, #034c46 100%)',
+          boxShadow: 'inset 0 1px 0 rgba(240,198,106,.18)',
+          padding: '8px 0',
         }}>
+          <Box style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, rgba(240,198,106,.6), transparent)' }} />
           <Box className="copa-bar-track-r">
             {[0, 1].map((rep) => (
               <span key={rep} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                {['⚽ É Copa no Mané', '🇧🇷 Reserve pros jogos da Seleção', '📺 Telão e cerveja gelada', '🏆 Cada gol é uma festa'].map((t) => (
-                  <span key={t} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 26px' }}>
-                    {t}
-                    <span style={{ color: 'rgba(255,255,255,.55)', marginLeft: 26 }}>•</span>
+                {['É Copa no Mané', 'Reserve pros jogos da Seleção', 'Telão e cerveja gelada', 'Cada gol é uma festa'].map((t, i) => (
+                  <span key={t} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 20px' }}>
+                    {i === 0 && (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F0C66A" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 8, flexShrink: 0 }}>
+                        <circle cx="12" cy="12" r="9.2" /><path d="M12 6.4l3.9 2.8-1.5 4.6h-4.8L8.1 9.2 12 6.4z" />
+                      </svg>
+                    )}
+                    <span style={{ color: '#FBF5E9', fontWeight: 600, fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase' }}>{t}</span>
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="#C8902A" style={{ marginLeft: 20, opacity: .85, flexShrink: 0 }}>
+                      <path d="M12 2.5l2.6 5.9 6.4.6-4.8 4.2 1.4 6.3L12 16.9l-5.6 3.3 1.4-6.3-4.8-4.2 6.4-.6L12 2.5z" />
+                    </svg>
                   </span>
                 ))}
               </span>
             ))}
           </Box>
+          <Box style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, #009C3B 0 33%, #FFDF00 33% 66%, #002776 66% 100%)', opacity: .55 }} />
         </Box>
 
         {/* HEADER — compacto e funcional */}
@@ -1763,12 +1770,14 @@ export default function ReservarMane() {
               <Group justify="center" mt={6}>
                 <Box style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '3px 12px', borderRadius: 999,
-                  background: 'linear-gradient(90deg, #009C3B, #00782d)',
-                  border: '1.5px solid #FFDF00',
+                  padding: '4px 13px', borderRadius: 999,
+                  background: 'rgba(3,76,70,.06)',
+                  border: '1px solid rgba(200,144,42,.5)',
                 }}>
-                  <span className="copa-ball-r" style={{ fontSize: 12, lineHeight: 1 }}>⚽</span>
-                  <Text size="10px" fw={800} c="#FFDF00" tt="uppercase" style={{ letterSpacing: '.1em' }}>Edição Copa</Text>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="#C8902A" style={{ flexShrink: 0 }}>
+                    <path d="M12 2.5l2.6 5.9 6.4.6-4.8 4.2 1.4 6.3L12 16.9l-5.6 3.3 1.4-6.3-4.8-4.2 6.4-.6L12 2.5z" />
+                  </svg>
+                  <Text size="10px" fw={700} c="#B8842A" tt="uppercase" style={{ letterSpacing: '.14em' }}>Edição Copa</Text>
                 </Box>
               </Group>
             </Box>

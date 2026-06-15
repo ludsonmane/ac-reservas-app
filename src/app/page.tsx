@@ -222,37 +222,40 @@ export default function Home() {
         /* only show FAB on mobile */
         @media (min-width:769px) { .fab { display:none !important; } }
 
-        /* ── Copa: faixa rolante + brilho ── */
+        /* ── Copa: faixa rolante refinada ── */
         @keyframes copaMarquee { from{transform:translateX(0)} to{transform:translateX(-50%)} }
-        @keyframes copaShine   { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
-        @keyframes ballSpin    { from{transform:rotate(0)} to{transform:rotate(360deg)} }
-        .copa-bar-track { display:inline-flex; white-space:nowrap; animation: copaMarquee 22s linear infinite; }
-        .copa-ball { display:inline-block; animation: ballSpin 3.5s linear infinite; }
+        .copa-bar-track { display:inline-flex; white-space:nowrap; animation: copaMarquee 32s linear infinite; }
+        @media (prefers-reduced-motion: reduce) {
+          .copa-bar-track { animation: none; }
+        }
       `}</style>
 
       <main style={{ fontFamily: sans, color: G.white, background: '#000' }}>
 
-        {/* ══ FAIXA COPA (anúncio rolante) ═══════════════════ */}
+        {/* ══ FAIXA COPA (anúncio rolante — refinada) ════════ */}
         <div style={{
           position: 'relative', overflow: 'hidden', zIndex: 8,
-          background: `linear-gradient(90deg, ${G.brVerde} 0%, ${G.brVerdeDark} 50%, ${G.brVerde} 100%)`,
-          borderBottom: `3px solid ${G.brAmarelo}`,
-          color: G.brAmarelo, fontWeight: 800, fontSize: 13, letterSpacing: '.04em',
-          textTransform: 'uppercase', padding: '8px 0',
+          background: `linear-gradient(90deg, ${G.dark} 0%, #022d29 50%, ${G.dark} 100%)`,
+          boxShadow: 'inset 0 1px 0 rgba(240,198,106,.18), 0 1px 0 rgba(0,0,0,.25)',
+          padding: '9px 0',
         }}>
+          {/* fio dourado no topo */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, rgba(240,198,106,.6), transparent)' }} />
           <div className="copa-bar-track">
             {[0, 1].map(rep => (
               <span key={rep} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                {['⚽ É Copa no Mané', '🇧🇷 Assista a Seleção no telão', '🍻 Garanta sua mesa pros jogos', '🏆 Cada gol é uma festa']
-                  .map(t => (
-                    <span key={t} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 28px' }}>
-                      {t}
-                      <span style={{ color: 'rgba(255,255,255,.55)', marginLeft: 28 }}>•</span>
-                    </span>
-                  ))}
+                {['É Copa no Mané', 'Assista a Seleção no telão', 'Garanta sua mesa pros jogos', 'Cada gol é uma festa'].map((t, i) => (
+                  <span key={t} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 22px' }}>
+                    {i === 0 && <span style={{ marginRight: 9, color: G.goldLight, display: 'inline-flex' }}><BallIcon size={13} /></span>}
+                    <span style={{ color: G.cream, fontWeight: 600, fontSize: 11.5, letterSpacing: '.14em', textTransform: 'uppercase' }}>{t}</span>
+                    <span style={{ marginLeft: 22, opacity: .85 }}><StarIcon size={8} color={G.gold} /></span>
+                  </span>
+                ))}
               </span>
             ))}
           </div>
+          {/* filete tricolor discreto (referência à bandeira) */}
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${G.brVerde} 0 33%, ${G.brAmarelo} 33% 66%, ${G.brAzul} 66% 100%)`, opacity: .55 }} />
         </div>
 
         {/* ══ HERO ═══════════════════════════════════════════ */}
@@ -297,18 +300,18 @@ export default function Home() {
             maxWidth: 820, width: '100%',
             display: 'flex', flexDirection: 'column', alignItems: 'center',
           }}>
-            {/* badge — Copa */}
+            {/* badge — Copa (glass premium, borda dourada) */}
             <div className="hero-badge" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '6px 16px', borderRadius: 999,
-              border: `1.5px solid ${G.brAmarelo}`,
-              background: 'rgba(0,156,59,.22)', backdropFilter: 'blur(12px)',
-              fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase',
-              color: G.brAmarelo, marginBottom: 20,
-              boxShadow: '0 4px 18px rgba(0,156,59,.35)',
+              display: 'inline-flex', alignItems: 'center', gap: 9,
+              padding: '7px 18px', borderRadius: 999,
+              border: '1px solid rgba(240,198,106,.5)',
+              background: 'rgba(3,76,70,.4)', backdropFilter: 'blur(14px)',
+              fontSize: 11, fontWeight: 600, letterSpacing: '.16em', textTransform: 'uppercase',
+              color: G.goldLight, marginBottom: 22,
+              boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(240,198,106,.18)',
             }}>
-              <span className="copa-ball" style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>⚽</span>
-              É Copa no Mané · Vem torcer com a gente
+              <span style={{ display: 'inline-flex', color: G.goldLight }}><StarIcon size={11} /></span>
+              É Copa no Mané · vem torcer com a gente
             </div>
 
             {/* Logo oficial Mané (mantida como estava antes: branca) */}
@@ -334,7 +337,18 @@ export default function Home() {
               margin: 0, width: '100%',
             }}>
               Sua mesa garantida<br />
-              <span style={{ color: G.brAmarelo }}>pra viver a Copa no Mané</span> 🇧🇷
+              <span style={{ position: 'relative', display: 'inline-block' }}>
+                <span style={{
+                  backgroundImage: `linear-gradient(100deg, ${G.gold} 0%, ${G.goldLight} 45%, #FFE9A8 70%, ${G.goldLight} 100%)`,
+                  WebkitBackgroundClip: 'text', backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent', color: G.goldLight,
+                }}>pra viver a Copa no Mané</span>
+                <span style={{
+                  position: 'absolute', left: 0, right: 0, bottom: '-0.16em', height: 3, borderRadius: 3,
+                  background: `linear-gradient(90deg, ${G.brVerde} 0 33%, ${G.brAmarelo} 33% 66%, ${G.brAzul} 66% 100%)`,
+                  opacity: .85,
+                }} />
+              </span>
             </h1>
 
             {/* sub (copy nova) */}
@@ -503,50 +517,64 @@ export default function Home() {
 
 /* ─── sub-pages ────────────────────────────────────────── */
 function Copa({ withQuery }: { withQuery: (s: string) => string }) {
+  const triColor = `linear-gradient(90deg, ${G.brVerde} 0 33%, ${G.brAmarelo} 33% 66%, ${G.brAzul} 66% 100%)`;
   const COPA_FEATS = [
-    { icon: '📺', title: 'Telão em alta', desc: 'Todos os jogos da Seleção ao vivo, no telão, com som de estádio.' },
-    { icon: '🍺', title: 'Chope sempre gelado', desc: 'Atendimento direto na mesa: peça sem perder nenhum lance.' },
-    { icon: '🟢🟡', title: 'Clima de torcida', desc: 'Verde e amarelo por todo canto. Cada gol vira festa no Mané.' },
-    { icon: '🪑', title: 'Lugar garantido', desc: 'Dia de jogo lota. Reserve e chegue com sua mesa esperando.' },
+    { Icon: TvIcon, title: 'Telão em alta', desc: 'Todos os jogos da Seleção ao vivo, no telão, com som de estádio.' },
+    { Icon: CupIcon, title: 'Chope sempre gelado', desc: 'Atendimento direto na mesa: peça sem perder nenhum lance.' },
+    { Icon: FlagWaveIcon, title: 'Clima de torcida', desc: 'Verde e amarelo por todo canto. Cada gol vira festa no Mané.' },
+    { Icon: ChairIcon, title: 'Lugar garantido', desc: 'Dia de jogo lota. Reserve e chegue com sua mesa esperando.' },
   ];
   return (
     <section style={{
       position: 'relative', overflow: 'hidden',
-      background: `linear-gradient(135deg, ${G.brVerde} 0%, ${G.brVerdeDark} 55%, ${G.brAzul} 140%)`,
-      color: G.white,
-      padding: 'clamp(56px,10vw,100px) clamp(16px,5vw,64px)',
+      background: `radial-gradient(120% 80% at 50% -10%, #0a5249 0%, transparent 60%), linear-gradient(170deg, ${G.dark} 0%, #022d29 70%, #012623 100%)`,
+      color: G.cream,
+      padding: 'clamp(60px,10vw,104px) clamp(16px,5vw,64px)',
     }}>
-      {/* losangos decorativos (bandeira) */}
-      <div style={{ position: 'absolute', top: -90, right: -60, width: 320, height: 320, transform: 'rotate(45deg)', background: 'rgba(255,223,0,.10)', borderRadius: 40, pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: -120, left: -70, width: 360, height: 360, transform: 'rotate(45deg)', background: 'rgba(0,39,118,.18)', borderRadius: 48, pointerEvents: 'none' }} />
+      {/* fio tricolor no topo da seção */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: triColor, opacity: .8 }} />
+      {/* brilho dourado decorativo */}
+      <div style={{ position: 'absolute', top: -120, right: -80, width: 360, height: 360, borderRadius: '50%', background: 'radial-gradient(circle, rgba(240,198,106,.10) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
       <div style={{ position: 'relative', zIndex: 2, maxWidth: 1140, margin: '0 auto' }}>
-        <Rv style={{ textAlign: 'center', marginBottom: 44 }}>
-          <Eyebrow color={G.brAmarelo}>⚽ Copa do Mundo 2026</Eyebrow>
+        <Rv style={{ textAlign: 'center', marginBottom: 46 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 14, color: G.goldLight }}>
+            <BallIcon size={15} />
+            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase' }}>Copa do Mundo 2026</span>
+          </div>
           <h2 style={{
             fontFamily: serif, fontWeight: 900,
             fontSize: 'clamp(1.9rem,5vw,3rem)', lineHeight: 1.08, letterSpacing: '-.02em',
-            marginBottom: 14, textShadow: '0 2px 24px rgba(0,0,0,.35)',
+            marginBottom: 16, color: G.white, textShadow: '0 2px 24px rgba(0,0,0,.35)',
           }}>
             Viva a Copa no Mané<br />
-            <span style={{ color: G.brAmarelo }}>do jeito que o brasileiro gosta</span>
+            <span style={{
+              backgroundImage: `linear-gradient(100deg, ${G.gold}, ${G.goldLight} 55%, #FFE9A8)`,
+              WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: G.goldLight,
+            }}>do jeito que o brasileiro gosta</span>
           </h2>
-          <p style={{ fontSize: 'clamp(.92rem,2vw,1.08rem)', lineHeight: 1.7, opacity: .9, maxWidth: 560, margin: '0 auto' }}>
+          <p style={{ fontSize: 'clamp(.92rem,2vw,1.08rem)', lineHeight: 1.7, opacity: .82, maxWidth: 560, margin: '0 auto' }}>
             Telão, torcida, churrasco e cerveja gelada. Reúna a turma, vista o verde e amarelo
             e garanta sua mesa pros dias de Seleção.
           </p>
         </Rv>
 
-        <div className="benef-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 16, marginBottom: 40 }}>
+        <div className="benef-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 16, marginBottom: 44 }}>
           {COPA_FEATS.map((f, i) => (
             <Rv key={f.title} delay={i * 70} style={{
-              background: 'rgba(255,255,255,.08)', backdropFilter: 'blur(8px)',
-              border: `1.5px solid ${G.brAmarelo}55`, borderRadius: 18,
-              padding: '26px 22px', textAlign: 'center',
+              background: 'rgba(255,255,255,.05)', backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(240,198,106,.22)', borderRadius: 18,
+              padding: '28px 22px', textAlign: 'center',
             }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>{f.icon}</div>
-              <h3 style={{ fontFamily: serif, fontWeight: 900, fontSize: 17, color: G.brAmarelo, marginBottom: 8 }}>{f.title}</h3>
-              <p style={{ fontSize: 13.5, lineHeight: 1.6, opacity: .82, margin: 0 }}>{f.desc}</p>
+              <div style={{
+                width: 52, height: 52, margin: '0 auto 14px', borderRadius: 14,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(240,198,106,.1)', border: '1px solid rgba(240,198,106,.3)', color: G.goldLight,
+              }}>
+                <f.Icon size={26} />
+              </div>
+              <h3 style={{ fontFamily: serif, fontWeight: 900, fontSize: 17, color: G.cream, marginBottom: 8 }}>{f.title}</h3>
+              <p style={{ fontSize: 13.5, lineHeight: 1.6, opacity: .7, margin: 0 }}>{f.desc}</p>
             </Rv>
           ))}
         </div>
@@ -554,13 +582,14 @@ function Copa({ withQuery }: { withQuery: (s: string) => string }) {
         <Rv style={{ textAlign: 'center' }}>
           <Link href={withQuery('/reservar')} style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-            height: 56, padding: '0 36px', borderRadius: 14,
+            height: 56, padding: '0 38px', borderRadius: 14,
             fontFamily: sans, fontWeight: 800, fontSize: 16,
             textDecoration: 'none', letterSpacing: '.01em',
-            background: G.brAmarelo, color: G.brAzul,
-            boxShadow: '0 10px 30px rgba(0,0,0,.35)',
+            backgroundImage: `linear-gradient(100deg, ${G.gold}, ${G.goldLight})`,
+            color: '#3a2a08',
+            boxShadow: '0 12px 34px rgba(200,144,42,.35), inset 0 1px 0 rgba(255,255,255,.4)',
           }}>
-            <span className="copa-ball" style={{ fontSize: 18, lineHeight: 1 }}>⚽</span>
+            <BallIcon size={17} color="#3a2a08" />
             Reserve pra Copa
           </Link>
           <p style={{ marginTop: 14, fontSize: 12.5, opacity: .8 }}>
@@ -727,6 +756,38 @@ function CtaBtn({ href, children, primary }: { href: string; children: React.Rea
       {children}
     </Link>
   );
+}
+
+/* ─── Copa icons (SVG — sem emoji) ─────────────────────── */
+function BallIcon({ size = 15, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <circle cx="12" cy="12" r="9.2" />
+      <path d="M12 6.4l3.9 2.8-1.5 4.6h-4.8L8.1 9.2 12 6.4z" />
+      <path d="M12 6.4V3.2M15.9 9.2l3-1M14.4 13.8l1.9 2.6M9.6 13.8l-1.9 2.6M8.1 9.2l-3-1" />
+    </svg>
+  );
+}
+function StarIcon({ size = 12, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} style={{ flexShrink: 0 }}>
+      <path d="M12 2.5l2.6 5.9 6.4.6-4.8 4.2 1.4 6.3L12 16.9l-5.6 3.3 1.4-6.3-4.8-4.2 6.4-.6L12 2.5z" />
+    </svg>
+  );
+}
+/* ícones de linha para os cards da seção Copa (stroke 1.6, consistentes) */
+const lineProps = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+function TvIcon({ size = 26 }: { size?: number }) {
+  return (<svg width={size} height={size} viewBox="0 0 24 24" {...lineProps}><rect x="2.5" y="5" width="19" height="12.5" rx="2" /><path d="M8 21h8M12 17.5V21M8.5 9.8l3.2 2-3.2 2v-4z" /></svg>);
+}
+function CupIcon({ size = 26 }: { size?: number }) {
+  return (<svg width={size} height={size} viewBox="0 0 24 24" {...lineProps}><path d="M6 9h9v8a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3V9z" /><path d="M15 11h2.2a2 2 0 0 1 0 4H15M7.5 5.5c.5-.6.5-1.4 0-2M10.5 6c.5-.6.5-1.4 0-2M13 5.5c.5-.6.5-1.4 0-2" /></svg>);
+}
+function FlagWaveIcon({ size = 26 }: { size?: number }) {
+  return (<svg width={size} height={size} viewBox="0 0 24 24" {...lineProps}><path d="M5 21V4M5 5c3-2 6 2 9 0s5-1 5-1v8s-2-1-5 1-6-2-9 0" /></svg>);
+}
+function ChairIcon({ size = 26 }: { size?: number }) {
+  return (<svg width={size} height={size} viewBox="0 0 24 24" {...lineProps}><path d="M6 4v8M18 4v8M6 12h12M5 12l1 8M19 12l-1 8M8 16h8" /></svg>);
 }
 
 function CalIcon() {
