@@ -51,6 +51,7 @@ import {
 } from '@tabler/icons-react';
 import NextImage from 'next/image';
 import { apiGet, API_BASE } from '@/lib/api';
+import { sendPartialLead } from '@/lib/engineCapture';
 
 dayjs.locale('pt-br');
 
@@ -916,6 +917,30 @@ export default function ReservarMane() {
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [posterBlob, setPosterBlob] = useState<Blob | null>(null);
   const [posterName, setPosterName] = useState<string | null>(null);
+
+  // ── Captura parcial (recuperação de abandono) ────────────────────────────
+  // No step "Seus dados", assim que houver um identificador válido, manda o
+  // lead pro engine com debounce. Quem concluir a reserva é suprimido lá; quem
+  // abandonar entra na cadência de recuperação. Fire-and-forget, nunca
+  // bloqueia nem quebra o funil.
+  useEffect(() => {
+    if (step !== 3 || createdId) return;
+    const t = setTimeout(() => {
+      const attribution = readUrlAttribution();
+      const u = units.find((x) => x.id === unidade);
+      sendPartialLead({
+        name: fullName,
+        phone,
+        email,
+        cpf,
+        birthday: birthday ? dayjs(birthday).format('YYYY-MM-DD') : null,
+        unitId: unidade,
+        unitName: u?.name ?? null,
+        utm: attribution,
+      });
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [step, createdId, fullName, phone, email, cpf, birthday, unidade, units]);
 
   const total = useMemo(() => {
     const a = typeof adultos === 'number' ? adultos : 0;
