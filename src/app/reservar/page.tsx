@@ -211,12 +211,33 @@ function isBeforeManecoMin(hhmm: string) {
   return Number.isFinite(h) && h < MANECO_MIN_HOUR;
 }
 
-// slots válidos — 11h às 22h, intervalos de 30min
+// ====== Horário de funcionamento por dia da semana (0=dom ... 6=sáb)
+// Seg: fechado · Ter–Sex: 12:00–22:00 · Sáb: 12:00–22:30 · Dom: 12:00–22:00
+type DayWindow = { open: string; close: string } | null;
+const HOURS_BY_DOW: DayWindow[] = [
+  { open: '12:00', close: '22:00' }, // dom
+  null, // seg — fechado
+  { open: '12:00', close: '22:00' }, // ter
+  { open: '12:00', close: '22:00' }, // qua
+  { open: '12:00', close: '22:00' }, // qui
+  { open: '12:00', close: '22:00' }, // sex
+  { open: '12:00', close: '22:30' }, // sáb
+];
+const CLOSED_DAY_MSG = 'Estamos fechados às segundas-feiras. Escolha outro dia.';
+function dayWindow(date: Date | null): DayWindow {
+  if (!date) return { open: '12:00', close: '22:00' };
+  return HOURS_BY_DOW[dayjs(date).day()];
+}
+function isClosedDay(date: Date | null) {
+  return !!date && dayWindow(date) === null;
+}
+
+// slots válidos — 12h às 22h30, intervalos de 30min (o 22:30 só libera no sábado
+// via janela do dia; ver dayWindow/disabledSlots)
 const ALLOWED_SLOTS = (() => {
   const s: string[] = [];
   for (let h = 12; h <= 22; h++) {
     for (const m of [0, 30]) {
-      if (h === 22 && m > 0) break;
       s.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
     }
   }
@@ -243,24 +264,16 @@ function getMinReservationDate(now: Date = new Date()): Date {
   if (mins < EVENING_CUTOFF_MIN) return n.startOf('day').add(17, 'hour').add(30, 'minute').toDate();
   return n.add(1, 'day').startOf('day').add(12, 'hour').toDate();
 }
-const OPEN_H = 12,
-  OPEN_M = 0,
-  CLOSE_H = 22,
-  CLOSE_M = 0;
-function isTimeOutsideWindow(hhmm: string) {
-  if (!hhmm) return false;
-  const [hh, mm] = hhmm.split(':').map(Number);
-  if (Number.isNaN(hh) || Number.isNaN(mm)) return false;
-  if (hh < OPEN_H) return true;
-  if (hh === OPEN_H && mm < OPEN_M) return true;
-  if (hh > CLOSE_H) return true;
-  if (hh === CLOSE_H && mm > CLOSE_M) return true;
-  return false;
+function isTimeOutsideWindow(hhmm: string, date: Date | null = null) {
+  if (!hhmm || !/^\d{2}:\d{2}$/.test(hhmm)) return false;
+  const win = dayWindow(date);
+  if (!win) return true;
+  return hhmm < win.open || hhmm > win.close;
 }
-function timeWindowMessage() {
-  return `Horário disponível entre ${String(OPEN_H).padStart(2, '0')}:${String(
-    OPEN_M
-  ).padStart(2, '0')} e ${String(CLOSE_H).padStart(2, '0')}:${String(CLOSE_M).padStart(2, '0')}`;
+function timeWindowMessage(date: Date | null = null) {
+  const win = dayWindow(date);
+  if (!win) return CLOSED_DAY_MSG;
+  return `Horário disponível entre ${win.open} e ${win.close}`;
 }
 
 // regra: data/hora no passado
@@ -1372,8 +1385,14 @@ export default function ReservarMane() {
         setSending(false);
         return;
       }
-      if (isTimeOutsideWindow(hora)) {
-        setError(`Horário indisponível. ${timeWindowMessage()}.`);
+      if (isClosedDay(data)) {
+        setError(CLOSED_DAY_MSG);
+        goToStep(1);
+        setSending(false);
+        return;
+      }
+      if (isTimeOutsideWindow(hora, data)) {
+        setError(`Horário indisponível. ${timeWindowMessage(data)}.`);
         goToStep(1);
         setSending(false);
         return;
@@ -2010,6 +2029,8 @@ export default function ReservarMane() {
 
                             if (isPast) {
                               setDateError('Selecione uma data a partir de hoje');
+                            } else if (isClosedDay(dateValue)) {
+                              setDateError(CLOSED_DAY_MSG);
                             } else {
                               setDateError(null);
                             }
@@ -2024,6 +2045,7 @@ export default function ReservarMane() {
                           valueFormat="DD/MM/YYYY"
                           leftSection={<IconCalendar size={16} />}
                           allowDeselect={false}
+                          excludeDate={(d) => dayjs(d).day() === 1} // segunda — fechado
                           minDate={(() => {
                             // Se estamos dentro do período da noite, hoje fica inteiro bloqueado
                             const mins = dayjs().hour() * 60 + dayjs().minute();
@@ -2057,6 +2079,12 @@ export default function ReservarMane() {
                           disabledSlots={(() => {
                             if (!data) return [];
                             const blocked = new Set<string>();
+
+                            // Horário de funcionamento do dia (seg fechado; sáb até 22:30)
+                            const win = dayWindow(data);
+                            ALLOWED_SLOTS.forEach((s) => {
+                              if (!win || s < win.open || s > win.close) blocked.add(s);
+                            });
 
                             // Regra de distância entre períodos (mesmo período atual fica bloqueado)
                             const minAllowed = getMinReservationDate();
