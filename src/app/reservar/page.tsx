@@ -212,24 +212,33 @@ function isBeforeManecoMin(hhmm: string) {
 }
 
 // ====== Horário de funcionamento por dia da semana (0=dom ... 6=sáb)
-// Seg: fechado · Ter–Sex: 12:00–22:00 · Sáb: 12:00–22:30 · Dom: 12:00–22:00
+// Seg: fechado SÓ no Perdizes SP (BSB e Águas Claras abrem normal) ·
+// Seg–Sex/Dom: 12:00–22:00 · Sáb: 12:00–22:30
 type DayWindow = { open: string; close: string } | null;
 const HOURS_BY_DOW: DayWindow[] = [
   { open: '12:00', close: '22:00' }, // dom
-  null, // seg — fechado
+  { open: '12:00', close: '22:00' }, // seg — fechado só no SP (ver dayWindow)
   { open: '12:00', close: '22:00' }, // ter
   { open: '12:00', close: '22:00' }, // qua
   { open: '12:00', close: '22:00' }, // qui
   { open: '12:00', close: '22:00' }, // sex
   { open: '12:00', close: '22:30' }, // sáb
 ];
-const CLOSED_DAY_MSG = 'Estamos fechados às segundas-feiras. Escolha outro dia.';
-function dayWindow(date: Date | null): DayWindow {
+const CLOSED_DAY_MSG = 'O Mané Perdizes (SP) fecha às segundas-feiras. Escolha outro dia.';
+// Só o Perdizes SP fecha segunda — detecta por slug/nome (mesma flexibilidade do concierge)
+function isSpUnit(unidadeId: string | null, units: UnitOption[]) {
+  if (!unidadeId) return false;
+  const u = units.find((x) => x.id === unidadeId);
+  const hay = `${u?.slug || ''} ${u?.name || ''}`.toLowerCase();
+  return /\bsp\b|paulo|perdizes|west[\s-]?plaza/.test(hay);
+}
+function dayWindow(date: Date | null, sp = false): DayWindow {
   if (!date) return { open: '12:00', close: '22:00' };
+  if (sp && dayjs(date).day() === 1) return null; // seg — SP fechado
   return HOURS_BY_DOW[dayjs(date).day()];
 }
-function isClosedDay(date: Date | null) {
-  return !!date && dayWindow(date) === null;
+function isClosedDay(date: Date | null, sp = false) {
+  return !!date && dayWindow(date, sp) === null;
 }
 
 // slots válidos — 12h às 22h30, intervalos de 30min (o 22:30 só libera no sábado
@@ -264,14 +273,14 @@ function getMinReservationDate(now: Date = new Date()): Date {
   if (mins < EVENING_CUTOFF_MIN) return n.startOf('day').add(17, 'hour').add(30, 'minute').toDate();
   return n.add(1, 'day').startOf('day').add(12, 'hour').toDate();
 }
-function isTimeOutsideWindow(hhmm: string, date: Date | null = null) {
+function isTimeOutsideWindow(hhmm: string, date: Date | null = null, sp = false) {
   if (!hhmm || !/^\d{2}:\d{2}$/.test(hhmm)) return false;
-  const win = dayWindow(date);
+  const win = dayWindow(date, sp);
   if (!win) return true;
   return hhmm < win.open || hhmm > win.close;
 }
-function timeWindowMessage(date: Date | null = null) {
-  const win = dayWindow(date);
+function timeWindowMessage(date: Date | null = null, sp = false) {
+  const win = dayWindow(date, sp);
   if (!win) return CLOSED_DAY_MSG;
   return `Horário disponível entre ${win.open} e ${win.close}`;
 }
@@ -965,6 +974,9 @@ export default function ReservarMane() {
 
   // Concierge dinâmico por unidade (AC vs BSB)
   const conciergePhone = useMemo(() => getConciergePhoneByUnit(unidade, units), [unidade, units]);
+
+  // Perdizes SP é a única unidade fechada às segundas
+  const spSelected = useMemo(() => isSpUnit(unidade, units), [unidade, units]);
   const conciergeLink = useMemo(() => buildConciergeLink(conciergePhone), [conciergePhone]);
   const conciergePhonePretty = useMemo(
     () => formatBrPhonePretty(conciergePhone),
@@ -1385,14 +1397,14 @@ export default function ReservarMane() {
         setSending(false);
         return;
       }
-      if (isClosedDay(data)) {
+      if (isClosedDay(data, spSelected)) {
         setError(CLOSED_DAY_MSG);
         goToStep(1);
         setSending(false);
         return;
       }
-      if (isTimeOutsideWindow(hora, data)) {
-        setError(`Horário indisponível. ${timeWindowMessage(data)}.`);
+      if (isTimeOutsideWindow(hora, data, spSelected)) {
+        setError(`Horário indisponível. ${timeWindowMessage(data, spSelected)}.`);
         goToStep(1);
         setSending(false);
         return;
@@ -2029,7 +2041,7 @@ export default function ReservarMane() {
 
                             if (isPast) {
                               setDateError('Selecione uma data a partir de hoje');
-                            } else if (isClosedDay(dateValue)) {
+                            } else if (isClosedDay(dateValue, spSelected)) {
                               setDateError(CLOSED_DAY_MSG);
                             } else {
                               setDateError(null);
@@ -2045,7 +2057,7 @@ export default function ReservarMane() {
                           valueFormat="DD/MM/YYYY"
                           leftSection={<IconCalendar size={16} />}
                           allowDeselect={false}
-                          excludeDate={(d) => dayjs(d).day() === 1} // segunda — fechado
+                          excludeDate={(d) => spSelected && dayjs(d).day() === 1} // segunda — só SP fecha
                           minDate={(() => {
                             // Se estamos dentro do período da noite, hoje fica inteiro bloqueado
                             const mins = dayjs().hour() * 60 + dayjs().minute();
@@ -2080,8 +2092,8 @@ export default function ReservarMane() {
                             if (!data) return [];
                             const blocked = new Set<string>();
 
-                            // Horário de funcionamento do dia (seg fechado; sáb até 22:30)
-                            const win = dayWindow(data);
+                            // Horário de funcionamento do dia (seg fechado só no SP; sáb até 22:30)
+                            const win = dayWindow(data, spSelected);
                             ALLOWED_SLOTS.forEach((s) => {
                               if (!win || s < win.open || s > win.close) blocked.add(s);
                             });
