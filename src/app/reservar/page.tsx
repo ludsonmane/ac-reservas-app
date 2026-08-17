@@ -212,8 +212,9 @@ function isBeforeManecoMin(hhmm: string) {
 }
 
 // ====== Horário de funcionamento por dia da semana (0=dom ... 6=sáb)
-// Seg: fechado SÓ no Perdizes SP (BSB e Águas Claras abrem normal) ·
-// Seg–Sex/Dom: 12:00–22:00 · Sáb: 12:00–22:30
+// Seg: fechado SÓ no Perdizes SP (BSB e Águas Claras abrem normal)
+// BSB/AC: Seg–Sex/Dom 12:00–22:00 · Sáb 12:00–22:30
+// SP: última reserva às 20:00 (funciona até 22h mas não aceita reserva depois das 20h)
 type DayWindow = { open: string; close: string } | null;
 const HOURS_BY_DOW: DayWindow[] = [
   { open: '12:00', close: '22:00' }, // dom
@@ -224,6 +225,15 @@ const HOURS_BY_DOW: DayWindow[] = [
   { open: '12:00', close: '22:00' }, // sex
   { open: '12:00', close: '22:30' }, // sáb
 ];
+const HOURS_BY_DOW_SP: DayWindow[] = [
+  { open: '12:00', close: '20:00' }, // dom
+  null,                                // seg — fechado
+  { open: '12:00', close: '20:00' }, // ter
+  { open: '12:00', close: '20:00' }, // qua
+  { open: '12:00', close: '20:00' }, // qui
+  { open: '12:00', close: '20:00' }, // sex
+  { open: '12:00', close: '20:00' }, // sáb
+];
 const CLOSED_DAY_MSG = 'O Mané Perdizes (SP) fecha às segundas-feiras. Escolha outro dia.';
 // Só o Perdizes SP fecha segunda — detecta por slug/nome (mesma flexibilidade do concierge)
 function isSpUnit(unidadeId: string | null, units: UnitOption[]) {
@@ -233,8 +243,8 @@ function isSpUnit(unidadeId: string | null, units: UnitOption[]) {
   return /\bsp\b|paulo|perdizes|west[\s-]?plaza/.test(hay);
 }
 function dayWindow(date: Date | null, sp = false): DayWindow {
-  if (!date) return { open: '12:00', close: '22:00' };
-  if (sp && dayjs(date).day() === 1) return null; // seg — SP fechado
+  if (!date) return sp ? { open: '12:00', close: '20:00' } : { open: '12:00', close: '22:00' };
+  if (sp) return HOURS_BY_DOW_SP[dayjs(date).day()];
   return HOURS_BY_DOW[dayjs(date).day()];
 }
 function isClosedDay(date: Date | null, sp = false) {
