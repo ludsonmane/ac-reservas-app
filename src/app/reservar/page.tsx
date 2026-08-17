@@ -767,17 +767,22 @@ async function generatePoster({
   const innerTop = contentY + 55;
 
   // Badge da data — verde oliva
-  const bdgW = 280, bdgH = 72;
+  ctx.font = '800 50px system-ui, -apple-system, Arial';
+  const dayNumW = ctx.measureText(day).width;
+  ctx.font = '600 30px system-ui, -apple-system, Arial';
+  const monthW = ctx.measureText(`/${monthName}`).width;
+  const bdgContentW = dayNumW + monthW + 20;
+  const bdgW = Math.max(280, bdgContentW + 60), bdgH = 72;
   const bdgX = cx - bdgW / 2, bdgY = innerTop;
   ctx.fillStyle = '#7a9a6e';
   ctx.beginPath(); ctx.roundRect(bdgX, bdgY, bdgW, bdgH, 10); ctx.fill();
   ctx.fillStyle = '#fff';
+  const textCx = cx - (monthW - dayNumW) / 4;
   ctx.textAlign = 'center';
   ctx.font = '800 50px system-ui, -apple-system, Arial';
-  const dayNumW = ctx.measureText(day).width;
-  ctx.fillText(day, cx - 32, bdgY + bdgH / 2 + 17);
+  ctx.fillText(day, textCx - monthW / 2 - 5, bdgY + bdgH / 2 + 17);
   ctx.font = '600 30px system-ui, -apple-system, Arial';
-  ctx.fillText(`/${monthName}`, cx + dayNumW / 2 + 10, bdgY + bdgH / 2 + 12);
+  ctx.fillText(`/${monthName}`, textCx + dayNumW / 2 + 5, bdgY + bdgH / 2 + 12);
 
   // Dia da semana
   const line1Y = bdgY + bdgH + 70;
