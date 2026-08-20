@@ -125,15 +125,19 @@ export default function ConvidadosPage() {
   const firstName = (reservation?.fullName || '').split(/\s+/)[0] || '';
   const guestCount = reservation?.guests?.length ?? 0;
 
-  // Benefícios por tier (só aniversário)
+  // Benefícios (só aniversário): bônus pelo dia da semana, mimos por número de convidados
   const isAniversario = (reservation?.reservationType || '').toUpperCase().includes('ANIVERSARIO');
   const totalPeople = (reservation?.adults || 0) + (reservation?.kids || 0);
-  const tier = totalPeople >= 30 ? 3 : totalPeople >= 16 ? 2 : totalPeople >= 8 ? 1 : 0;
-  const tierInfo = {
-    1: { bonus: 'R$100', perks: ['Brinquedoteca day use para 1 criança'] },
-    2: { bonus: 'R$150', perks: ['Brinquedoteca day use para 2 crianças'] },
-    3: { bonus: 'R$200', perks: ['Garrafa de Caju do Mané', 'Brinquedoteca para 2 crianças', 'Cardápio personalizado'] },
+  const tier = totalPeople >= 30 ? 3 : totalPeople >= 16 ? 2 : totalPeople >= 10 ? 1 : 0;
+  // seg a qui = R$100; sex a dom = R$50
+  const isWeekdayBonus = dateObj ? dateObj.getDay() >= 1 && dateObj.getDay() <= 4 : false;
+  const bonusStr = isWeekdayBonus ? 'R$100' : 'R$50';
+  const tierPerks = {
+    1: ['Brinquedoteca day use para 1 criança'],
+    2: ['Brinquedoteca day use para 2 crianças'],
+    3: ['Garrafa de Caju do Mané', 'Brinquedoteca para 2 crianças', 'Cardápio personalizado'],
   }[tier] || null;
+  const tierInfo = tierPerks ? { bonus: bonusStr, perks: tierPerks } : null;
 
   return (
     <Box style={{ background: 'linear-gradient(180deg, #034c46 0%, #022d29 100%)', minHeight: '100dvh' }}>

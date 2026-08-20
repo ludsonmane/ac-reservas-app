@@ -1879,10 +1879,14 @@ export default function ReservarMane() {
                 const GoldLine = () => (
                   <Box mx="auto" style={{ width: 40, height: 1, background: 'linear-gradient(90deg, transparent, rgba(200,144,42,0.35), transparent)' }} />
                 );
+                const bonusDays = [
+                  { days: 'Segunda a quinta', bonus: 100, highlight: true },
+                  { days: 'Sexta a domingo', bonus: 50, highlight: false },
+                ];
                 const tiers = [
-                  { range: '8 a 15', bonus: 100, level: 1 as const, headline: 'Comemore com quem importa', perks: ['Brinquedoteca day use para 1 criança'] },
-                  { range: '16 a 30', bonus: 150, level: 2 as const, headline: 'Reúna a turma toda', perks: ['Brinquedoteca day use para 2 crianças'] },
-                  { range: 'Mais de 30', bonus: 200, level: 3 as const, headline: 'A celebração completa', perks: ['Garrafa de Caju do Mané', 'Brinquedoteca day use para 2 crianças', 'Cardápio personalizado'] },
+                  { range: '10 a 15', level: 1 as const, headline: 'Comemore com quem importa', perks: ['Brinquedoteca day use para 1 criança'] },
+                  { range: '16 a 30', level: 2 as const, headline: 'Reúna a turma toda', perks: ['Brinquedoteca day use para 2 crianças'] },
+                  { range: 'Mais de 30', level: 3 as const, headline: 'A celebração completa', perks: ['Garrafa de Caju do Mané', 'Brinquedoteca day use para 2 crianças', 'Cardápio personalizado'] },
                 ];
                 return (
                   <Box style={{ borderRadius: 24, overflow: 'hidden', background: 'linear-gradient(170deg, #022d29 0%, #034c46 40%, #043f3a 100%)', boxShadow: '0 12px 40px rgba(2,45,41,0.35), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
@@ -1891,10 +1895,30 @@ export default function ReservarMane() {
                       <Text mt={8} c="#F3E9D9" style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontSize: 'clamp(0.95rem, 3.8vw, 1.15rem)', lineHeight: 1.25, letterSpacing: '-0.01em' }}>
                         Seu aniversário merece ser inesquecível
                       </Text>
-                      <Text size="10px" c="rgba(243,233,217,0.45)" mt={6} lh={1.5}>Quanto mais convidados, mais mimos.</Text>
+                      <Text size="10px" c="rgba(243,233,217,0.45)" mt={6} lh={1.5}>Reserve com 10 ou mais convidados e ganhe bônus em consumação.</Text>
                       <Box mt={10}><GoldLine /></Box>
                     </Box>
                     <Box px={12} pb={12}>
+                      <Stack gap={8}>
+                        {bonusDays.map((d) => (
+                          <Box key={d.days} style={{ borderRadius: 14, background: d.highlight ? 'linear-gradient(135deg, #F7EDD5 0%, #EEDBB5 100%)' : 'linear-gradient(135deg, #FDFAF4 0%, #F9F3E8 100%)', border: d.highlight ? '1.5px solid rgba(200,144,42,0.5)' : '1px solid rgba(200,144,42,0.1)', boxShadow: d.highlight ? '0 6px 24px rgba(200,144,42,0.12), inset 0 1px 0 rgba(255,255,255,0.6)' : 'inset 0 1px 0 rgba(255,255,255,0.6)', overflow: 'hidden' }}>
+                            {d.highlight && (<Box style={{ background: 'linear-gradient(90deg, #B8842A, #D4A644, #B8842A)', padding: '5px 0', textAlign: 'center' as const }}><Text size="9px" fw={800} c="#fff" tt="uppercase" style={{ letterSpacing: '0.12em', textShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>Dobro de bônus</Text></Box>)}
+                            <Box px="sm" py={12}>
+                              <Group justify="space-between" align="center" wrap="nowrap" gap={10}>
+                                <Text size="14px" fw={900} c="#B8842A" tt="uppercase" style={{ fontFamily: 'var(--font-merri), Merriweather, serif', letterSpacing: '0.06em', flex: 1 }}>{d.days}</Text>
+                                <Box style={{ textAlign: 'right' as const, flexShrink: 0 }}>
+                                  <Text c="#034c46" fw={900} style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontSize: d.highlight ? 36 : 28, lineHeight: 1 }}><span style={{ fontSize: d.highlight ? 14 : 12, fontFamily: 'var(--font-comfortaa), Comfortaa, sans-serif', fontWeight: 700, opacity: 0.4, verticalAlign: 'super', marginRight: 1 }}>R$</span>{d.bonus}</Text>
+                                  <Text size="12px" c="#B8842A" fw={800} tt="uppercase" mt={2} style={{ letterSpacing: '0.04em' }}>DE BÔNUS</Text>
+                                </Box>
+                              </Group>
+                            </Box>
+                          </Box>
+                        ))}
+                      </Stack>
+                      <Box mt={12} mb={8} style={{ textAlign: 'center' as const }}>
+                        <GoldLine />
+                        <Text size="10px" c="rgba(243,233,217,0.45)" mt={8} lh={1.5}>E quanto mais convidados, mais mimos.</Text>
+                      </Box>
                       <Stack gap={8}>
                         {tiers.map((tier) => {
                           const isVIP = tier.level === 3;
@@ -1903,20 +1927,11 @@ export default function ReservarMane() {
                             <Box key={tier.range} style={{ borderRadius: 14, background: cardBg, border: isVIP ? '1.5px solid rgba(200,144,42,0.5)' : '1px solid rgba(200,144,42,0.1)', boxShadow: isVIP ? '0 6px 24px rgba(200,144,42,0.12), inset 0 1px 0 rgba(255,255,255,0.6)' : 'inset 0 1px 0 rgba(255,255,255,0.6)', overflow: 'hidden' }}>
                               {isVIP && (<Box style={{ background: 'linear-gradient(90deg, #B8842A, #D4A644, #B8842A)', padding: '5px 0', textAlign: 'center' as const }}><Text size="9px" fw={800} c="#fff" tt="uppercase" style={{ letterSpacing: '0.12em', textShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>Experiência completa</Text></Box>)}
                               <Box px="sm" py={12}>
-                                <Group justify="space-between" align="flex-start" wrap="nowrap" gap={10}>
-                                  <Box style={{ flex: 1 }}>
-                                    <Text size="14px" fw={900} c="#B8842A" tt="uppercase" style={{ fontFamily: 'var(--font-merri), Merriweather, serif', letterSpacing: '0.06em' }}>{tier.range} convidados</Text>
-                                    <Text fw={800} c="#034c46" mt={3} style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontSize: isVIP ? 15 : 14, lineHeight: 1.3 }}>{tier.headline}</Text>
-                                  </Box>
-                                  <Box style={{ textAlign: 'right' as const, flexShrink: 0 }}>
-                                    <Text c="#034c46" fw={900} style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontSize: isVIP ? 36 : 28, lineHeight: 1 }}><span style={{ fontSize: isVIP ? 14 : 12, fontFamily: 'var(--font-comfortaa), Comfortaa, sans-serif', fontWeight: 700, opacity: 0.4, verticalAlign: 'super', marginRight: 1 }}>R$</span>{tier.bonus}</Text>
-                                    <Text size="12px" c="#B8842A" fw={800} tt="uppercase" mt={2} style={{ letterSpacing: '0.04em' }}>DE BÔNUS</Text>
-                                  </Box>
-                                </Group>
+                                <Text size="14px" fw={900} c="#B8842A" tt="uppercase" style={{ fontFamily: 'var(--font-merri), Merriweather, serif', letterSpacing: '0.06em' }}>{tier.range} convidados</Text>
+                                <Text fw={800} c="#034c46" mt={3} style={{ fontFamily: 'var(--font-merri), Merriweather, serif', fontSize: isVIP ? 15 : 14, lineHeight: 1.3 }}>{tier.headline}</Text>
                                 <Box mt={10} pt={8} style={{ borderTop: '1px solid rgba(200,144,42,0.1)' }}>
                                   <Stack gap={4}>
                                     {tier.perks.map((p) => (<Group key={p} gap={7} align="center" wrap="nowrap"><Box style={{ width: 4, height: 4, borderRadius: '50%', background: '#C8902A', flexShrink: 0, opacity: 0.55 }} /><Text size="xs" c="#5a4a35" lh={1.4}>{p}</Text></Group>))}
-                                    {false && tier.level > 1 && (<Text size="10px" c="#B8842A" fw={500} mt={1} style={{ fontStyle: 'italic', opacity: 0.65 }}>+ tudo do pacote anterior</Text>)}
                                   </Stack>
                                 </Box>
                               </Box>
@@ -1924,7 +1939,7 @@ export default function ReservarMane() {
                           );
                         })}
                       </Stack>
-                      <Text size="9px" c="rgba(243,233,217,0.3)" ta="center" mt={8} lh={1.3} style={{ fontStyle: 'italic' }}>Bônus creditado automaticamente no dia da reserva.</Text>
+                      <Text size="9px" c="rgba(243,233,217,0.3)" ta="center" mt={8} lh={1.3} style={{ fontStyle: 'italic' }}>Bônus válido a partir de 10 convidados, creditado automaticamente no dia da reserva.</Text>
                     </Box>
                   </Box>
                 );
