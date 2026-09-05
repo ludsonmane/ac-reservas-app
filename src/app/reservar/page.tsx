@@ -99,7 +99,8 @@ function getConciergePhoneByUnit(unidadeId: string | null, units: UnitOption[]) 
 }
 
 // ====== Tipos
-type UnitOption = { id: string; name: string; slug?: string };
+// minPeople = mínimo fixo da unidade configurado no admin (vale em qualquer horário); null = usa MIN_PEOPLE
+type UnitOption = { id: string; name: string; slug?: string; minPeople?: number | null };
 
 type AreaOption = {
   id: string;
@@ -985,7 +986,22 @@ export default function ReservarMane() {
     return Math.max(1, a + c);
   }, [adultos, criancas]);
 
-  const peopleError = total < MIN_PEOPLE ? `Mínimo de ${MIN_PEOPLE} pessoas` : null;
+  // Mínimo efetivo: o fixo da unidade (admin) quando existir, senão o padrão do site
+  const minPeople = useMemo(() => {
+    const u = units.find((x) => x.id === unidade);
+    return Math.max(MIN_PEOPLE, u?.minPeople ?? 0);
+  }, [unidade, units]);
+
+  // Ao escolher uma unidade com mínimo fixo, já sobe o seletor pro mínimo (evita erro logo de cara)
+  useEffect(() => {
+    if (!unidade || minPeople <= MIN_PEOPLE) return;
+    const a = typeof adultos === 'number' ? adultos : 0;
+    const c = typeof criancas === 'number' ? criancas : 0;
+    if (a + c < minPeople) setAdultos(Math.max(minPeople - c, 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unidade, minPeople]);
+
+  const peopleError = total < minPeople ? `Mínimo de ${minPeople} pessoas` : null;
 
   // Concierge dinâmico por unidade (AC vs BSB)
   const conciergePhone = useMemo(() => getConciergePhoneByUnit(unidade, units), [unidade, units]);
@@ -1056,8 +1072,12 @@ export default function ReservarMane() {
       try {
         const list = await apiGet<any[]>('/v1/units/public/options/list');
         const normalized: UnitOption[] = (list ?? [])
-          .map((u: any) => [String(u.id ?? u._id ?? u.slug ?? u.name), String(u.name ?? u.title ?? u.slug ?? '')])
-          .map(([id, name]) => ({ id, name }));
+          .map((u: any): UnitOption => ({
+            id: String(u.id ?? u._id ?? u.slug ?? u.name),
+            name: String(u.name ?? u.title ?? u.slug ?? ''),
+            slug: typeof u.slug === 'string' ? u.slug : undefined,
+            minPeople: Number.isFinite(Number(u.minPeople)) && Number(u.minPeople) > 0 ? Number(u.minPeople) : null,
+          }));
         // SP primeiro, depois ordem original
         const SP_KEYS = ['sp', 'sao-paulo', 'sao paulo', 'são paulo', 'perdizes', 'west-plaza', 'mane-west-plaza-sp'];
         normalized.sort((a, b) => {
@@ -1318,7 +1338,7 @@ export default function ReservarMane() {
 
   // Regras de navegação
   const canNext1 = Boolean(
-    unidade && data && hora && total >= MIN_PEOPLE && !timeError && !dateError && !pastError
+    unidade && data && hora && total >= minPeople && !timeError && !dateError && !pastError
   );
 
   const chosen = areas.find((a) => a.id === areaId);
@@ -1363,8 +1383,8 @@ export default function ReservarMane() {
       return;
     }
     const qty = typeof total === 'number' ? total : 0;
-    if (qty < MIN_PEOPLE) {
-      setError(`Mínimo de ${MIN_PEOPLE} pessoas para reservar.`);
+    if (qty < minPeople) {
+      setError(`Mínimo de ${minPeople} pessoas para reservar.`);
       return;
     }
     if (isPastSelection(data, hora)) {
@@ -1382,8 +1402,8 @@ export default function ReservarMane() {
     setSending(true);
     setError(null);
     try {
-      if (total < MIN_PEOPLE) {
-        setError(`Mínimo de ${MIN_PEOPLE} pessoas para reservar.`);
+      if (total < minPeople) {
+        setError(`Mínimo de ${minPeople} pessoas para reservar.`);
         goToStep(1);
         setSending(false);
         return;
