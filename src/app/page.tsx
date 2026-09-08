@@ -32,7 +32,7 @@ function useIsMobile(bp = 768) {
 const STATS = [
   { num: '15', label: 'Restaurantes' },
   { num: '6', label: 'Bares' },
-  { num: '4k m²', label: 'de Experiência' },
+  { num: '4 mil m²', label: 'de Experiência' },
   { num: '✨', label: 'Atendimento na mesa' },
 ];
 const OCASIOES = [
