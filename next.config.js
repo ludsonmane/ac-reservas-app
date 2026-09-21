@@ -3,6 +3,15 @@
 const isDev = process.env.NODE_ENV !== 'production';
 
 const nextConfig = {
+  // Links curtos das casas (bio, Google, anúncios) → jornada de reserva já na casa certa
+  async redirects() {
+    return ["bsb", "ac", "sp", "partage"].map((u) => ({
+      source: "/" + u,
+      destination: "/reserva?unit=" + u + "&utm_source=link-" + u,
+      permanent: false,
+    }));
+  },
+
   // Proxy só em desenvolvimento
   async rewrites() {
     if (!isDev) return [];
