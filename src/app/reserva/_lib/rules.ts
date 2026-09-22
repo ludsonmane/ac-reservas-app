@@ -12,7 +12,7 @@ export const MANECO_MIN_HOUR = 18;
 
 export type DayWindow = { open: string; close: string } | null;
 
-// BSB/AC: dom–sex 12:00–22:00 · sáb 12:00–22:30
+// BSB/AC: dom–sex 12:00–22:00 · sáb 12:00–22:30 (BSB: sáb abre 11:00, ver BSB_SAT_OPEN)
 const HOURS_BY_DOW: DayWindow[] = [
   { open: '12:00', close: '22:00' },
   { open: '12:00', close: '22:00' },
@@ -33,9 +33,10 @@ const HOURS_BY_DOW_SP: DayWindow[] = [
   { open: '12:00', close: '20:00' },
 ];
 
+// 11:00/11:30 só liberam no sábado da BSB (janela do dia filtra o resto).
 export const ALLOWED_SLOTS: string[] = (() => {
   const s: string[] = [];
-  for (let h = 12; h <= 22; h++) for (const m of [0, 30]) s.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+  for (let h = 11; h <= 22; h++) for (const m of [0, 30]) s.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
   return s;
 })();
 
@@ -44,10 +45,22 @@ export function isSpUnit(slug?: string | null, name?: string | null) {
   return /\bsp\b|paulo|perdizes|west[\s-]?plaza/.test(hay);
 }
 
-export function dayWindow(dateYMD: string | null, sp = false): DayWindow {
+// Brasília abre reservas às 11:00 no sábado (pedido 22/09/2026: sáb 11h–13h e 17h–19h;
+// o fechamento entre as janelas vem do bloqueio recorrente do admin). Mesma regra na API.
+const BSB_SAT_OPEN = '11:00';
+
+export function isBsbUnit(slug?: string | null, name?: string | null) {
+  const hay = `${slug || ''} ${name || ''}`.toLowerCase();
+  return /\bbsb\b|bras[ií]lia/.test(hay);
+}
+
+export function dayWindow(dateYMD: string | null, sp = false, bsb = false): DayWindow {
   if (!dateYMD) return sp ? { open: '12:00', close: '20:00' } : { open: '12:00', close: '22:00' };
   const dow = dayjs(dateYMD).day();
-  return sp ? HOURS_BY_DOW_SP[dow] : HOURS_BY_DOW[dow];
+  if (sp) return HOURS_BY_DOW_SP[dow];
+  const win = HOURS_BY_DOW[dow];
+  if (bsb && dow === 6 && win) return { open: BSB_SAT_OPEN, close: win.close };
+  return win;
 }
 
 export function isClosedDay(dateYMD: string | null, sp = false) {
@@ -113,10 +126,10 @@ export function ruleCovers(rule: RecurringRule, dateYMD: string, hhmm: string) {
 
 /** Motivo pelo qual um slot não pode ser escolhido, ou null se pode. */
 export function slotBlockReason(opts: {
-  dateYMD: string; hhmm: string; sp: boolean; rules: RecurringRule[]; now?: Date;
+  dateYMD: string; hhmm: string; sp: boolean; bsb?: boolean; rules: RecurringRule[]; now?: Date;
 }): null | 'fechado' | 'passou' | 'antecedencia' | 'bloqueado' {
-  const { dateYMD, hhmm, sp, rules, now } = opts;
-  const win = dayWindow(dateYMD, sp);
+  const { dateYMD, hhmm, sp, bsb = false, rules, now } = opts;
+  const win = dayWindow(dateYMD, sp, bsb);
   if (!win) return 'fechado';
   if (hhmm < win.open || hhmm > win.close) return 'fechado';
   if (isPastSelection(dateYMD, hhmm, now)) return 'passou';
@@ -163,8 +176,8 @@ export function unitRulesForDay(rules: RecurringRule[], dateYMD: string) {
 }
 
 /** Último horário reservável do dia, considerando janela da casa e bloqueios da unidade. */
-export function lastBookableSlot(dateYMD: string, sp: boolean, rules: RecurringRule[]): string | null {
-  const win = dayWindow(dateYMD, sp);
+export function lastBookableSlot(dateYMD: string, sp: boolean, rules: RecurringRule[], bsb = false): string | null {
+  const win = dayWindow(dateYMD, sp, bsb);
   if (!win) return null;
   const slots = ALLOWED_SLOTS.filter((t) => t >= win.open && t <= win.close);
   const ok = slots.filter((t) => !rules.some((r) => !r.areaId && ruleCovers(r, dateYMD, t)));

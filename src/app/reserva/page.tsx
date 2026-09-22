@@ -20,7 +20,7 @@ import { EMPTY_DRAFT, loadDraft, saveDraft, type Draft, type Occasion } from './
 import { track } from './_lib/track';
 import { detectSlug, metaFor, conciergeLink } from './_lib/units';
 import {
-  DEFAULT_MIN_PEOPLE, MAX_PEOPLE_WITHOUT_CONCIERGE, earliestBookable, isSpUnit, periodOf,
+  DEFAULT_MIN_PEOPLE, MAX_PEOPLE_WITHOUT_CONCIERGE, earliestBookable, isSpUnit, isBsbUnit, periodOf,
   ruleCovers, type RecurringRule, fmtLongDate, peakMinPeople, unitRulesForDay, lastBookableSlot,
 } from './_lib/rules';
 
@@ -112,6 +112,7 @@ function Tela1() {
 
   const unit = units.find((u) => u.id === draft.unitId) || null;
   const sp = isSpUnit(draft.unitSlug, draft.unitName);
+  const bsb = isBsbUnit(draft.unitSlug, draft.unitName); // sábado abre 11:00
   const minPeople = draft.minPeople ?? DEFAULT_MIN_PEOPLE;
   const total = draft.adults + draft.kids;
 
@@ -211,7 +212,7 @@ function Tela1() {
   const peakMin = draft.dateYMD && draft.time ? peakMinPeople(draft.dateYMD, draft.time, draft.unitSlug) : 1;
   const belowPeak = draft.adults > 0 && !!draft.time && total < peakMin && total >= minPeople;
   const dayRules = draft.dateYMD ? unitRulesForDay(rules, draft.dateYMD) : [];
-  const lastSlot = draft.dateYMD ? lastBookableSlot(draft.dateYMD, sp, rules) : null;
+  const lastSlot = draft.dateYMD ? lastBookableSlot(draft.dateYMD, sp, rules, bsb) : null;
   const belowMin = draft.adults > 0 && total < minPeople;
   const tooBig = total > MAX_PEOPLE_WITHOUT_CONCIERGE;
   const canContinue = missing.length === 0 && !belowMin && !tooBig && !belowPeak;
@@ -321,7 +322,7 @@ function Tela1() {
         {draft.dateYMD && (availLoading && !avail ? (
           <div className={s.slots} aria-busy="true">{Array.from({ length: 8 }).map((_, i) => <div key={i} className={s.skeleton} />)}</div>
         ) : (
-          <SlotGrid dateYMD={draft.dateYMD} sp={sp} rules={rules} fullSlots={fullSlots} value={draft.time}
+          <SlotGrid dateYMD={draft.dateYMD} sp={sp} bsb={bsb} rules={rules} fullSlots={fullSlots} value={draft.time}
             onChange={(tm) => { patch({ time: tm, areaId: null, areaName: null }); setEditing(null); }} />
         ))}
         <div className={s.slotNote}>

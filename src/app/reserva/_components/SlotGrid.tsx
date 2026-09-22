@@ -12,23 +12,24 @@ const REASON_LABEL: Record<string, string> = {
  * Horários que não dão aparecem riscados com o motivo, em vez de sumir.
  */
 export function SlotGrid({
-  dateYMD, sp, rules, fullSlots, value, onChange,
+  dateYMD, sp, bsb = false, rules, fullSlots, value, onChange,
 }: {
   dateYMD: string;
   sp: boolean;
+  bsb?: boolean;
   rules: RecurringRule[];
   fullSlots: Set<string>;
   value: string | null;
   onChange: (hhmm: string) => void;
 }) {
-  const win = dayWindow(dateYMD, sp);
+  const win = dayWindow(dateYMD, sp, bsb);
   if (!win) return null;
   const slots = ALLOWED_SLOTS.filter((t) => t >= win.open && t <= win.close);
 
   return (
     <div className={s.slots} role="radiogroup" aria-label="Que horas vocês chegam">
       {slots.map((t) => {
-        const reason = slotBlockReason({ dateYMD, hhmm: t, sp, rules }) || (fullSlots.has(t) ? 'lotou' : null);
+        const reason = slotBlockReason({ dateYMD, hhmm: t, sp, bsb, rules }) || (fullSlots.has(t) ? 'lotou' : null);
         const on = value === t;
         return (
           <button
