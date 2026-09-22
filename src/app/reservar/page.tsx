@@ -243,20 +243,32 @@ function isSpUnit(unidadeId: string | null, units: UnitOption[]) {
   const hay = `${u?.slug || ''} ${u?.name || ''}`.toLowerCase();
   return /\bsp\b|paulo|perdizes|west[\s-]?plaza/.test(hay);
 }
-function dayWindow(date: Date | null, sp = false): DayWindow {
+// Brasília abre reservas às 11:00 no sábado (pedido 22/09/2026: sáb 11h–13h e 17h–19h;
+// o fechamento entre as janelas vem do bloqueio recorrente do admin). Mesma regra na API.
+const BSB_SAT_OPEN = '11:00';
+function isBsbUnit(unidadeId: string | null, units: UnitOption[]) {
+  if (!unidadeId) return false;
+  const u = units.find((x) => x.id === unidadeId);
+  const hay = `${u?.slug || ''} ${u?.name || ''}`.toLowerCase();
+  return /\bbsb\b|bras[ií]lia/.test(hay);
+}
+function dayWindow(date: Date | null, sp = false, bsb = false): DayWindow {
   if (!date) return sp ? { open: '12:00', close: '20:00' } : { open: '12:00', close: '22:00' };
   if (sp) return HOURS_BY_DOW_SP[dayjs(date).day()];
-  return HOURS_BY_DOW[dayjs(date).day()];
+  const dow = dayjs(date).day();
+  const win = HOURS_BY_DOW[dow];
+  if (bsb && dow === 6 && win) return { open: BSB_SAT_OPEN, close: win.close };
+  return win;
 }
 function isClosedDay(date: Date | null, sp = false) {
   return !!date && dayWindow(date, sp) === null;
 }
 
-// slots válidos — 12h às 22h30, intervalos de 30min (o 22:30 só libera no sábado
-// via janela do dia; ver dayWindow/disabledSlots)
+// slots válidos — 11h às 22h30, intervalos de 30min (11:00/11:30 só liberam no
+// sábado da BSB e o 22:30 só no sábado, via janela do dia; ver dayWindow/disabledSlots)
 const ALLOWED_SLOTS = (() => {
   const s: string[] = [];
-  for (let h = 12; h <= 22; h++) {
+  for (let h = 11; h <= 22; h++) {
     for (const m of [0, 30]) {
       s.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
     }
@@ -284,14 +296,14 @@ function getMinReservationDate(now: Date = new Date()): Date {
   if (mins < EVENING_CUTOFF_MIN) return n.startOf('day').add(17, 'hour').add(30, 'minute').toDate();
   return n.add(1, 'day').startOf('day').add(12, 'hour').toDate();
 }
-function isTimeOutsideWindow(hhmm: string, date: Date | null = null, sp = false) {
+function isTimeOutsideWindow(hhmm: string, date: Date | null = null, sp = false, bsb = false) {
   if (!hhmm || !/^\d{2}:\d{2}$/.test(hhmm)) return false;
-  const win = dayWindow(date, sp);
+  const win = dayWindow(date, sp, bsb);
   if (!win) return true;
   return hhmm < win.open || hhmm > win.close;
 }
-function timeWindowMessage(date: Date | null = null, sp = false) {
-  const win = dayWindow(date, sp);
+function timeWindowMessage(date: Date | null = null, sp = false, bsb = false) {
+  const win = dayWindow(date, sp, bsb);
   if (!win) return CLOSED_DAY_MSG;
   return `Horário disponível entre ${win.open} e ${win.close}`;
 }
@@ -1008,6 +1020,8 @@ export default function ReservarMane() {
 
   // Perdizes SP é a única unidade fechada às segundas
   const spSelected = useMemo(() => isSpUnit(unidade, units), [unidade, units]);
+  // Brasília: sábado abre às 11:00
+  const bsbSelected = useMemo(() => isBsbUnit(unidade, units), [unidade, units]);
   const conciergeLink = useMemo(() => buildConciergeLink(conciergePhone), [conciergePhone]);
   const conciergePhonePretty = useMemo(
     () => formatBrPhonePretty(conciergePhone),
@@ -1438,8 +1452,8 @@ export default function ReservarMane() {
         setSending(false);
         return;
       }
-      if (isTimeOutsideWindow(hora, data, spSelected)) {
-        setError(`Horário indisponível. ${timeWindowMessage(data, spSelected)}.`);
+      if (isTimeOutsideWindow(hora, data, spSelected, bsbSelected)) {
+        setError(`Horário indisponível. ${timeWindowMessage(data, spSelected, bsbSelected)}.`);
         goToStep(1);
         setSending(false);
         return;
@@ -2128,7 +2142,7 @@ export default function ReservarMane() {
                             const blocked = new Set<string>();
 
                             // Horário de funcionamento do dia (seg fechado só no SP; sáb até 22:30)
-                            const win = dayWindow(data, spSelected);
+                            const win = dayWindow(data, spSelected, bsbSelected);
                             ALLOWED_SLOTS.forEach((s) => {
                               if (!win || s < win.open || s > win.close) blocked.add(s);
                             });
