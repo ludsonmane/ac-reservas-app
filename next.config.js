@@ -12,9 +12,13 @@ const nextConfig = {
     }));
   },
 
-  // Proxy só em desenvolvimento
+  // Proxy da API: em dev sempre; em produção só quando API_PROXY_TARGET está definido
+  // (ambientes de preview em domínio *.up.railway.app, que a API não libera no CORS).
   async rewrites() {
-    if (!isDev) return [];
+    const target = (process.env.API_PROXY_TARGET || "").replace(/\/+$/, "");
+    if (!isDev) {
+      return target ? [{ source: "/v1/:path*", destination: `${target}/v1/:path*` }] : [];
+    }
     return [
       {
         source: "/api/:path*",
