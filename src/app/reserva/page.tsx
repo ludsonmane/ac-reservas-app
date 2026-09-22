@@ -15,6 +15,7 @@ import { DayChips } from './_components/DayChips';
 import { SlotGrid } from './_components/SlotGrid';
 import { AreaCards, type AreaCard } from './_components/AreaCards';
 import { Question } from './_components/Question';
+import { BenefitCard } from './_components/BenefitCard';
 import { IconArrowRight } from '@tabler/icons-react';
 import { EMPTY_DRAFT, loadDraft, saveDraft, type Draft, type Occasion } from './_lib/draft';
 import { track } from './_lib/track';
@@ -61,7 +62,22 @@ function Tela1() {
   const patch = (p: Partial<Draft>) => setDraft((d) => ({ ...d, ...p }));
 
   React.useEffect(() => {
-    const d = loadDraft(); setDraft(d); setPeopleDone(d.adults > 0); setReady(true); track('step_view', { step: 'quando' });
+    const d = loadDraft();
+    // link com o tamanho da mesa e o dia (bio, anúncio "reserve pra 8 no sábado"): ?people=8&date=2026-10-04
+    const wantPeople = Number(params.get('people') || params.get('pessoas') || 0);
+    if (!d.adults && wantPeople >= 1 && wantPeople <= 200) { d.adults = Math.floor(wantPeople); }
+    // ?occasion=aniversario (anúncio de aniversário) já marca a ocasião
+    const occ = String(params.get('occasion') || params.get('ocasiao') || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    if (!d.occasion && (occ === 'ANIVERSARIO' || occ === 'CONFRATERNIZACAO' || occ === 'EMPRESA')) d.occasion = occ as Occasion;
+    const wantDate = params.get('date') || params.get('dia');
+    if (!d.dateYMD && wantDate && /^\d{4}-\d{2}-\d{2}$/.test(wantDate) && wantDate >= dayjs().format('YYYY-MM-DD')) d.dateYMD = wantDate;
+    // guarda a origem (UTMs) no rascunho: a tela 2 não tem mais a query na URL
+    const utm: Record<string, string> = {};
+    for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) { const v = params.get(k); if (v) utm[k] = v; }
+    if (Object.keys(utm).length || !d.attribution) {
+      d.attribution = { ...(d.attribution || {}), ...utm, url: window.location.href, ref: document.referrer || d.attribution?.ref || '' };
+    }
+    setDraft(d); setPeopleDone(false); setReady(true); track('step_view', { step: 'quando' });
     const edit = params.get('edit');
     if (edit === 'unit' || edit === 'people' || edit === 'date' || edit === 'time') setEditing(edit);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,7 +123,8 @@ function Tela1() {
       time: null, areaId: null, areaName: null,
       adults: draft.adults && draft.adults < min ? min : draft.adults,
     });
-    setEditing(null);
+    // pré-seleção via link não pode apagar um ?edit=time/date que veio junto
+    setEditing((e) => (e === 'unit' || e === null ? null : e));
   }
 
   const unit = units.find((u) => u.id === draft.unitId) || null;
@@ -278,7 +295,7 @@ function Tela1() {
       <Question id="people" title="Quem vem?" aside="o número exato ajuda a montar a mesa" index={2} state={stateOf('people')} answer={answers.people} onEdit={() => setEditing('people')}>
         <div className={s.counterCard}>
           <PeopleCounter id="reserva-adultos" label="Adultos" helper="Conte você também" value={draft.adults} min={0} max={200}
-            quick={[2, 4, 6, 8, 10, 12, 14]} onChange={(n) => patch({ adults: n })} />
+            quick={[2, 4, 6, 8, 10, 12, 14, 30, 40]} onChange={(n) => patch({ adults: n })} />
           <PeopleCounter id="reserva-criancas" label="Crianças" helper="Até 12 anos, para a mesa já vir com espaço para elas" value={draft.kids} min={0} max={60}
             quick={[0, 1, 2, 3, 4, 5]} onChange={(n) => patch({ kids: n })} />
           <div className={s.total} aria-live="polite">
@@ -287,11 +304,10 @@ function Tela1() {
             {draft.unitId && total > 0 && belowMin && (
               <p className={`${s.totalNote} ${s.warn}`}>Mínimo de {minPeople} pessoas nesta casa.</p>
             )}
-            {draft.unitId && total >= 8 && !belowMin && (
-              <p className={`${s.totalNote} ${s.ok}`}>Grupo com mimo da casa e lista de convidados.</p>
-            )}
+
           </div>
         </div>
+        {draft.adults > 0 && !tooBig && <BenefitCard people={total} occasion={draft.occasion} />}
         {tooBig ? (
           <div className={`${s.alert} ${s.alertInfo}`} role="status">
             <b>Grupo grande merece atenção pessoal.</b>
@@ -325,10 +341,12 @@ function Tela1() {
           <SlotGrid dateYMD={draft.dateYMD} sp={sp} bsb={bsb} rules={rules} fullSlots={fullSlots} value={draft.time}
             onChange={(tm) => { patch({ time: tm, areaId: null, areaName: null }); setEditing(null); }} />
         ))}
-        <div className={s.slotNote}>
-          <span>Riscado: passou, encerrou, lotou ou fechado.</span>
-          <span>{draft.dateYMD ? fmtLongDate(draft.dateYMD) : ''}</span>
-        </div>
+        {draft.dateYMD && (
+          <div className={s.slotNote}>
+            <span>A mesa espera 15 minutos depois do horário.</span>
+            <span>{fmtLongDate(draft.dateYMD)}</span>
+          </div>
+        )}
         {dayRules.length > 0 && lastSlot && (
           <div className={`${s.alert} ${s.alertInfo}`} role="status">
             <b>Neste dia a casa recebe reservas até {lastSlot.replace(':00', 'h').replace(':30', 'h30')}.</b>
@@ -351,7 +369,7 @@ function Tela1() {
             <ChipGroup<Occasion & string> soft ariaLabel="Ocasião"
               options={[{ value: 'ANIVERSARIO', label: 'Aniversário' }, { value: 'CONFRATERNIZACAO', label: 'Confraternização' }, { value: 'EMPRESA', label: 'Empresa' }]}
               value={draft.occasion as any} onChange={(v) => patch({ occasion: (v as Occasion) ?? null })} />
-            <p className={s.hint}>Aniversário ganha mimo da casa a partir de 8 convidados.</p>
+            <BenefitCard people={total} occasion={draft.occasion} compact />
           </section>
 
           <section className={`${s.block} ${s.reveal}`} aria-labelledby="q-area" data-step={6}>

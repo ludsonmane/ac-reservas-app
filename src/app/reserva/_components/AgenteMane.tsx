@@ -2,6 +2,7 @@
 // Agente do Mané: botão flutuante + painel de chat dentro da jornada de reserva.
 // PASSO 1 (demonstração): respostas locais, sem IA. Nos passos 2 e 3 o cérebro passa a ser o mane-agent via proxy no servidor.
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import s from './agente.module.css';
 import { loadDraft, type Draft } from '../_lib/draft';
 import { conciergeLink, metaFor } from '../_lib/units';
@@ -9,6 +10,7 @@ import { track } from '../_lib/track';
 
 type Msg =
   | { id: number; who: 'bot' | 'me'; text: string }
+  | { id: number; who: 'resumo'; rows: { k: string; v: string }[] }
   | { id: number; who: 'card'; title: string; text: string; action: string; payload: Record<string, unknown> };
 
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
@@ -26,6 +28,15 @@ function shiftTime(t: string, min: number) {
 function nomeCasa(d: Draft) {
   const m = metaFor((d.unitSlug as any) || null);
   return m ? `Mané ${m.short}` : d.unitName;
+}
+function resumoRows(d: Draft): { k: string; v: string }[] {
+  const rows: { k: string; v: string }[] = [];
+  if (d.unitName) rows.push({ k: 'Casa', v: nomeCasa(d)! });
+  const total = (d.adults || 0) + (d.kids || 0);
+  if (total) rows.push({ k: 'Mesa', v: `${total} pessoa${total > 1 ? 's' : ''}${d.kids ? `, ${d.kids} criança${d.kids > 1 ? 's' : ''}` : ''}` });
+  if (d.dateYMD) rows.push({ k: 'Dia', v: `${fmtDia(d.dateYMD)}${d.time ? ` às ${d.time.replace(':00', 'h').replace(':30', 'h30')}` : ''}` });
+  if (d.areaName) rows.push({ k: 'Ambiente', v: d.areaName.replace(/^Ala\s+/i, '') });
+  return rows;
 }
 function resumo(d: Draft) {
   const partes: string[] = [];
@@ -86,7 +97,23 @@ const HINTS: Record<string, string> = {
   idle: 'Precisa de ajuda pra fechar sua reserva?',
 };
 
+const SHOW_AFTER_MS = 60_000; // só se oferece depois de 1 minuto na jornada sem fechar a reserva
+const START_KEY = 'mane:reserva:inicio';
+
 export default function AgenteMane() {
+  const pathname = usePathname();
+  const done = !!pathname && /\/reserva\/pronto\//.test(pathname); // reserva feita: o agente não aparece
+  const [visible, setVisible] = useState(false);
+  // o relógio começa na primeira tela e continua nas seguintes (guardado na sessão do navegador)
+  useEffect(() => {
+    if (done) return;
+    let start = 0;
+    try { start = Number(window.sessionStorage.getItem(START_KEY) || 0); } catch { /* sem storage */ }
+    if (!start) { start = Date.now(); try { window.sessionStorage.setItem(START_KEY, String(start)); } catch { /* ok */ } }
+    const left = Math.max(0, SHOW_AFTER_MS - (Date.now() - start));
+    const t = window.setTimeout(() => setVisible(true), left);
+    return () => window.clearTimeout(t);
+  }, [done]);
   const [open, setOpen] = useState(false);
   const [compact, setCompact] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
@@ -111,7 +138,7 @@ export default function AgenteMane() {
   useEffect(() => {
     const onFunil = (e: Event) => {
       const ev = (e as CustomEvent).detail?.event as string;
-      if (open || opened.current || !HINTS[ev] || shown.current.has(ev)) return;
+      if (!visible || open || opened.current || !HINTS[ev] || shown.current.has(ev)) return;
       shown.current.add(ev);
       setHint(HINTS[ev]);
     };
@@ -120,7 +147,7 @@ export default function AgenteMane() {
     const arm = () => {
       if (idle) clearTimeout(idle);
       idle = setTimeout(() => {
-        if (!open && !opened.current && !shown.current.has('idle')) { shown.current.add('idle'); setHint(HINTS.idle); }
+        if (visible && !open && !opened.current && !shown.current.has('idle')) { shown.current.add('idle'); setHint(HINTS.idle); }
       }, 40_000);
     };
     ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach((n) => window.addEventListener(n, arm, { passive: true }));
@@ -133,7 +160,7 @@ export default function AgenteMane() {
       window.removeEventListener('scroll', onScroll);
       if (idle) clearTimeout(idle);
     };
-  }, [open]);
+  }, [open, visible]);
 
   useEffect(() => {
     if (!open) return;
@@ -149,12 +176,13 @@ export default function AgenteMane() {
     setHint(null); setOpen(true); opened.current = true;
     track('agent_open', { origem, step: draft.time ? 'ambiente' : draft.dateYMD ? 'hora' : draft.adults ? 'dia' : 'casa' });
     if (msgs.length === 0) {
-      const r = resumo(draft);
-      const oi = r
-        ? `Oi! Sou o Agente do Mané, uma inteligência artificial. Vi que você está montando uma reserva: ${r}. Em que posso ajudar?`
-        : 'Oi! Sou o Agente do Mané, uma inteligência artificial. Posso ajudar a escolher casa, horário e ambiente, e a fechar sua reserva. O que você precisa?';
+      const rows = resumoRows(draft);
+      const first: Msg[] = [{ id: nextId(), who: 'bot', text: 'Oi! Sou o Agente do Mané, uma inteligência artificial.' }];
+      const rest: Msg[] = rows.length
+        ? [{ id: nextId(), who: 'resumo', rows }, { id: nextId(), who: 'bot', text: 'Essa é a reserva que você está montando. Em que posso ajudar?' }]
+        : [{ id: nextId(), who: 'bot', text: 'Posso ajudar a escolher casa, horário e ambiente, e a fechar sua reserva. O que você precisa?' }];
       setTyping(true);
-      setTimeout(() => { setTyping(false); setMsgs([{ id: nextId(), who: 'bot', text: oi }]); }, 700);
+      setTimeout(() => { setTyping(false); setMsgs(first); setTyping(true); setTimeout(() => { setTyping(false); setMsgs((m) => [...m, ...rest]); }, 600); }, 600);
     }
   };
 
@@ -182,10 +210,12 @@ export default function AgenteMane() {
 
   const quick = ['Outro horário', 'Ambiente pra crianças', 'Tem mínimo de pessoas?', 'Quanto tempo segura a mesa?', 'Como altero depois?'];
 
+  if (!visible || done) return null;
+
   return (
     <>
       {!open && hint && (
-        <div className={s.hint} role="status">
+        <div className={`${s.hint} agente-hint`} role="status">
           <div>{hint}</div>
           <div className={s.hintRow}>
             <button type="button" className={`${s.hintBtn} ${s.hintNo}`} onClick={() => setHint(null)}>Agora não</button>
@@ -194,7 +224,7 @@ export default function AgenteMane() {
         </div>
       )}
       {!open && (
-        <button type="button" className={`${s.fab} ${compact && !hint ? s.compact : ''}`} onClick={() => abrir('botao')} aria-label="Falar com o Agente do Mané, uma inteligência artificial">
+        <button type="button" className={`${s.fab} agente-fab ${compact && !hint ? s.compact : ''}`} onClick={() => abrir('botao')} aria-label="Falar com o Agente do Mané, uma inteligência artificial">
           <span className={s.avatar} aria-hidden="true"><Spark /><span className={s.ia}>IA</span></span>
           <span className={s.fabText}>Agente do Mané<small>ajuda com sua reserva</small></span>
         </button>
@@ -214,7 +244,9 @@ export default function AgenteMane() {
             <div className={s.log} ref={logRef}>
               {msgs.map((m) => m.who === 'card'
                 ? <div key={m.id} className={s.card}><b>{m.title}</b><span>{m.text}</span><button type="button" className={s.cardBtn} onClick={() => aplicar(m.payload)}>{m.action}</button></div>
-                : <div key={m.id} className={`${s.msg} ${m.who === 'me' ? s.me : s.bot}`}>{m.text}</div>)}
+                : m.who === 'resumo'
+                  ? <dl key={m.id} className={s.resumo}>{m.rows.map((r) => <div key={r.k}><dt>{r.k}</dt><dd>{r.v}</dd></div>)}</dl>
+                  : <div key={m.id} className={`${s.msg} ${m.who === 'me' ? s.me : s.bot}`}>{m.text}</div>)}
               {typing && <div className={`${s.msg} ${s.bot} ${s.typing}`}><span /><span /><span /></div>}
             </div>
             <div className={s.quick}>

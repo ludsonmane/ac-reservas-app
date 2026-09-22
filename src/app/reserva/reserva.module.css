@@ -22,7 +22,7 @@
   padding-inline: 20px;
   padding-block: 16px 110px;
 }
-@media (prefers-reduced-motion: reduce) { .shell { --t: 0ms; } }
+/* movimento sempre ligado nesta jornada (pedido do dono, que usa Windows com 'reduzir animações' ativo) */
 
 .container { max-width: 560px; margin: 0 auto; display: grid; gap: 40px; }
 .intro { display: grid; gap: 10px; padding-top: 8px; }
@@ -123,7 +123,8 @@
   padding: 20px 0 18px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted);
 }
 .totalNum { text-align: right; font-size: 14px; color: var(--muted); }
-.totalNum b { font-family: var(--font-merri), Georgia, serif; font-weight: 900; font-size: 22px; color: var(--teal); font-variant-numeric: tabular-nums; margin-right: 4px; }
+@keyframes numPop { 0% { transform: scale(0.8); color: var(--gold); } 60% { transform: scale(1.18); } 100% { transform: none; } }
+.totalNum b { display: inline-block; animation: numPop 320ms cubic-bezier(0.2, 0.9, 0.2, 1); font-family: var(--font-merri), Georgia, serif; font-weight: 900; font-size: 22px; color: var(--teal); font-variant-numeric: tabular-nums; margin-right: 4px; }
 .totalNote { grid-column: 1 / -1; font-size: 13px; font-weight: 700; margin: 0; }
 .totalNote.ok { color: var(--good); }
 .totalNote.warn { color: #b42318; }
@@ -206,16 +207,16 @@
 .shell :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 
 /* ===== fluxo progressivo: uma pergunta em foco, respondidas viram linha compacta ===== */
-@keyframes revealUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-.reveal { animation: revealUp 260ms ease-out both; }
-@media (prefers-reduced-motion: reduce) { .reveal { animation: none; } }
+@keyframes revealUp { from { opacity: 0; transform: translateY(16px) scale(0.985); } 60% { opacity: 1; } to { opacity: 1; transform: none; } }
+.reveal { animation: revealUp 420ms cubic-bezier(0.2, 0.9, 0.2, 1) both; }
+
 
 .done {
   display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 12px;
   padding: 14px 16px; border-radius: 14px; background: var(--paper); border: 1px solid var(--line);
-  animation: revealUp 200ms ease-out both;
+  animation: revealUp 360ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
 }
-@media (prefers-reduced-motion: reduce) { .done { animation: none; } }
+
 .stepBadge {
   width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; flex: none;
   font-family: var(--font-comfortaa), sans-serif; font-weight: 700; font-size: 13px; color: #fff; background: var(--step, var(--teal));
@@ -242,7 +243,7 @@
 /* resumo vivo abaixo do cabeçalho */
 .trail { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 28px; }
 .trailChip { font-size: 12.5px; font-weight: 700; color: var(--teal); background: var(--teal-soft); border-radius: 999px; padding: 5px 11px; animation: revealUp 200ms ease-out both; }
-@media (prefers-reduced-motion: reduce) { .trailChip { animation: none; } }
+
 
 /* botão de confirmar dentro de um bloco (quando a resposta é digitada) */
 .confirmRow { display: flex; justify-content: flex-end; }
@@ -262,7 +263,7 @@
 .qWrap { display: grid; }
 .fold {
   display: grid; grid-template-rows: 0fr; opacity: 0;
-  transition: grid-template-rows 360ms cubic-bezier(.2,.8,.2,1), opacity 260ms ease;
+  transition: grid-template-rows 460ms cubic-bezier(.2,.85,.2,1), opacity 320ms ease;
 }
 .fold[data-open='true'] { grid-template-rows: 1fr; opacity: 1; transition-delay: 0ms, 80ms; }
 .foldInner { min-height: 0; overflow: hidden; padding: 0 6px 14px; margin: 0 -6px -14px; }
@@ -277,12 +278,7 @@
 .done .stepBadge { animation: checkIn 380ms cubic-bezier(.2,.9,.3,1.3) both; }
 .stepInput:focus { transition: background 160ms ease; }
 
-@media (prefers-reduced-motion: reduce) {
-  .fold { transition: none; }
-  .unit, .chip, .slot, .area, .quickChip, .stepBtn, .confirm, .primary, .doneEdit { transition: none; animation: none !important; }
-  .done .stepBadge { animation: none; }
-  .unit:active, .chip:active, .slot:active, .area:active, .quickChip:active, .confirm:active { transform: none; }
-}
+
 
 /* ===== tela 2: formulário ===== */
 .form { display: grid; gap: 32px; }
@@ -329,3 +325,22 @@
 .actions { display: grid; gap: 10px; }
 .secondary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
 @media (max-width: 420px) { .secondary { grid-template-columns: 1fr; } }
+
+/* status da busca pelo WhatsApp */
+.searching { margin: 0; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--teal); }
+.spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--teal-soft); border-top-color: var(--teal); animation: spin 700ms linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* última pergunta: aniversário (mimo) */
+.bonusCard { background: var(--paper); border: 2px solid var(--teal); border-radius: 18px; padding: 18px 18px 16px; box-shadow: var(--shadow); }
+.bonusHead { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 12px; align-items: start; margin-bottom: 4px; }
+.bonusIcon { width: 48px; height: 48px; border-radius: 50%; background: var(--teal); color: #fff; display: grid; place-items: center; }
+.bonusTitle { display: block; font-family: var(--font-merri), Georgia, serif; font-weight: 900; font-size: 19px; line-height: 1.15; color: var(--ink); }
+.bonusText { display: block; margin-top: 4px; font-size: 15px; line-height: 1.45; color: var(--ink); }
+.bonusText b { color: var(--teal); }
+
+/* no celular o rodapé fixo (botão principal) ocupa o pé da tela: o agente sobe pra não ficar em cima dele */
+@media (max-width: 719px) {
+  .shell:has(.footer) :global(.agente-fab) { bottom: calc(106px + env(safe-area-inset-bottom, 0px)); }
+  .shell:has(.footer) :global(.agente-hint) { bottom: calc(168px + env(safe-area-inset-bottom, 0px)); }
+}

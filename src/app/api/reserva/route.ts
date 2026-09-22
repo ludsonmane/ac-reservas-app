@@ -2,6 +2,7 @@
 // foi reconhecido (token da consulta), e repassa para a API de reservas.
 import { NextResponse } from 'next/server';
 import { findLeadByPhone, verifyLookup } from '@/server/crm';
+import { ageFromISO, MAX_AGE, MIN_AGE } from '@/app/reserva/_lib/validators';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,18 +18,20 @@ export async function POST(req: Request) {
   let cpf: string | null = digits(body.cpf || '') || null;
   let birthdayDate: string | null = body.birthdayDate || null;
 
-  // cliente reconhecido: completa o que ele não digitou com o que o CRM já tem
+  // cliente reconhecido: completa e-mail sempre; CPF e nascimento só quando a pessoa pediu para usar o que já temos
+  // (useKnownCpf / useKnownBirthday), e o nascimento passa pela mesma regra de idade da tela
   if (body.crmToken) {
     const t = verifyLookup(String(body.crmToken));
     if (t && phone.endsWith(t.p)) {
       try {
         const lead = await findLeadByPhone(phone);
-        if (lead && lead.id === t.id) {
+        if (lead && String(lead.id) === String(t.id)) {
           if (!email && lead.email) email = String(lead.email).trim().toLowerCase();
-          if (!cpf && digits(lead.cpf || '').length === 11) cpf = digits(lead.cpf || '');
-          if (!birthdayDate && lead.birthday) {
+          if (!cpf && body.useKnownCpf && digits(lead.cpf || '').length === 11) cpf = digits(lead.cpf || '');
+          if (!birthdayDate && body.useKnownBirthday && lead.birthday) {
             const m = String(lead.birthday).match(/^(\d{4}-\d{2}-\d{2})/);
-            if (m) birthdayDate = `${m[1]}T12:00:00.000Z`;
+            const age = m ? ageFromISO(m[1]) : null;
+            if (m && age !== null && age >= MIN_AGE && age <= MAX_AGE) birthdayDate = `${m[1]}T12:00:00.000Z`;
           }
         }
       } catch { /* sem CRM, segue com o que veio */ }

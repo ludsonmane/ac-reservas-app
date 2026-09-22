@@ -76,3 +76,28 @@ export function displayMaskedBirthday(iso?: string | null) {
   if (!m) return '';
   return `**/${m[2]}/${m[1]}`;
 }
+
+/** Idade completa em anos numa data ISO (YYYY-MM-DD), hoje. */
+export function ageFromISO(iso: string, today: Date = new Date()) {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const y = +m[1], mo = +m[2] - 1, d = +m[3];
+  let age = today.getFullYear() - y;
+  if (today.getMonth() < mo || (today.getMonth() === mo && today.getDate() < d)) age -= 1;
+  return age;
+}
+
+export const MIN_AGE = 18;
+export const MAX_AGE = 80;
+
+/** Mensagem de erro da data de nascimento de quem reserva, ou null se está boa. */
+export function birthdayError(v: string): string | null {
+  if (!(v || '').trim()) return 'Digite dia, mês e ano, ex.: 14/03/1990.';
+  const iso = parseDateBR(v);
+  if (!iso) return 'Essa data não existe. Use dia, mês e ano, ex.: 14/03/1990.';
+  const age = ageFromISO(iso);
+  if (age === null) return 'Data inválida.';
+  if (age < MIN_AGE) return `Para reservar é preciso ter ${MIN_AGE} anos ou mais.`;
+  if (age > MAX_AGE) return 'Confira o ano: essa data passa de 80 anos.';
+  return null;
+}

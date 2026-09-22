@@ -1,7 +1,10 @@
 // Rascunho da reserva v2: vive em sessionStorage (só neste navegador, só nesta aba).
 export type Occasion = 'ANIVERSARIO' | 'CONFRATERNIZACAO' | 'EMPRESA' | null;
 
+export type Attribution = { utm_source?: string; utm_medium?: string; utm_campaign?: string; utm_content?: string; utm_term?: string; url?: string; ref?: string };
+
 export type Draft = {
+  attribution?: Attribution; // UTMs do link de entrada: a navegação entre telas perde a query, o rascunho guarda
   unitId: string | null;
   unitName: string | null;
   unitSlug: string | null;

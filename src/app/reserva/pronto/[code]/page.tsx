@@ -25,6 +25,8 @@ export default function Pronto() {
   const [r, setR] = React.useState<Reservation | null>(null);
   const [err, setErr] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
+  const [bonus, setBonus] = React.useState('');
+  React.useEffect(() => { try { setBonus(window.sessionStorage.getItem('mane:reserva:bonus') || ''); } catch { /* ok */ } }, []);
 
   React.useEffect(() => {
     if (!code) return;
@@ -75,6 +77,7 @@ export default function Pronto() {
         <div className={s.ticketUnit}>{unitName}</div>
         <div className={s.ticketWhen}>{weekday.charAt(0).toUpperCase() + weekday.slice(1)}, {when.format('D [de] MMMM')} · {when.format('HH[h]mm')}</div>
         <div className={s.ticketMeta}>{r.people} pessoas{r.kids ? ` (${r.kids} crianças)` : ''} · {area}{r.reservationType === 'ANIVERSARIO' ? ' · Aniversário' : ''}</div>
+        {bonus && <div className={`${s.ticketMeta} ${s.okText}`}>{bonus} garantido na mesa.</div>}
 
         <button type="button" className={s.codeBig} onClick={copy} aria-label={`Código ${r.reservationCode}, toque para copiar`}>
           <span>{r.reservationCode}</span>
