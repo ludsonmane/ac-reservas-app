@@ -11,7 +11,7 @@ export const UNIT_META: UnitMeta[] = [
   { slug: 'bsb', short: 'Brasília', sub: 'Arena Mané Garrincha', concierge: '61982850776' },
   { slug: 'ac', short: 'Águas Claras', sub: 'Águas Claras', concierge: '61999312284' },
   { slug: 'sp', short: 'São Paulo', sub: 'Perdizes', concierge: '61982850776' },
-  { slug: 'partage', short: 'Partage', sub: 'Lago Sul, abre 10/10', concierge: '61982850776', opensOn: '2026-10-10' },
+  { slug: 'partage', short: 'Partage', sub: 'Lago Sul', concierge: '61982850776' },
 ];
 
 /** Descobre o slug de exibição a partir do que a API devolve (slug ou nome). */
