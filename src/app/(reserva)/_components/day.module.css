@@ -1,0 +1,67 @@
+/* Cartões de dia (identidade Mané: creme, verde institucional, dourado, Merriweather). */
+.stripWrap { position: relative; min-width: 0; width: 100%; } /* min-width 0: a faixa não pode alargar o bloco (grid) */
+.stripWrap::after {
+  content: ''; position: absolute; top: 0; bottom: 4px; right: -4px; width: 44px; pointer-events: none;
+  background: linear-gradient(90deg, rgba(251, 245, 233, 0), var(--creme) 85%);
+}
+.strip {
+  min-width: 0; width: 100%;
+  display: flex; gap: 10px; overflow-x: auto; padding: 6px 4px 10px; margin: -6px -4px -4px;
+  scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.strip::-webkit-scrollbar { display: none; }
+
+.arrow {
+  display: none; position: absolute; top: 50%; z-index: 2; width: 34px; height: 34px; margin-top: -19px; border-radius: 50%;
+  border: 2px solid var(--line); background: var(--paper); color: var(--teal); cursor: pointer; place-items: center; box-shadow: var(--shadow);
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+.arrow:hover { border-color: var(--teal); transform: scale(1.06); }
+.arrowL { left: -14px; } .arrowR { right: -14px; }
+@media (min-width: 720px) and (hover: hover) { .arrow { display: grid; } }
+
+.day {
+  flex: none; scroll-snap-align: center; width: 76px; min-height: 96px; padding: 10px 6px 8px;
+  border-radius: 16px; border: 2px solid var(--line); background: var(--paper); color: var(--ink);
+  display: grid; justify-items: center; align-content: start; gap: 2px; position: relative; cursor: pointer; font: inherit;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms cubic-bezier(0.2, 0.9, 0.2, 1), box-shadow 160ms ease;
+  animation: dayIn 380ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+@keyframes dayIn { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
+.day:hover { border-color: var(--teal); transform: translateY(-2px); }
+.day:active { transform: scale(0.96); }
+.day[aria-checked='true'] {
+  background: var(--teal); border-color: var(--teal); color: #fff;
+  box-shadow: 0 8px 20px rgba(3, 76, 70, 0.28); transform: translateY(-2px) scale(1.03);
+}
+.day:disabled { cursor: not-allowed; opacity: 0.5; border-style: dashed; background: transparent; transform: none; }
+.day:disabled .num { text-decoration: line-through; text-decoration-thickness: 3px; text-decoration-color: var(--red); }
+
+.wd { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.day[aria-checked='true'] .wd, .day[aria-checked='true'] .mo { color: rgba(255, 255, 255, 0.78); }
+.num { font-family: var(--font-merri), Georgia, serif; font-weight: 900; font-size: 28px; line-height: 1; margin-top: 2px; }
+.mo { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+
+/* fim de semana: toque dourado, é quando a casa enche */
+.weekend { border-color: rgba(201, 162, 39, 0.6); background: linear-gradient(180deg, var(--paper), #fdf6df); }
+.closed .wd { color: var(--red); }
+
+.otherRow { display: grid; gap: 10px; margin-top: 6px; min-width: 0; }
+.otherBtn {
+  min-height: 48px; padding: 0 16px; border-radius: 999px; border: 2px dashed var(--teal); background: transparent; color: var(--teal);
+  font: inherit; font-weight: 700; font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+.otherBtn:hover { background: var(--teal-soft); transform: translateY(-1px); }
+.otherOn { border-style: solid; background: var(--teal); color: #fff; }
+
+.pickRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.pickErr { grid-column: 1 / -1; margin: 0; font-size: 13px; font-weight: 600; color: #b42318; }
+.pickBtn {
+  min-height: 44px; padding: 0 18px; border-radius: 999px; border: 2px solid var(--teal); background: var(--teal); color: #fff;
+  font: inherit; font-weight: 700; font-size: 15px; cursor: pointer; white-space: nowrap; transition: background 160ms ease, transform 160ms ease;
+}
+.pickBtn:hover { background: #04534c; }
+.pickBtn:active { transform: scale(0.97); }
+.pickBtn:disabled { background: transparent; color: var(--muted); border-color: var(--line); cursor: not-allowed; }
+@media (max-width: 380px) { .pickRow { grid-template-columns: 1fr; } }

@@ -1,0 +1,25 @@
+/* Cartões de horário (identidade Mané). Hora grande em Merriweather, clima embaixo, motivo dentro quando não dá. */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; min-width: 0; }
+
+.slot {
+  min-height: 74px; padding: 10px 8px 9px; border-radius: 16px; border: 2px solid var(--line); background: var(--paper); color: var(--ink);
+  display: grid; justify-items: center; align-content: center; gap: 4px; cursor: pointer; font: inherit; position: relative; min-width: 0;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms cubic-bezier(0.2, 0.9, 0.2, 1), box-shadow 160ms ease;
+  animation: slotIn 360ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+@keyframes slotIn { from { opacity: 0; transform: translateY(8px) scale(0.97); } to { opacity: 1; transform: none; } }
+.slot:hover { border-color: var(--teal); transform: translateY(-2px); }
+.slot:active { transform: scale(0.96); }
+.slot[aria-checked='true'] {
+  background: var(--teal); border-color: var(--teal); color: #fff;
+  box-shadow: 0 8px 20px rgba(3, 76, 70, 0.28); transform: translateY(-2px) scale(1.03);
+}
+.slot:disabled { cursor: not-allowed; opacity: 0.55; border-style: dashed; background: transparent; transform: none; }
+.slot:disabled .time { text-decoration: line-through; text-decoration-thickness: 3px; text-decoration-color: var(--red); }
+.full { opacity: 0.7; }
+
+.time { font-family: var(--font-merri), Georgia, serif; font-weight: 900; font-size: 24px; line-height: 1; font-variant-numeric: tabular-nums; }
+.time small { font-size: 15px; margin-left: 1px; }
+.vibe { display: grid; justify-items: center; gap: 2px; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); text-align: center; line-height: 1.2; }
+.slot[aria-checked='true'] .vibe { color: rgba(255, 255, 255, 0.8); }
+.reason { font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #b42318; }

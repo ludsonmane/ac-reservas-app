@@ -3,7 +3,7 @@ import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
 import './globals.css';
 
-import { ColorSchemeScript, MantineProvider, createTheme, rem } from '@mantine/core';
+import { ColorSchemeScript, MantineProvider, createTheme, mantineHtmlProps, rem } from '@mantine/core';
 import { Merriweather, Comfortaa } from 'next/font/google';
 import React from 'react';
 import Script from 'next/script';
@@ -105,7 +105,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const gtagPrimary = GADS || GA4;
 
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" {...mantineHtmlProps}>
       <head>
         <ColorSchemeScript defaultColorScheme="light" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
