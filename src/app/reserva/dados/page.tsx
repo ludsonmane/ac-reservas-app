@@ -305,7 +305,7 @@ export default function Dados() {
           {show('phone') && <p className={s.err} role="alert">{errors.phone}</p>}
 
           {lookup.status === 'loading' && (
-            <p className={`${s.searching} ${s.reveal}`} role="status" aria-live="polite"><span className={s.spinner} aria-hidden="true" /> Buscando dados de reservas anteriores…</p>
+            <p className={`${s.searching} ${s.reveal}`} role="status" aria-live="polite"><span className={s.spinner} aria-hidden="true" /> Buscando seu cadastro…</p>
           )}
           {lookup.status === 'new' && !found && onlyDigits(phone).length >= 10 && (
             <p className={s.hint} aria-live="polite">Primeira vez por aqui? Ótimo. Só precisamos do seu nome.</p>
@@ -441,7 +441,7 @@ export default function Dados() {
                 {sending ? 'Guardando sua mesa…' : <>Confirmar minha mesa <IconArrowRight size={18} stroke={2.4} /></>}
               </button>
               <p className={s.footerHint}>
-                {lookup.status === 'loading' ? 'Buscando dados de reservas anteriores…' : blockedByActive ? 'Resolva a reserva que já existe para esse WhatsApp.' : waitingIdentity ? `Responda se é você, ${found?.firstName}.` : canSend ? `Seu código chega no WhatsApp ${maskPhone(phone)} na mesma hora.` : 'Só WhatsApp e nome. Nada mais.'}
+                {lookup.status === 'loading' ? 'Buscando seu cadastro…' : blockedByActive ? 'Resolva a reserva que já existe para esse WhatsApp.' : waitingIdentity ? `Responda se é você, ${found?.firstName}.` : canSend ? `Seu código chega no WhatsApp ${maskPhone(phone)} na mesma hora.` : 'Só WhatsApp e nome. Nada mais.'}
               </p>
             </div>
           </div>
