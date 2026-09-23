@@ -102,7 +102,7 @@ const START_KEY = 'mane:reserva:inicio';
 
 export default function AgenteMane() {
   const pathname = usePathname();
-  const done = !!pathname && /\/reserva\/pronto\//.test(pathname); // reserva feita: o agente não aparece
+  const done = !!pathname && /^\/pronto\//.test(pathname); // reserva feita: o agente não aparece
   const [visible, setVisible] = useState(false);
   // o relógio começa na primeira tela e continua nas seguintes (guardado na sessão do navegador)
   useEffect(() => {

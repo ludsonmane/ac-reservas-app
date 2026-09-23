@@ -19,6 +19,7 @@ import { BenefitCard } from './_components/BenefitCard';
 import { IconArrowRight } from '@tabler/icons-react';
 import { EMPTY_DRAFT, loadDraft, saveDraft, type Draft, type Occasion } from './_lib/draft';
 import { track } from './_lib/track';
+import { ensureAnalyticsReady, setActiveUnitPixelFromUnit } from '@/lib/analytics';
 import { detectSlug, metaFor, conciergeLink } from './_lib/units';
 import {
   DEFAULT_MIN_PEOPLE, MAX_PEOPLE_WITHOUT_CONCIERGE, earliestBookable, isSpUnit, isBsbUnit, periodOf,
@@ -90,6 +91,8 @@ function Tela1() {
     let alive = true;
     (async () => {
       try {
+        ensureAnalyticsReady(); // fbq + dataLayer prontos (mesmo bootstrap do /reservar antigo)
+        if (draft.unitId) setActiveUnitPixelFromUnit({ id: draft.unitId, name: draft.unitName, slug: draft.unitSlug }); // rascunho restaurado
         const list = await apiGet<any[]>('/v1/units/public/options/list');
         if (!alive) return;
         const norm: UnitOption[] = (list ?? []).map((u) => ({
@@ -117,6 +120,7 @@ function Tela1() {
 
   function selectUnit(u: UnitOption) {
     const slug = detectSlug(u.slug, u.name);
+    setActiveUnitPixelFromUnit({ id: u.id, name: u.name, slug }); // pixel da unidade vira o ativo (PageView + eventos)
     const min = Math.max(DEFAULT_MIN_PEOPLE, u.minPeople ?? 0);
     patch({
       unitId: u.id, unitName: u.name, unitSlug: slug, minPeople: min,
@@ -244,7 +248,7 @@ function Tela1() {
       return;
     }
     saveDraft(draft);
-    router.push('/reserva/dados');
+    router.push('/dados');
   }
 
   // ---------- fluxo progressivo ----------
@@ -269,7 +273,7 @@ function Tela1() {
   if (!ready) {
     return (
       <>
-        <StepHeader step={1} backHref="/" />
+        <StepHeader step={1} />
         <div className={s.intro}><h1 className={s.h1}>Vamos guardar sua mesa.</h1></div>
       </>
     );
@@ -277,7 +281,7 @@ function Tela1() {
 
   return (
     <>
-      <StepHeader step={1} backHref="/" />
+      <StepHeader step={1} />
 
       <div className={s.intro}>
         <h1 className={s.h1}>Vamos guardar sua mesa.</h1>

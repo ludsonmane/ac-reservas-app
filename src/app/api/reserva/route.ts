@@ -2,7 +2,7 @@
 // foi reconhecido (token da consulta), e repassa para a API de reservas.
 import { NextResponse } from 'next/server';
 import { findLeadByPhone, verifyLookup } from '@/server/crm';
-import { ageFromISO, MAX_AGE, MIN_AGE } from '@/app/reserva/_lib/validators';
+import { ageFromISO, MAX_AGE, MIN_AGE } from '@/app/(reserva)/_lib/validators';
 
 export const dynamic = 'force-dynamic';
 

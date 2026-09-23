@@ -1,10 +1,10 @@
 # Jornada de reservas v2 (branch feat/jornada-v2)
 
-Rota nova `/reserva` (3 telas) convivendo com `/reservar` (antiga). Links curtos `/bsb /ac /sp /partage`.
+Jornada na RAIZ do domínio (route group `src/app/(reserva)`, 3 telas); `/reserva` e `/reservar` (antiga) redirecionam pra `/`. Links curtos `/bsb /ac /sp /partage`.
 
-- Tela 1 `/reserva`: casa, pessoas, dia, horário, ocasião, ambiente. Uma pergunta em foco por vez.
-- Tela 2 `/reserva/dados`: WhatsApp identifica o cliente no CRM (proxy `/api/crm/lookup`), nome, CPF/nascimento só quando destrava algo, e-mail opcional.
-- Tela 3 `/reserva/pronto/[code]`: código, QR, combinado de chegada, convite, agenda.
+- Tela 1 `/`: casa, pessoas, dia, horário, ocasião, ambiente. Uma pergunta em foco por vez.
+- Tela 2 `/dados`: WhatsApp identifica o cliente no CRM (proxy `/api/crm/lookup`), nome, CPF/nascimento só quando destrava algo, e-mail opcional.
+- Tela 3 `/pronto/[code]`: código, QR, combinado de chegada, convite, agenda.
 - Envio via `/api/reserva` (servidor completa dados do CRM e repassa para a API de reservas).
 - Agente do Mané: `_components/AgenteMane.tsx` (passo 1, respostas locais).
 

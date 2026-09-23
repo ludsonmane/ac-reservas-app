@@ -11,6 +11,8 @@ import { conciergeLink, metaFor } from '../_lib/units';
 import { fmtLongDate, joinDateTimeISO } from '../_lib/rules';
 import dayjs from 'dayjs';
 import { track } from '../_lib/track';
+import { ensureAnalyticsReady, setActiveUnitPixelFromUnit, trackReservationMade } from '@/lib/analytics';
+import { sendPartialLead } from '@/lib/engineCapture';
 import { birthdayTier, fmtBRL } from '../_lib/benefits';
 import {
   birthdayError, hasTwoWords, isValidCPF, isValidEmail, isValidPhone, maskCPF, maskDateBR, maskPhone, onlyDigits, parseDateBR,
@@ -59,8 +61,10 @@ export default function Dados() {
 
   React.useEffect(() => {
     const d = loadDraft();
-    if (!d.unitId || !d.dateYMD || !d.time || !d.areaId) { router.replace('/reserva'); return; }
+    if (!d.unitId || !d.dateYMD || !d.time || !d.areaId) { router.replace('/'); return; }
     setDraft(d);
+    ensureAnalyticsReady();
+    setActiveUnitPixelFromUnit({ id: d.unitId, name: d.unitName, slug: d.unitSlug }); // recarga direta da tela 2 também acha o pixel
     setPhone(d.phone ? maskPhone(d.phone) : '');
     setName(d.fullName || '');
     setEmail(d.email || '');
@@ -68,6 +72,25 @@ export default function Dados() {
     setBirthday(d.birthday || '');
     track('step_view', { step: 'dados' });
   }, [router]);
+
+  // Captura parcial pro EngineUp (recuperação de abandono), igual ao /reservar antigo: assim que houver um
+  // identificador válido, manda o lead com a tag reserva-dados-parciais (debounce 2 s, fire-and-forget).
+  // Quem conclui a reserva é suprimido lá pelo sync de reservas; quem some entra na cadência de recuperação.
+  React.useEffect(() => {
+    // só com celular completo (DDD + 9 dígitos): a cadência é por WhatsApp e número pela metade só gera lead lixo + 131026
+    if (!draft || sending || onlyDigits(phone).length !== 11) return;
+    const t = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      const at = draft.attribution || {};
+      const pick = (k: keyof typeof at) => params.get(String(k)) || (at[k] as string | undefined) || null;
+      sendPartialLead({
+        name, phone, email, cpf, birthday: parseDateBR(birthday),
+        unitId: draft.unitId, unitName: draft.unitName,
+        utm: { utm_source: pick('utm_source'), utm_medium: pick('utm_medium'), utm_campaign: pick('utm_campaign'), utm_content: pick('utm_content'), utm_term: pick('utm_term') },
+      });
+    }, 2000);
+    return () => window.clearTimeout(t);
+  }, [draft, sending, name, phone, email, cpf, birthday]);
 
   // já existe uma mesa guardada para esse WhatsApp? A API do Mané aceita uma reserva ativa por pessoa.
   React.useEffect(() => {
@@ -117,7 +140,7 @@ export default function Dados() {
     }, 60);
   }, [askExtra]);
 
-  if (!draft) return <StepHeader step={2} backHref="/reserva" />;
+  if (!draft) return <StepHeader step={2} backHref="/" />;
 
   const total = draft.adults + draft.kids;
   const meta = metaFor(draft.unitSlug as any);
@@ -239,12 +262,17 @@ export default function Dados() {
         setSending(false);
         return;
       }
+      // Conversão de anúncio, igual ao /reservar antigo: 'Reservation Made' no pixel da unidade + Google Ads + dataLayer
+      trackReservationMade({
+        reservationCode: j.reservationCode, fullName: name.trim(), email: knownEmail ? '' : email.trim().toLowerCase(), phone: onlyDigits(phone),
+        unit: d.unitName, area: d.areaName, status: j.status || 'AWAITING_CHECKIN', source: 'site',
+      });
       track('reservation_created', { unit: d.unitSlug, people: total, kids: d.kids, type: d.occasion || 'PARTICULAR', known: isKnown, birthday: bonus, days_ahead: Math.round((new Date(d.dateYMD!).getTime() - Date.now()) / 864e5) });
       try { window.localStorage.setItem('mane:lastReservation', JSON.stringify({ id: j.id, code: j.reservationCode, at: Date.now() })); } catch { /* ok */ }
       try { window.sessionStorage.setItem('mane:reserva:bonus', bonus && isBirthday ? (tier ? `Bônus de aniversário de ${fmtBRL(tier.bonus)}` : 'Mimo de aniversário') : ''); } catch { /* ok */ }
       clearDraft();
       try { window.sessionStorage.removeItem('mane:reserva:inicio'); } catch { /* ok */ }
-      router.push(`/reserva/pronto/${encodeURIComponent(j.reservationCode)}`);
+      router.push(`/pronto/${encodeURIComponent(j.reservationCode)}`);
     } catch {
       setServerError({ message: 'A conexão caiu no meio. Suas escolhas estão guardadas, tente de novo.' });
       setSending(false);
@@ -260,16 +288,16 @@ export default function Dados() {
 
   const ERR: Record<string, { title: string; action?: { label: string; href: string } }> = {
     ALREADY_HAS_ACTIVE_RESERVATION: { title: 'Você já tem uma mesa guardada.', action: { label: 'Ver minha reserva', href: '/consultar' } },
-    NO_CAPACITY: { title: 'Esse horário acabou de lotar.', action: { label: 'Escolher outro horário', href: '/reserva?edit=time' } },
-    BOOKING_WINDOW_CLOSED: { title: 'Esse horário fechou enquanto você preenchia.', action: { label: 'Escolher outro horário', href: '/reserva?edit=time' } },
-    CLOSED_DAY: { title: 'A casa não abre nesse dia.', action: { label: 'Escolher outro dia', href: '/reserva?edit=date' } },
-    OUTSIDE_OPENING_HOURS: { title: 'Esse horário está fora do funcionamento.', action: { label: 'Escolher outro horário', href: '/reserva?edit=time' } },
-    RECURRING_BLOCKED: { title: 'Esse horário não recebe reservas.', action: { label: 'Escolher outro horário', href: '/reserva?edit=time' } },
-    BLOCKED_DAY: { title: 'Esse dia está bloqueado para reservas.', action: { label: 'Escolher outro dia', href: '/reserva?edit=date' } },
-    MIN_PEOPLE_REQUIRED: { title: 'Nesse horário a casa reserva a partir de mais pessoas.', action: { label: 'Ajustar o grupo', href: '/reserva?edit=people' } },
+    NO_CAPACITY: { title: 'Esse horário acabou de lotar.', action: { label: 'Escolher outro horário', href: '/?edit=time' } },
+    BOOKING_WINDOW_CLOSED: { title: 'Esse horário fechou enquanto você preenchia.', action: { label: 'Escolher outro horário', href: '/?edit=time' } },
+    CLOSED_DAY: { title: 'A casa não abre nesse dia.', action: { label: 'Escolher outro dia', href: '/?edit=date' } },
+    OUTSIDE_OPENING_HOURS: { title: 'Esse horário está fora do funcionamento.', action: { label: 'Escolher outro horário', href: '/?edit=time' } },
+    RECURRING_BLOCKED: { title: 'Esse horário não recebe reservas.', action: { label: 'Escolher outro horário', href: '/?edit=time' } },
+    BLOCKED_DAY: { title: 'Esse dia está bloqueado para reservas.', action: { label: 'Escolher outro dia', href: '/?edit=date' } },
+    MIN_PEOPLE_REQUIRED: { title: 'Nesse horário a casa reserva a partir de mais pessoas.', action: { label: 'Ajustar o grupo', href: '/?edit=people' } },
     MAX_PEOPLE_EXCEEDED: { title: 'Grupo grande merece atenção pessoal.', action: { label: 'Chamar a equipe no WhatsApp', href: conciergeLink(meta?.concierge || '61982850776', `Oi! Quero reservar para ${total} pessoas no Mané ${meta?.short || ''}. Podem me ajudar?`) } },
-    FESTIVAL_AREA_UNAVAILABLE: { title: 'Essa área só abre em dias de festival.', action: { label: 'Escolher outro ambiente', href: '/reserva?edit=time' } },
-    AREA_NOT_FOUND: { title: 'Esse ambiente não está mais disponível.', action: { label: 'Escolher outro ambiente', href: '/reserva?edit=time' } },
+    FESTIVAL_AREA_UNAVAILABLE: { title: 'Essa área só abre em dias de festival.', action: { label: 'Escolher outro ambiente', href: '/?edit=time' } },
+    AREA_NOT_FOUND: { title: 'Esse ambiente não está mais disponível.', action: { label: 'Escolher outro ambiente', href: '/?edit=time' } },
   };
 
   const summary = `${draft.unitName?.replace(/,.*$/, '')} · ${fmtLongDate(draft.dateYMD!)} · ${draft.time!.replace(':00', 'h').replace(':30', 'h30')} · ${total} pessoas · ${draft.areaName?.replace(/^Ala\s+/i, '')}`;
@@ -284,7 +312,7 @@ export default function Dados() {
 
   return (
     <>
-      <StepHeader step={2} backHref="/reserva" />
+      <StepHeader step={2} backHref="/" />
 
       <div className={s.intro}>
         <h1 className={s.h1}>Para quem guardamos a mesa?</h1>
@@ -293,7 +321,7 @@ export default function Dados() {
       <div className={s.done} data-step={1}>
         <span className={s.stepBadge} aria-hidden="true"><IconCheck size={15} stroke={3} /></span>
         <span className={s.doneText}><small>Sua mesa</small><b>{summary}</b></span>
-        <a className={s.doneEdit} href="/reserva"><IconPencil size={15} stroke={2.2} /> alterar</a>
+        <a className={s.doneEdit} href="/"><IconPencil size={15} stroke={2.2} /> alterar</a>
       </div>
 
       <form className={s.form} onSubmit={(e) => { e.preventDefault(); confirmar(); }} noValidate>
@@ -411,13 +439,13 @@ export default function Dados() {
                 <span>Ficou a {swap.to.name}, no mesmo horário. Confirmar assim?</span>
                 <div className={s.greetBtns}>
                   <button type="button" className={s.confirm} onClick={acceptSwap}>Confirmar na {swap.to.name} <IconCheck size={16} stroke={2.6} /></button>
-                  <a className={s.ghost} href="/reserva?edit=time">Ver outros horários</a>
+                  <a className={s.ghost} href="/?edit=time">Ver outros horários</a>
                 </div>
               </>
             ) : (
               <>
                 <span>Nenhuma área cabe o grupo nesse horário.</span>
-                <div className={s.greetBtns}><a className={s.ghost} href="/reserva?edit=time">Escolher outro horário</a></div>
+                <div className={s.greetBtns}><a className={s.ghost} href="/?edit=time">Escolher outro horário</a></div>
               </>
             )}
           </div>

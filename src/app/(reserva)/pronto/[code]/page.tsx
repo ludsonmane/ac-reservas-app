@@ -52,7 +52,7 @@ export default function Pronto() {
     return (
       <>
         <StepHeader step={3} />
-        <div className={`${s.alert} ${s.alertBad}`}><b>Não achamos essa reserva.</b><span>{err}</span><span><a className={s.linkBtn} href="/reserva">Fazer uma reserva</a></span></div>
+        <div className={`${s.alert} ${s.alertBad}`}><b>Não achamos essa reserva.</b><span>{err}</span><span><a className={s.linkBtn} href="/">Fazer uma reserva</a></span></div>
       </>
     );
   }
