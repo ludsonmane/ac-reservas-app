@@ -12,7 +12,9 @@ const nextConfig = {
       { source: "/reserva/dados", destination: "/dados", permanent: false },
       { source: "/reserva/pronto/:code", destination: "/pronto/:code", permanent: false },
       // Links curtos das casas (bio, Google, anúncios) → já na casa certa
-      ...["bsb", "ac", "sp", "partage"].map((u) => ({
+      // SP saiu da reserva online: o link antigo cai na escolha da casa
+      { source: "/sp", destination: "/?utm_source=link-sp", permanent: false },
+      ...["bsb", "ac", "partage"].map((u) => ({
         source: "/" + u,
         destination: "/?unit=" + u + "&utm_source=link-" + u,
         permanent: false,

@@ -14,6 +14,9 @@ export const UNIT_META: UnitMeta[] = [
   { slug: 'partage', short: 'Partage', sub: 'Lago Sul', concierge: '61982850776' },
 ];
 
+/** Casas fora da reserva online (somem do front; reservas antigas continuam na API). */
+export const HIDDEN_SLUGS: UnitMeta['slug'][] = ['sp'];
+
 /** Descobre o slug de exibição a partir do que a API devolve (slug ou nome). */
 export function detectSlug(slug?: string | null, name?: string | null): UnitMeta['slug'] | null {
   const hay = `${slug || ''} ${name || ''}`.toLowerCase();

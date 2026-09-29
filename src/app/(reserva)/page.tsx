@@ -20,7 +20,7 @@ import { IconArrowRight } from '@tabler/icons-react';
 import { EMPTY_DRAFT, loadDraft, saveDraft, type Draft, type Occasion } from './_lib/draft';
 import { track } from './_lib/track';
 import { ensureAnalyticsReady, setActiveUnitPixelFromUnit } from '@/lib/analytics';
-import { detectSlug, metaFor, conciergeLink } from './_lib/units';
+import { detectSlug, metaFor, conciergeLink, HIDDEN_SLUGS } from './_lib/units';
 import {
   DEFAULT_MIN_PEOPLE, MAX_PEOPLE_WITHOUT_CONCIERGE, earliestBookable, isSpUnit, isBsbUnit, periodOf,
   ruleCovers, type RecurringRule, fmtLongDate, peakMinPeople, unitRulesForDay, lastBookableSlot,
@@ -98,8 +98,12 @@ function Tela1() {
         const norm: UnitOption[] = (list ?? []).map((u) => ({
           id: String(u.id), name: String(u.name ?? ''), slug: u.slug ?? null,
           minPeople: typeof u.minPeople === 'number' ? u.minPeople : null,
-        }));
+        })).filter((u) => !HIDDEN_SLUGS.includes(detectSlug(u.slug, u.name) as any)); // SP fora da reserva online (histórico intacto na API)
         setUnits(norm);
+        // rascunho antigo apontando pra casa escondida volta pra escolha da casa
+        if (draft.unitId && !norm.some((u) => u.id === draft.unitId)) {
+          patch({ unitId: null, unitName: null, unitSlug: null, minPeople: null, time: null, areaId: null, areaName: null });
+        }
         // pré-seleção pelo link (?unit=bsb|ac|sp|partage ou id)
         const want = params.get('unit');
         if (want && !draft.unitId) {
