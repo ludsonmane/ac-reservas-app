@@ -52,6 +52,7 @@
 
 /* cartões de unidade */
 .units { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.units > :last-child:nth-child(odd) { grid-column: 1 / -1; } /* número ímpar de casas: a última ocupa a linha */
 .unit {
   min-height: 76px; border-radius: var(--r); border: 2px solid var(--line); background: var(--paper);
   display: grid; align-content: center; gap: 3px; padding: 14px 16px; text-align: left; cursor: pointer;

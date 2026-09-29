@@ -1,12 +1,12 @@
 'use client';
 
 import s from '../reserva.module.css';
-import { UNIT_META, detectSlug, type UnitMeta } from '../_lib/units';
+import { UNIT_META, HIDDEN_SLUGS, detectSlug, type UnitMeta } from '../_lib/units';
 
 export type UnitOption = { id: string; name: string; slug?: string | null; minPeople?: number | null };
 
 /**
- * Quatro cartões grandes, sempre visíveis. As casas vêm da API; as que a API ainda não tem
+ * Cartões grandes, sempre visíveis (menos as casas em HIDDEN_SLUGS). As casas vêm da API; as que a API ainda não tem
  * (Partage antes da abertura) aparecem desabilitadas com a data.
  */
 export function UnitPicker({
@@ -17,7 +17,8 @@ export function UnitPicker({
   value: string | null;
   onChange: (u: UnitOption, meta: UnitMeta | null) => void;
 }) {
-  const byMeta = UNIT_META.map((meta) => {
+  const visible = UNIT_META.filter((m) => !HIDDEN_SLUGS.includes(m.slug));
+  const byMeta = visible.map((meta) => {
     const u = units.find((x) => detectSlug(x.slug, x.name) === meta.slug) || null;
     return { meta, u };
   });
@@ -25,7 +26,7 @@ export function UnitPicker({
   if (loading && units.length === 0) {
     return (
       <div className={s.units} aria-busy="true">
-        {[0, 1, 2, 3].map((i) => <div key={i} className={s.skeleton} style={{ height: 64 }} />)}
+        {visible.map((_, i) => <div key={i} className={s.skeleton} style={{ height: 64 }} />)}
       </div>
     );
   }
