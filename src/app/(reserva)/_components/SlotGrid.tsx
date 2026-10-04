@@ -1,6 +1,6 @@
 'use client';
 
-import { IconCoffee, IconGlassFull, IconMoon, IconSun } from '@tabler/icons-react';
+import { IconCoffee, IconMoon, IconSun, IconSunset2 } from '@tabler/icons-react';
 import d from './slot.module.css';
 import { ALLOWED_SLOTS, dayWindow, slotBlockReason, type RecurringRule } from '../_lib/rules';
 
@@ -11,8 +11,8 @@ const REASON_LABEL: Record<string, string> = {
 /** Clima da casa por faixa: dá contexto pra escolha sem inventar dado. */
 function vibe(hhmm: string): { text: string; Icon: typeof IconSun } {
   if (hhmm < '14:30') return { text: 'almoço', Icon: IconSun };
-  if (hhmm < '17:30') return { text: 'tarde tranquila', Icon: IconCoffee };
-  if (hhmm < '20:00') return { text: 'happy hour', Icon: IconGlassFull };
+  if (hhmm < '17:30') return { text: 'tarde', Icon: IconCoffee };
+  if (hhmm < '20:00') return { text: 'fim de tarde', Icon: IconSunset2 };
   return { text: 'noite', Icon: IconMoon };
 }
 
