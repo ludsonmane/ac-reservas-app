@@ -1,6 +1,7 @@
 // Cria a reserva no servidor: completa e-mail, CPF e nascimento a partir do CRM quando o cliente
 // foi reconhecido (token da consulta), e repassa para a API de reservas.
 import { NextResponse } from 'next/server';
+import { BlockList, isIPv6 } from 'net';
 import { findLeadByPhone, verifyLookup } from '@/server/crm';
 import { ageFromISO, MAX_AGE, MIN_AGE } from '@/app/(reserva)/_lib/validators';
 
@@ -9,12 +10,33 @@ export const dynamic = 'force-dynamic';
 const API = (process.env.RESERVAS_API_BASE || process.env.NEXT_PUBLIC_API_BASE || 'https://api.mane.com.vc').replace(/\/+$/, '');
 const digits = (v: string) => (v || '').replace(/\D+/g, '');
 
-// IP do cliente como a borda da Railway entrega (X-Real-IP; fallback: 1º do X-Forwarded-For)
+// Faixas oficiais da Cloudflare (https://www.cloudflare.com/ips, conferidas em 16/10/2026)
+const CLOUDFLARE_RANGES = [
+  '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22', '141.101.64.0/18',
+  '108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20', '197.234.240.0/22', '198.41.128.0/17',
+  '162.158.0.0/15', '104.16.0.0/13', '104.24.0.0/14', '172.64.0.0/13', '131.0.72.0/22',
+  '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32', '2405:8100::/32',
+  '2a06:98c0::/29', '2c0f:f248::/32',
+];
+const cloudflare = new BlockList();
+for (const cidr of CLOUDFLARE_RANGES) {
+  const [net, bits] = cidr.split('/');
+  cloudflare.addSubnet(net, Number(bits), isIPv6(net) ? 'ipv6' : 'ipv4');
+}
+
+// IP do cliente como a borda da Railway entrega (X-Real-IP; fallback: 1º do X-Forwarded-For).
+// Com o proxy da Cloudflare ligado, quem conecta é a Cloudflare e o cliente vem em
+// CF-Connecting-IP, que só vale se a conexão veio MESMO de um IP da Cloudflare.
 function clientIp(req: Request): string | null {
-  const real = req.headers.get('x-real-ip')?.trim();
-  if (real) return real;
-  const fwd = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return fwd || null;
+  const edge =
+    req.headers.get('x-real-ip')?.trim() || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null;
+  const cf = req.headers.get('cf-connecting-ip')?.trim();
+  if (edge && cf) {
+    try {
+      if (cloudflare.check(edge, isIPv6(edge) ? 'ipv6' : 'ipv4')) return cf;
+    } catch { /* IP malformado: segue com o da borda */ }
+  }
+  return edge;
 }
 
 export async function POST(req: Request) {
