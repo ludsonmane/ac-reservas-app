@@ -9,6 +9,17 @@ export const dynamic = 'force-dynamic';
 const API = (process.env.RESERVAS_API_BASE || process.env.NEXT_PUBLIC_API_BASE || 'https://api.mane.com.vc').replace(/\/+$/, '');
 const digits = (v: string) => (v || '').replace(/\D+/g, '');
 
+// Repassa o IP do cliente para a API aplicar o limite por pessoa (e não pelo IP deste
+// servidor, que é o mesmo para todo mundo). A API só confia no IP com o segredo.
+function proxyHeaders(req: Request): Record<string, string> {
+  const secret = process.env.SITE_PROXY_SECRET;
+  if (!secret) return {};
+  const ip =
+    req.headers.get('x-real-ip')?.trim() ||
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  return ip ? { 'x-client-ip': ip, 'x-proxy-secret': secret } : {};
+}
+
 export async function POST(req: Request) {
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: { message: 'Pedido inválido.' } }, { status: 400 }); }
@@ -64,7 +75,7 @@ export async function POST(req: Request) {
   try {
     const res = await fetch(`${API}/v1/reservations/public`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...proxyHeaders(req) },
       body: JSON.stringify(payload),
       cache: 'no-store',
       signal: AbortSignal.timeout(20000),
