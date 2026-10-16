@@ -1,31 +1,40 @@
 // Identifica o cliente pelo WhatsApp no CRM (engine), do lado do servidor.
-// O navegador recebe só o primeiro nome, campos mascarados e um token assinado.
-// Os valores reais só voltam a entrar no fluxo no servidor, na hora de criar a reserva (api/reserva).
+// REGRA (16/10/2026): nada pessoal sai por telefone. O navegador recebe só "existe cadastro",
+// quais dados já temos (sim/não) e um token assinado. Nome, e-mail, CPF e nascimento só entram
+// no fluxo no servidor, na hora de criar a reserva (api/reserva).
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-import { digits, findLeadByPhone, signLookup, hasCrmToken, type Lead } from '@/server/crm';
+import { digits, findLeadByPhone, signLookup, hasCrmToken } from '@/server/crm';
 
-const firstName = (l: Lead) => {
-  const n = (l.first_name || l.name || '').trim().split(/\s+/)[0] || '';
-  return n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
-};
-const maskEmail = (e?: string | null) => {
-  if (!e) return null;
-  const [u, d] = e.split('@');
-  return d ? `${u.slice(0, 2)}${'*'.repeat(Math.max(2, u.length - 2))}@${d}` : '***';
-};
-const maskCpf = (c?: string | null) => {
-  const d = digits(c || '');
-  return d.length === 11 ? `***.${d.slice(3, 6)}.${d.slice(6, 9)}-**` : null;
-};
-const maskBirthday = (b?: string | null) => {
-  const m = String(b || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `**/${m[2]}/${m[1]}` : null;
-};
+// Limite por IP (memória do processo): a rota consulta a base inteira do CRM por telefone.
+const WINDOW_MS = 10 * 60_000;
+const MAX_PER_WINDOW = 30;
+const hits = new Map<string, number[]>();
+
+function clientIp(req: Request) {
+  // x-real-ip: a borda da Railway sobrescreve (e já resolve o cliente atrás da Cloudflare)
+  return (
+    req.headers.get('x-real-ip')?.trim() ||
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    'unknown'
+  );
+}
+
+function limited(ip: string) {
+  const now = Date.now();
+  const arr = (hits.get(ip) || []).filter((t) => now - t < WINDOW_MS);
+  arr.push(now);
+  hits.set(ip, arr);
+  if (hits.size > 50_000) hits.clear();
+  return arr.length > MAX_PER_WINDOW;
+}
 
 export async function GET(req: Request) {
+  if (limited(clientIp(req))) {
+    return NextResponse.json({ found: false, error: 'rate_limited' }, { status: 429 });
+  }
   const url = new URL(req.url);
   const phone = digits(url.searchParams.get('phone') || '');
   if (phone.length < 10) return NextResponse.json({ found: false, reason: 'phone' }, { status: 400 });
@@ -36,10 +45,6 @@ export async function GET(req: Request) {
     if (!lead) return NextResponse.json({ found: false });
     return NextResponse.json({
       found: true,
-      firstName: firstName(lead),
-      fullName: (lead.name || '').trim() || null,
-      returning: Number(lead.purchase_count || 0) > 0 || Number(lead.ltv || 0) > 0,
-      masked: { email: maskEmail(lead.email), cpf: maskCpf(lead.cpf), birthday: maskBirthday(lead.birthday) },
       has: { email: !!lead.email, cpf: digits(lead.cpf || '').length === 11, birthday: !!lead.birthday },
       token: signLookup(lead.id, phone.slice(-9)),
     });

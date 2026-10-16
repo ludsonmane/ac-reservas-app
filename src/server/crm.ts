@@ -28,7 +28,10 @@ export function verifyLookup(token: string): { id: number | string; p: string } 
   try {
     const [payload, sig] = token.split('.');
     const expect = crypto.createHmac('sha256', SECRET).update(payload).digest('base64url');
-    if (sig !== expect) return null;
+    // tempo constante: comparação com !== vaza quantos caracteres batem
+    const a = Buffer.from(String(sig || ''));
+    const b = Buffer.from(expect);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
     if (!data?.id || !data?.p || Date.now() > data.exp) return null;
     return { id: data.id, p: String(data.p) };

@@ -26,7 +26,7 @@ type Lookup =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'new'; disabled?: boolean }
-  | { status: 'found'; firstName: string; fullName: string | null; returning: boolean; masked: { email: string | null; cpf: string | null; birthday: string | null }; has: { email: boolean; cpf: boolean; birthday: boolean }; token: string };
+  | { status: 'found'; has: { email: boolean; cpf: boolean; birthday: boolean }; token: string }; // regra 16/10/2026: nada pessoal por telefone
 
 /**
  * Tela 2: só WhatsApp e nome. O WhatsApp identifica o cliente (CRM e histórico de reservas) e
@@ -343,17 +343,17 @@ export default function Dados() {
             <div className={`${s.greet} ${s.reveal}`} role="status">
               <IconUserCheck size={22} stroke={2} />
               <div>
-                <b>Oi, {found.firstName}! {found.returning ? 'Bom te ver de novo.' : 'A gente já se conhece.'}</b>
-                <span>É você mesmo? Se sim, preenchemos o nome com o que já temos.</span>
+                <b>Reconhecemos esse WhatsApp.</b>
+                <span>É você? Se sim, usamos os dados que você já cadastrou com a gente.</span>
                 <div className={s.greetBtns}>
-                  <button type="button" className={s.confirm} onClick={() => { setRecognized(true); if (found.fullName) { setName(found.fullName); nameFromCrm.current = true; } }}>Sou eu <IconCheck size={16} stroke={2.6} /></button>
+                  <button type="button" className={s.confirm} onClick={() => setRecognized(true)}>Sou eu <IconCheck size={16} stroke={2.6} /></button>
                   <button type="button" className={s.ghost} onClick={() => { setRecognized(false); if (nameFromCrm.current) { setName(''); nameFromCrm.current = false; } }}>Não sou eu</button>
                 </div>
               </div>
             </div>
           )}
           {found && recognized === true && (
-            <p className={`${s.hint} ${s.okText}`}><IconSparkles size={14} stroke={2} /> Reconhecemos você, {found.firstName}. Só confira o nome abaixo.</p>
+            <p className={`${s.hint} ${s.okText}`}><IconSparkles size={14} stroke={2} /> Pronto, usamos os dados que você já cadastrou.</p>
           )}
           {active && !activeDismissed && (
             <div className={`${s.alert} ${s.alertWarn} ${s.reveal}`} role="status">
@@ -389,7 +389,7 @@ export default function Dados() {
 
             <label className={s.label} htmlFor="f-email">E-mail <small>confirmação e convite da agenda</small></label>
             {knownEmail ? (
-              <div className={s.maskRow}><span className={s.maskChip}><IconCheck size={14} stroke={3} /> {found!.masked.email}</span><button type="button" className={s.linkBtn} onClick={() => setUseKnown((u) => ({ ...u, email: false }))}>trocar</button></div>
+              <div className={s.maskRow}><span className={s.maskChip}><IconCheck size={14} stroke={3} /> E-mail já cadastrado</span><button type="button" className={s.linkBtn} onClick={() => setUseKnown((u) => ({ ...u, email: false }))}>trocar</button></div>
             ) : (
               <>
                 <input id="f-email" className={`${s.input} ${show('email') ? s.inputErr : ''}`} type="email" inputMode="email" autoComplete="email"
@@ -400,7 +400,7 @@ export default function Dados() {
 
             <label className={s.label} htmlFor="f-cpf" style={{ marginTop: 14 }}>{isBirthday ? 'CPF de quem faz aniversário' : 'Seu CPF'} <small>{bigGroup ? 'diz quem é o anfitrião da lista de convidados' : 'confirma o nome na chegada'}</small></label>
             {knownCpf ? (
-              <div className={s.maskRow}><span className={s.maskChip}><IconCheck size={14} stroke={3} /> {found!.masked.cpf}</span><button type="button" className={s.linkBtn} onClick={() => setUseKnown((u) => ({ ...u, cpf: false }))}>usar outro</button></div>
+              <div className={s.maskRow}><span className={s.maskChip}><IconCheck size={14} stroke={3} /> CPF já cadastrado</span><button type="button" className={s.linkBtn} onClick={() => setUseKnown((u) => ({ ...u, cpf: false }))}>usar outro</button></div>
             ) : (
               <>
                 <input id="f-cpf" className={`${s.input} ${show('cpf') ? s.inputErr : ''}`} type="text" inputMode="numeric" autoComplete="off"
@@ -412,8 +412,7 @@ export default function Dados() {
             <label className={s.label} htmlFor="f-birthday" style={{ marginTop: 14 }}>{isBirthday ? 'Data de nascimento de quem faz aniversário' : 'Sua data de nascimento'} <small>quem reserva precisa ter entre 18 e 80 anos</small></label>
             {knownBirthday ? (
               <div className={s.maskRow}>
-                <span className={s.maskChip}><IconCheck size={14} stroke={3} /> {found!.masked.birthday}</span>
-                <span className={s.hint}>já temos a sua.</span>
+                <span className={s.maskChip}><IconCheck size={14} stroke={3} /> Data já cadastrada</span>
                 <button type="button" className={s.linkBtn} onClick={() => setUseKnown((u) => ({ ...u, birthday: false }))}>usar outra data</button>
               </div>
             ) : (
@@ -469,7 +468,7 @@ export default function Dados() {
                 {sending ? 'Guardando sua mesa…' : <>Confirmar minha mesa <IconArrowRight size={18} stroke={2.4} /></>}
               </button>
               <p className={s.footerHint}>
-                {lookup.status === 'loading' ? 'Buscando seu cadastro…' : blockedByActive ? 'Resolva a reserva que já existe para esse WhatsApp.' : waitingIdentity ? `Responda se é você, ${found?.firstName}.` : canSend ? `Seu código chega no WhatsApp ${maskPhone(phone)} na mesma hora.` : 'Só WhatsApp e nome. Nada mais.'}
+                {lookup.status === 'loading' ? 'Buscando seu cadastro…' : blockedByActive ? 'Resolva a reserva que já existe para esse WhatsApp.' : waitingIdentity ? 'Responda se é você.' : canSend ? `Seu código chega no WhatsApp ${maskPhone(phone)} na mesma hora.` : 'Só WhatsApp e nome. Nada mais.'}
               </p>
             </div>
           </div>
