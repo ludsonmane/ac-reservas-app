@@ -50,7 +50,7 @@ export default function Dados() {
   const nameFromCrm = React.useRef(false);
   const [sending, setSending] = React.useState(false);
   const [serverError, setServerError] = React.useState<{ code?: string; message: string; reservationCode?: string } | null>(null);
-  const [active, setActive] = React.useState<null | { code: string; when: string; unit: string }>(null);
+  const [active, setActive] = React.useState<boolean | null>(null);
   const [activeDismissed, setActiveDismissed] = React.useState(false);
   const [swap, setSwap] = React.useState<null | { fromName: string; to: { id: string; name: string } | null }>(null);
   const activeSeq = React.useRef(0);
@@ -100,10 +100,10 @@ export default function Dados() {
     const seq = ++activeSeq.current;
     const tm = window.setTimeout(async () => {
       try {
+        // a API só diz SE existe (regra 16/10/2026: nada da reserva sai por telefone, só pelo código)
         const r = await apiGet<any>(`/v1/reservations/public/active?phone=${d}`);
-        if (seq !== activeSeq.current || !r || r.status !== 'AWAITING_CHECKIN') return;
-        const when = dayjs(r.reservationDate);
-        setActive({ code: String(r.reservationCode || ''), when: `${when.format('DD/MM')} às ${when.format('HH[h]mm')}`, unit: String(r.unitRef?.name || r.unit || '').replace(/,.*$/, '') });
+        if (seq !== activeSeq.current || !r || !(r.active || r.status === 'AWAITING_CHECKIN')) return;
+        setActive(true);
       } catch { /* 404 = nenhuma ativa */ }
     }, 350);
     return () => window.clearTimeout(tm);
@@ -357,11 +357,11 @@ export default function Dados() {
           )}
           {active && !activeDismissed && (
             <div className={`${s.alert} ${s.alertWarn} ${s.reveal}`} role="status">
-              <b>Esse WhatsApp já tem uma mesa guardada: {active.unit}, {active.when}.</b>
-              <span>A casa aceita uma reserva ativa por pessoa. Você pode ver essa reserva, ou falar com a gente para mudar a data dela.</span>
+              <b>Esse WhatsApp já tem uma mesa guardada.</b>
+              <span>A casa aceita uma reserva ativa por pessoa. O código dela está na mensagem de confirmação no seu WhatsApp. Com ele você vê a reserva, ou fala com a gente para mudar a data.</span>
               <span>
-                <a className={s.linkBtn} href={`/consultar?code=${active.code}`}>Ver essa reserva</a>{' · '}
-                <a className={s.linkBtn} href={conciergeLink(meta?.concierge || '61982850776', `Oi! Tenho a reserva ${active.code} (${active.when}) e quero mudar para ${fmtLongDate(draft.dateYMD!)} às ${draft.time}. Podem ajudar?`)} target="_blank" rel="noreferrer">Mudar a data dela</a>{' · '}
+                <a className={s.linkBtn} href="/consultar">Ver com o código</a>{' · '}
+                <a className={s.linkBtn} href={conciergeLink(meta?.concierge || '61982850776', `Oi! Já tenho uma reserva e quero mudar para ${fmtLongDate(draft.dateYMD!)} às ${draft.time}. Podem ajudar?`)} target="_blank" rel="noreferrer">Mudar a data dela</a>{' · '}
                 <button type="button" className={s.linkBtn} onClick={() => setActiveDismissed(true)}>Não é minha</button>
               </span>
             </div>
