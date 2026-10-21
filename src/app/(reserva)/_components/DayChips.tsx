@@ -41,6 +41,19 @@ export function DayChips({
 
   const scrollBy = (dir: 1 | -1) => stripRef.current?.scrollBy({ left: dir * 3 * 86, behavior: 'smooth' });
 
+  // setas só aparecem quando há pra onde rolar
+  const [edge, setEdge] = React.useState({ start: true, end: false });
+  const syncEdge = React.useCallback(() => {
+    const el = stripRef.current;
+    if (!el) return;
+    setEdge({ start: el.scrollLeft <= 4, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 4 });
+  }, []);
+  React.useEffect(() => {
+    syncEdge();
+    window.addEventListener('resize', syncEdge);
+    return () => window.removeEventListener('resize', syncEdge);
+  }, [syncEdge]);
+
   const label = (ymd: string) => {
     if (ymd === today) return 'Hoje';
     if (ymd === days[1]) return 'Amanhã';
@@ -50,9 +63,9 @@ export function DayChips({
   return (
     <div className={s.block}>
       <div className={d.stripWrap}>
-        <button type="button" className={`${d.arrow} ${d.arrowL}`} aria-label="Dias anteriores" onClick={() => scrollBy(-1)}><IconChevronLeft size={18} stroke={2.4} /></button>
-        <button type="button" className={`${d.arrow} ${d.arrowR}`} aria-label="Mais dias" onClick={() => scrollBy(1)}><IconChevronRight size={18} stroke={2.4} /></button>
-        <div ref={stripRef} className={d.strip} role="radiogroup" aria-label="Que dia">
+        <button type="button" className={`${d.arrow} ${d.arrowL} ${edge.start ? d.arrowOff : ''}`} aria-label="Dias anteriores" onClick={() => scrollBy(-1)}><IconChevronLeft size={18} stroke={2.4} /></button>
+        <button type="button" className={`${d.arrow} ${d.arrowR} ${edge.end ? d.arrowOff : ''}`} aria-label="Mais dias" onClick={() => scrollBy(1)}><IconChevronRight size={18} stroke={2.4} /></button>
+        <div ref={stripRef} className={d.strip} role="radiogroup" aria-label="Que dia" onScroll={syncEdge}>
           {days.map((ymd, i) => {
             const dt = dayjs(ymd);
             const closed = isClosedDay(ymd, sp);
@@ -75,7 +88,9 @@ export function DayChips({
               >
                 <span className={d.wd}>{label(ymd)}</span>
                 <span className={d.num}>{dt.format('D')}</span>
-                <span className={d.mo}>{closed ? 'fechado' : tooEarly ? 'encerrou' : dt.format('MMM').replace('.', '')}</span>
+                {disabled
+                  ? <span className={d.tag}>{closed ? 'Fechado' : 'Encerrou'}</span>
+                  : <span className={d.mo}>{dt.format('MMM').replace('.', '')}</span>}
               </button>
             );
           })}

@@ -19,6 +19,7 @@
 .arrow:hover { border-color: var(--teal); transform: scale(1.06); }
 .arrowL { left: -14px; } .arrowR { right: -14px; }
 @media (min-width: 720px) and (hover: hover) { .arrow { display: grid; } }
+.arrowOff { display: none !important; } /* some no começo/fim da faixa pra não cobrir o cartão */
 
 .day {
   flex: none; scroll-snap-align: center; width: 76px; min-height: 96px; padding: 10px 6px 8px;
@@ -34,8 +35,14 @@
   background: var(--teal); border-color: var(--teal); color: #fff;
   box-shadow: 0 8px 20px rgba(3, 76, 70, 0.28); transform: translateY(-2px) scale(1.03);
 }
-.day:disabled { cursor: not-allowed; opacity: 0.5; border-style: dashed; background: transparent; transform: none; }
-.day:disabled .num { text-decoration: line-through; text-decoration-thickness: 3px; text-decoration-color: var(--red); }
+.day:disabled { cursor: not-allowed; background: rgba(11, 43, 44, 0.04); border-color: var(--line); box-shadow: none; transform: none; }
+.day:disabled .wd, .day:disabled .num { opacity: 0.45; }
+.day:disabled .num { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--red); }
+/* dia indisponível: selo pequeno no lugar do mês, cabe nos 76px do cartão */
+.tag {
+  margin-top: 4px; padding: 2px 7px; border-radius: 999px; background: rgba(180, 35, 24, 0.1); color: #b42318;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.02em; line-height: 1.4; white-space: nowrap;
+}
 
 .wd { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .day[aria-checked='true'] .wd, .day[aria-checked='true'] .mo { color: rgba(255, 255, 255, 0.78); }
