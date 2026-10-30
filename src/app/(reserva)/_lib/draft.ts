@@ -1,6 +1,5 @@
 // Rascunho da reserva v2: vive em sessionStorage (só neste navegador, só nesta aba).
-// null = ainda não respondeu (é a primeira pergunta da jornada); PARTICULAR = "Outra"
-export type Occasion = 'ANIVERSARIO' | 'CONFRATERNIZACAO' | 'EMPRESA' | 'PARTICULAR' | null;
+export type Occasion = 'ANIVERSARIO' | 'CONFRATERNIZACAO' | 'EMPRESA' | null;
 
 export type Attribution = { utm_source?: string; utm_medium?: string; utm_campaign?: string; utm_content?: string; utm_term?: string; url?: string; ref?: string };
 

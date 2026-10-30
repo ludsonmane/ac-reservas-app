@@ -71,7 +71,7 @@ function demoReply(text: string, d: Draft, nextId: () => number): Msg[] {
     const min = d.minPeople || 1;
     return [{ id: nextId(), who: 'bot', text: min > 1
       ? `Em ${casa} a reserva online é a partir de ${min} pessoas. Grupos menores são bem-vindos sem reserva, é só chegar. ${total && total < min ? `Você marcou ${total}: dá pra ajustar o grupo ou vir direto.` : ''}`
-      : `${casa} aceita reserva pra qualquer tamanho de grupo.${GUEST_LIST_ON ? ' A partir de 8 pessoas você ganha um mimo e uma lista de convidados.' : d.occasion === 'ANIVERSARIO' ? ' Como é aniversário, a partir de 8 pessoas tem bônus em consumação.' : ''}` }];
+      : `${casa} aceita reserva pra qualquer tamanho de grupo.${GUEST_LIST_ON ? ' A partir de 8 pessoas você ganha um mimo e uma lista de convidados.' : ' É aniversário? A partir de 8 pessoas tem bônus.'}` }];
   }
   if (/toler|atras|espera|segura/.test(q)) {
     return [{ id: nextId(), who: 'bot', text: 'A mesa fica guardada por 15 minutos depois do horário. Se for atrasar mais, me avisa aqui ou pelo WhatsApp da casa que a gente segura até 45.' }];
