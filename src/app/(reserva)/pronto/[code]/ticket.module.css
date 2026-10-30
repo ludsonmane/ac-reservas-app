@@ -46,7 +46,7 @@
 
 /* faixa do bônus */
 .ribbon {
-  display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 14px; font-size: 13.5px; color: #1b2a28;
+  display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 14px; font-size: 13.5px; color: #1b2a28; text-align: center;
   background: linear-gradient(90deg, #f8d778, #f5c64a 55%, #e0a92a); animation: ribbonIn 420ms ease-out 420ms both;
 }
 .ribbon b { font-family: var(--font-merri), Georgia, serif; font-weight: 900; }

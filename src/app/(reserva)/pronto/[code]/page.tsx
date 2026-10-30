@@ -72,7 +72,7 @@ export default function Pronto() {
   const wdCap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
   const occasion = OCCASION[String(r.reservationType || '')] || null;
   const hasList = GUEST_LIST_ON && r.people >= GUEST_LIST_MIN;
-  const invite = `Você tem lugar na mesa.\n\n${first} guardou uma mesa no ${unitName} para ${weekday}, ${when.format('DD/MM')}, às ${when.format('HH[h]mm')}, e colocou você na lista.\n\nSeu código de entrada: ${r.reservationCode}\nMostre na porta e vá direto para a mesa. O lugar é seu até ${tolEnd}.\n\nConfirme que vai e veja como chegar: ${guestLink}`;
+  const invite = `Você tem lugar na mesa.\n\n${first} guardou uma mesa no ${unitName} para ${weekday}, ${when.format('DD/MM')}, às ${when.format('HH[h]mm')}${GUEST_LIST_ON ? ', e colocou você na lista' : ''}.\n\nSeu código de entrada: ${r.reservationCode}\nMostre na porta e vá direto para a mesa. O lugar é seu até ${tolEnd}.${GUEST_LIST_ON ? `\n\nConfirme que vai e veja como chegar: ${guestLink}` : ''}`;
   const waShare = `https://wa.me/?text=${encodeURIComponent(invite)}`;
   const gIso = (d: dayjs.Dayjs) => d.toDate().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
   const gcal = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Mesa no ${unitName}`)}&dates=${gIso(when)}/${gIso(when.add(2, 'hour'))}&details=${encodeURIComponent(`Código ${r.reservationCode}. ${r.people} pessoas, ${area}. Sua mesa espera você por 15 minutos.`)}&location=${encodeURIComponent(unitName)}`;
@@ -110,7 +110,7 @@ export default function Pronto() {
         </header>
 
         {bonus && (
-          <div className={t.ribbon}><IconGift size={16} stroke={2.2} aria-hidden="true" /> <b>{bonus}</b> garantido na mesa</div>
+          <div className={t.ribbon}><IconGift size={16} stroke={2.2} aria-hidden="true" /> <span><b>{bonus}</b> em consumação no dia</span></div>
         )}
 
         {/* picote */}
@@ -130,7 +130,7 @@ export default function Pronto() {
 
           <div className={t.rule}>
             <b>Combinado de chegada</b>
-            <span>Sua mesa espera você por 15 minutos. Seus convidados têm até <b>{tolEnd}</b> para chegar com o código.</span>
+            <span>Sua mesa espera você por 15 minutos. Quem vem com você tem até <b>{tolEnd}</b> para chegar com o código.</span>
           </div>
         </section>
       </article>

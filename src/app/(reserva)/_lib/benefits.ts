@@ -1,5 +1,6 @@
 // Ofertas do Mané por tamanho do grupo (espelho do /reservar atual e da página /convidados).
-// Aniversário: bônus em R$ por faixa de convidados, creditado no dia da reserva, mais mimos da Brinquedoteca.
+// Aniversário: bônus em R$ por faixa de pessoas, em consumação no dia da reserva, mais mimos da Brinquedoteca.
+// Vale pela palavra do cliente: marcou aniversário, ganha (sem conferir data de nascimento).
 // Qualquer ocasião: a partir de 8 pessoas o grupo ganha a lista de convidados.
 
 export const GUEST_LIST_MIN = 8;
@@ -24,4 +25,4 @@ export function nextBirthdayTier(people: number): BirthdayTier | null {
   return BIRTHDAY_TIERS.find((t) => people < t.min) || null;
 }
 
-export const fmtBRL = (v: number) => `R$ ${v}`;
+export const fmtBRL = (v: number) => `R$\u00a0${v}`; // espaço fixo: "R$" nunca quebra longe do número

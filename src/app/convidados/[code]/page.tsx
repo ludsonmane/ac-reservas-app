@@ -17,6 +17,7 @@ import {
 import { IconUser, IconId, IconInfoCircle, IconCheck } from '@tabler/icons-react';
 import NextImage from 'next/image';
 import { apiGet, apiPost } from '@/lib/api';
+import { GUEST_LIST_ON } from '@/app/(reserva)/_lib/benefits';
 
 /* CPF mask */
 function maskCPF(v: string) {
@@ -220,14 +221,26 @@ export default function ConvidadosPage() {
                   </Stack>
                 </Box>
 
-                <Text size="10px" c="#B8842A" mt={8} ta="center" lh={1.3} style={{ fontStyle: 'italic' }}>
-                  Registre-se abaixo para confirmar sua presença na celebração.
-                </Text>
+                {GUEST_LIST_ON && (
+                  <Text size="10px" c="#B8842A" mt={8} ta="center" lh={1.3} style={{ fontStyle: 'italic' }}>
+                    Registre-se abaixo para confirmar sua presença na celebração.
+                  </Text>
+                )}
               </Card>
             )}
 
-            {/* Form ou sucesso */}
-            {success ? (
+            {/* sem lista de convidados (GUEST_LIST_ON): só o código para mostrar na porta */}
+            {!GUEST_LIST_ON ? (
+              <Card radius="lg" p="lg" style={{ background: '#fff', textAlign: 'center' as const }}>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Código da mesa</Text>
+                <Text c="#034c46" fw={900} mt={4} style={{ fontSize: 'clamp(1.6rem, 7vw, 2.2rem)', letterSpacing: '0.08em', fontFamily: 'system-ui' }}>
+                  {reservation.reservationCode}
+                </Text>
+                <Text size="sm" c="dimmed" mt={6} lh={1.4}>
+                  Mostre esse código na entrada do Mané e vá direto para a mesa de {firstName}.
+                </Text>
+              </Card>
+            ) : success ? (
               <Card radius="lg" p="lg" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', textAlign: 'center' as const }}>
                 <IconCheck size={40} color="#22c55e" style={{ margin: '0 auto' }} />
                 <Text c="#F3E9D9" fw={700} size="md" mt="sm">Pronto, {name.split(' ')[0]}!</Text>
@@ -296,7 +309,7 @@ export default function ConvidadosPage() {
             )}
 
             {/* Lista de convidados confirmados */}
-            {guestCount > 0 && (
+            {GUEST_LIST_ON && guestCount > 0 && (
               <Box>
                 <Text size="xs" c="rgba(243,233,217,0.35)" ta="center" mb={6}>
                   {guestCount} convidado{guestCount > 1 ? 's' : ''} confirmado{guestCount > 1 ? 's' : ''}

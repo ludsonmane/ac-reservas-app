@@ -218,7 +218,7 @@ export default function Dados() {
     } catch { /* se a conferência falhar, o servidor decide */ }
 
     const iso = withExtra && !knownBirthday ? parseDateBR(birthday) : null;
-    const bonus = withExtra && (!!iso || knownBirthday);
+    const hasBirthDate = withExtra && (!!iso || knownBirthday); // só para análise: o bônus vale pela ocasião, não pelos dados
     saveDraft({ ...d, phone: onlyDigits(phone), fullName: name.trim(), email: email.trim(), cpf: withExtra ? onlyDigits(cpf) : '', birthday: withExtra ? birthday : '' });
     const params = new URLSearchParams(window.location.search);
     const at = d.attribution || {};
@@ -241,7 +241,7 @@ export default function Dados() {
       areaName: d.areaName,
       unitId: d.unitId,
       areaId: d.areaId,
-      notes: bonus && isBirthday ? `Aniversário informado${tier ? `: bônus de ${fmtBRL(tier.bonus)} (faixa ${tier.range} convidados)` : ''}.` : '',
+      notes: isBirthday ? `Aniversário informado${tier ? `: bônus de R$ ${tier.bonus} (faixa ${tier.range} pessoas)` : ''}.` : '',
       reservationType: d.occasion || 'PARTICULAR',
       utm_source: pick('utm_source'),
       utm_medium: pick('utm_medium'),
@@ -267,9 +267,9 @@ export default function Dados() {
         reservationCode: j.reservationCode, fullName: name.trim(), email: knownEmail ? '' : email.trim().toLowerCase(), phone: onlyDigits(phone),
         unit: d.unitName, area: d.areaName, status: j.status || 'AWAITING_CHECKIN', source: 'site',
       });
-      track('reservation_created', { unit: d.unitSlug, people: total, kids: d.kids, type: d.occasion || 'PARTICULAR', known: isKnown, birthday: bonus, days_ahead: Math.round((new Date(d.dateYMD!).getTime() - Date.now()) / 864e5) });
+      track('reservation_created', { unit: d.unitSlug, people: total, kids: d.kids, type: d.occasion || 'PARTICULAR', known: isKnown, birthday: hasBirthDate, days_ahead: Math.round((new Date(d.dateYMD!).getTime() - Date.now()) / 864e5) });
       try { window.localStorage.setItem('mane:lastReservation', JSON.stringify({ id: j.id, code: j.reservationCode, at: Date.now() })); } catch { /* ok */ }
-      try { window.sessionStorage.setItem('mane:reserva:bonus', bonus && isBirthday ? (tier ? `Bônus de aniversário de ${fmtBRL(tier.bonus)}` : 'Mimo de aniversário') : ''); } catch { /* ok */ }
+      try { window.sessionStorage.setItem('mane:reserva:bonus', isBirthday ? (tier ? `Bônus de aniversário de ${fmtBRL(tier.bonus)}` : 'Mimo de aniversário') : ''); } catch { /* ok */ }
       clearDraft();
       try { window.sessionStorage.removeItem('mane:reserva:inicio'); } catch { /* ok */ }
       router.push(`/pronto/${encodeURIComponent(j.reservationCode)}`);
@@ -307,7 +307,7 @@ export default function Dados() {
   const extraText = missing.length === 0
     ? <>Já temos tudo do seu cadastro. Confira e confirme a mesa.</>
     : isBirthday
-      ? <>{missing.join(', ')} de quem faz aniversário{tier ? <>: o <b>bônus de {fmtBRL(tier.bonus)}</b> e os mimos ficam garantidos na chegada</> : <>, para o <b>mimo de aniversário</b> ficar no nome certo</>}.</>
+      ? <>{missing.join(', ')}: é por aí que chegam a confirmação e o convite da agenda. {tier ? <>O <b>bônus de {fmtBRL(tier.bonus)}</b> em consumação já está garantido para o dia.</> : <>O <b>mimo de aniversário</b> já está garantido.</>}</>
       : <>{missing.join(', ')}: é por aí que chegam a confirmação, o convite da agenda e o <b>bônus de aniversário</b> quando for a sua vez.</>;
 
   return (
@@ -398,7 +398,7 @@ export default function Dados() {
               </>
             )}
 
-            <label className={s.label} htmlFor="f-cpf" style={{ marginTop: 14 }}>{isBirthday ? 'CPF de quem faz aniversário' : 'Seu CPF'} <small>{bigGroup && GUEST_LIST_ON ? 'diz quem é o anfitrião da lista de convidados' : 'confirma o nome na chegada'}</small></label>
+            <label className={s.label} htmlFor="f-cpf" style={{ marginTop: 14 }}>Seu CPF <small>{bigGroup && GUEST_LIST_ON ? 'diz quem é o anfitrião da lista de convidados' : 'confirma o nome na chegada'}</small></label>
             {knownCpf ? (
               <div className={s.maskRow}><span className={s.maskChip}><IconCheck size={14} stroke={3} /> CPF já cadastrado</span><button type="button" className={s.linkBtn} onClick={() => setUseKnown((u) => ({ ...u, cpf: false }))}>usar outro</button></div>
             ) : (
@@ -409,7 +409,7 @@ export default function Dados() {
               </>
             )}
 
-            <label className={s.label} htmlFor="f-birthday" style={{ marginTop: 14 }}>{isBirthday ? 'Data de nascimento de quem faz aniversário' : 'Sua data de nascimento'} <small>quem reserva precisa ter entre 18 e 80 anos</small></label>
+            <label className={s.label} htmlFor="f-birthday" style={{ marginTop: 14 }}>Sua data de nascimento <small>quem reserva precisa ter entre 18 e 80 anos</small></label>
             {knownBirthday ? (
               <div className={s.maskRow}>
                 <span className={s.maskChip}><IconCheck size={14} stroke={3} /> Data já cadastrada</span>
