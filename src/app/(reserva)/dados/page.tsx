@@ -13,7 +13,7 @@ import dayjs from 'dayjs';
 import { track } from '../_lib/track';
 import { ensureAnalyticsReady, setActiveUnitPixelFromUnit, trackReservationMade } from '@/lib/analytics';
 import { sendPartialLead } from '@/lib/engineCapture';
-import { birthdayTier, fmtBRL } from '../_lib/benefits';
+import { GUEST_LIST_ON, birthdayTier, fmtBRL } from '../_lib/benefits';
 import {
   birthdayError, hasTwoWords, isValidCPF, isValidEmail, isValidPhone, maskCPF, maskDateBR, maskPhone, onlyDigits, parseDateBR,
 } from '../_lib/validators';
@@ -398,7 +398,7 @@ export default function Dados() {
               </>
             )}
 
-            <label className={s.label} htmlFor="f-cpf" style={{ marginTop: 14 }}>{isBirthday ? 'CPF de quem faz aniversário' : 'Seu CPF'} <small>{bigGroup ? 'diz quem é o anfitrião da lista de convidados' : 'confirma o nome na chegada'}</small></label>
+            <label className={s.label} htmlFor="f-cpf" style={{ marginTop: 14 }}>{isBirthday ? 'CPF de quem faz aniversário' : 'Seu CPF'} <small>{bigGroup && GUEST_LIST_ON ? 'diz quem é o anfitrião da lista de convidados' : 'confirma o nome na chegada'}</small></label>
             {knownCpf ? (
               <div className={s.maskRow}><span className={s.maskChip}><IconCheck size={14} stroke={3} /> CPF já cadastrado</span><button type="button" className={s.linkBtn} onClick={() => setUseKnown((u) => ({ ...u, cpf: false }))}>usar outro</button></div>
             ) : (

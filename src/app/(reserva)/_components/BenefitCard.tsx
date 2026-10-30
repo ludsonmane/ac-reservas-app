@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { IconCake, IconCheck, IconLock, IconMoodKid, IconUsers } from '@tabler/icons-react';
 import s from './benefit.module.css';
-import { BIRTHDAY_TIERS, GUEST_LIST_MIN, birthdayTier, fmtBRL, nextBirthdayTier } from '../_lib/benefits';
+import { BIRTHDAY_TIERS, GUEST_LIST_MIN, GUEST_LIST_ON, birthdayTier, fmtBRL, nextBirthdayTier } from '../_lib/benefits';
 
 const MAX = BIRTHDAY_TIERS[BIRTHDAY_TIERS.length - 1].min; // 31: topo da barra
 const TOP_BONUS = BIRTHDAY_TIERS[BIRTHDAY_TIERS.length - 1].bonus;
@@ -12,8 +12,8 @@ const TOP_BONUS = BIRTHDAY_TIERS[BIRTHDAY_TIERS.length - 1].bonus;
  * Cartão do benefício da mesa (Mané), com movimento.
  * Aniversário: escada de bônus por faixa de convidados (R$100 / R$150 / R$200 em 8 / 16 / 30) com os mimos
  * da Brinquedoteca; barra até a última faixa, faixa conquistada em dourado, faíscas ao subir.
- * Outras ocasiões (ou ocasião ainda não escolhida): só a lista de convidados a partir de 8; o bônus em R$
- * aparece como convite "É aniversário?", nunca como conquistado. `onBirthday` liga/desliga a ocasião ali mesmo.
+ * Outras ocasiões (ou ocasião ainda não escolhida): o bônus em R$ aparece como convite "É aniversário?", nunca como
+ * conquistado (mais a lista de convidados a partir de 8, quando GUEST_LIST_ON). `onBirthday` liga/desliga a ocasião ali mesmo.
  */
 export function BenefitCard({ people, occasion, compact, onBirthday }: {
   people: number; occasion?: string | null; compact?: boolean; onBirthday?: (on: boolean) => void;
@@ -40,6 +40,28 @@ export function BenefitCard({ people, occasion, compact, onBirthday }: {
       ))}
     </span>
   );
+
+  const tiersText = BIRTHDAY_TIERS.map((t) => fmtBRL(t.bonus)).join(', ').replace(/, ([^,]*)$/, ' ou $1');
+
+  if (!aniv && !GUEST_LIST_ON) {
+    return (
+      <section className={`${s.card} ${compact ? s.compact : ''}`} aria-live="polite" aria-label="Bônus de aniversário">
+        <span className={s.shine} aria-hidden="true" />
+        <header className={s.head}>
+          <span className={s.kicker}>{occasion ? 'Bônus de aniversário' : 'É aniversário?'}</span>
+          <strong className={s.big}>
+            até {fmtBRL(TOP_BONUS)} de bônus
+            <small>{occasion ? 'Vale só para reserva de aniversário' : 'Só para reserva de aniversário'} com {GUEST_LIST_MIN}+ pessoas: {tiersText} conforme o grupo, e Brinquedoteca para as crianças.</small>
+          </strong>
+        </header>
+        {onBirthday && !occasion && (
+          <button type="button" className={`${s.bdayBtn} ${s.bdayBtnSolo}`} onClick={() => onBirthday(true)}>
+            <IconCake size={16} stroke={2.2} aria-hidden="true" /> Sim, é aniversário
+          </button>
+        )}
+      </section>
+    );
+  }
 
   if (!aniv) {
     const missing = GUEST_LIST_MIN - people;
@@ -73,7 +95,7 @@ export function BenefitCard({ people, occasion, compact, onBirthday }: {
           <span className={s.bdayText}>
             <b>{occasion ? 'Bônus em R$ é só para aniversário' : 'É aniversário?'}</b>
             <small>
-              Reserva de aniversário com {GUEST_LIST_MIN}+ pessoas ganha {BIRTHDAY_TIERS.map((t) => fmtBRL(t.bonus)).join(', ').replace(/, ([^,]*)$/, ' ou $1')} de bônus,
+              Reserva de aniversário com {GUEST_LIST_MIN}+ pessoas ganha {tiersText} de bônus,
               conforme o grupo, e Brinquedoteca para as crianças.
             </small>
           </span>
@@ -94,8 +116,8 @@ export function BenefitCard({ people, occasion, compact, onBirthday }: {
         <span className={s.kicker}>{tier ? 'Seu aniversário ganha' : 'Seu aniversário pode ganhar'}</span>
         <strong key={key} className={`${s.big} ${s.flip}`}>
           {tier
-            ? <>{fmtBRL(tier.bonus)} de bônus <span className={s.plus}>+</span> lista de convidados <small>{tier.headline}. Bônus de aniversário creditado no dia da reserva.</small></>
-            : <>até {fmtBRL(TOP_BONUS)} de bônus <small>a partir de {GUEST_LIST_MIN} pessoas, com lista de convidados.</small></>}
+            ? <>{fmtBRL(tier.bonus)} de bônus{GUEST_LIST_ON && <> <span className={s.plus}>+</span> lista de convidados</>} <small>{tier.headline}. Bônus de aniversário creditado no dia da reserva.</small></>
+            : <>até {fmtBRL(TOP_BONUS)} de bônus <small>a partir de {GUEST_LIST_MIN} pessoas{GUEST_LIST_ON ? ', com lista de convidados' : ''}.</small></>}
         </strong>
         <span className={s.bar} aria-hidden="true">
           <span className={s.fill} style={{ transform: `scaleX(${progress})` }} />
@@ -112,7 +134,7 @@ export function BenefitCard({ people, occasion, compact, onBirthday }: {
               <span className={s.min}><small>{t.max ? 'de' : 'mais de'}</small><b>{t.max ? `${t.min}–${t.max}` : t.min - 1}</b></span>
               <span className={s.text}>
                 <b>{fmtBRL(t.bonus)} de bônus</b>
-                <small>{t.perks.map((p, k) => <span key={k}><IconMoodKid size={11} stroke={2.2} aria-hidden="true" /> {p} · </span>)}<span><IconUsers size={11} stroke={2.2} aria-hidden="true" /> lista de convidados</span></small>
+                <small>{t.perks.map((p, k) => <span key={k}>{k > 0 && ' · '}<IconMoodKid size={11} stroke={2.2} aria-hidden="true" /> {p}</span>)}{GUEST_LIST_ON && <span> · <IconUsers size={11} stroke={2.2} aria-hidden="true" /> lista de convidados</span>}</small>
               </span>
               {!won && <IconLock size={14} stroke={2.2} className={s.lock} aria-hidden="true" />}
               {current && <span className={s.now} aria-label="sua faixa atual"><IconCheck size={15} stroke={3} /></span>}
@@ -124,7 +146,7 @@ export function BenefitCard({ people, occasion, compact, onBirthday }: {
 
       <p key={`f-${key}-${people}`} className={`${s.foot} ${s.footIn}`}>
         {next
-          ? <>Faltam <b>{next.min - people}</b> {next.min - people === 1 ? 'convidado' : 'convidados'} para <b>{fmtBRL(next.bonus)}</b>{tier ? '' : ', os mimos e a lista de convidados'}.</>
+          ? <>Faltam <b>{next.min - people}</b> {next.min - people === 1 ? 'convidado' : 'convidados'} para <b>{fmtBRL(next.bonus)}</b>{tier ? '' : GUEST_LIST_ON ? ', os mimos e a lista de convidados' : ' e os mimos'}.</>
           : 'Faixa máxima. Bônus e mimos garantidos na chegada, no nome de quem faz aniversário.'}
         {onBirthday && <> <button type="button" className={s.bdayUndo} onClick={() => onBirthday(false)}>Não é aniversário</button></>}
       </p>

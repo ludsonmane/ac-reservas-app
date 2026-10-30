@@ -3,6 +3,8 @@
 // Qualquer ocasião: a partir de 8 pessoas o grupo ganha a lista de convidados.
 
 export const GUEST_LIST_MIN = 8;
+/** Lista de convidados fora do ar por enquanto (comunicação não estava clara): some do cartão, da tela de dados, da confirmação e do agente. */
+export const GUEST_LIST_ON = false;
 
 export type BirthdayTier = { level: 1 | 2 | 3; min: number; max: number | null; range: string; bonus: number; headline: string; perks: string[] };
 

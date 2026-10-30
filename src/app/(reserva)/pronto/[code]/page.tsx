@@ -12,7 +12,7 @@ import { StepHeader } from '../../_components/StepHeader';
 import { Confetti } from '../../_components/Confetti';
 import { track } from '../../_lib/track';
 import { detectSlug, metaFor, conciergeLink } from '../../_lib/units';
-import { GUEST_LIST_MIN } from '../../_lib/benefits';
+import { GUEST_LIST_MIN, GUEST_LIST_ON } from '../../_lib/benefits';
 
 dayjs.locale('pt-br');
 
@@ -71,7 +71,7 @@ export default function Pronto() {
   const weekday = when.format('dddd');
   const wdCap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
   const occasion = OCCASION[String(r.reservationType || '')] || null;
-  const hasList = r.people >= GUEST_LIST_MIN;
+  const hasList = GUEST_LIST_ON && r.people >= GUEST_LIST_MIN;
   const invite = `Você tem lugar na mesa.\n\n${first} guardou uma mesa no ${unitName} para ${weekday}, ${when.format('DD/MM')}, às ${when.format('HH[h]mm')}, e colocou você na lista.\n\nSeu código de entrada: ${r.reservationCode}\nMostre na porta e vá direto para a mesa. O lugar é seu até ${tolEnd}.\n\nConfirme que vai e veja como chegar: ${guestLink}`;
   const waShare = `https://wa.me/?text=${encodeURIComponent(invite)}`;
   const gIso = (d: dayjs.Dayjs) => d.toDate().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
