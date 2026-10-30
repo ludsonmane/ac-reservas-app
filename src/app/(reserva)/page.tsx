@@ -9,14 +9,14 @@ import { toS3Url } from '@/lib/assets';
 import s from './reserva.module.css';
 import { StepHeader } from './_components/StepHeader';
 import { UnitPicker, type UnitOption } from './_components/UnitPicker';
-import { ChipGroup } from './_components/Chips';
 import { PeopleCounter } from './_components/PeopleCounter';
 import { DayChips } from './_components/DayChips';
 import { SlotGrid } from './_components/SlotGrid';
 import { AreaCards, type AreaCard } from './_components/AreaCards';
 import { Question } from './_components/Question';
 import { BenefitCard } from './_components/BenefitCard';
-import { IconArrowRight } from '@tabler/icons-react';
+import { IconArrowRight, IconCake } from '@tabler/icons-react';
+import { BIRTHDAY_TIERS, GUEST_LIST_MIN, fmtBRL } from './_lib/benefits';
 import { EMPTY_DRAFT, loadDraft, saveDraft, type Draft, type Occasion } from './_lib/draft';
 import { track } from './_lib/track';
 import { ensureAnalyticsReady, setActiveUnitPixelFromUnit } from '@/lib/analytics';
@@ -25,6 +25,14 @@ import {
   DEFAULT_MIN_PEOPLE, MAX_PEOPLE_WITHOUT_CONCIERGE, earliestBookable, isSpUnit, isBsbUnit, periodOf,
   ruleCovers, type RecurringRule, fmtLongDate, peakMinPeople, unitRulesForDay, lastBookableSlot,
 } from './_lib/rules';
+
+// segunda pergunta (depois da casa): o tipo da reserva decide se os bônus de aniversário aparecem (só em ANIVERSARIO)
+const OCCASIONS: { value: Exclude<Occasion, null>; label: string }[] = [
+  { value: 'ANIVERSARIO', label: 'Aniversário' },
+  { value: 'CONFRATERNIZACAO', label: 'Confraternização' },
+  { value: 'EMPRESA', label: 'Empresa' },
+  { value: 'PARTICULAR', label: 'Outra' },
+];
 
 type AvailArea = {
   id: string; name: string; description?: string | null; photoUrl?: string | null; photoUrlAbsolute?: string | null;
@@ -54,13 +62,14 @@ function Tela1() {
   const [availLoading, setAvailLoading] = React.useState(false);
   const [touchedContinue, setTouchedContinue] = React.useState(false);
   // fluxo progressivo: qual pergunta está em foco e se o bloco de pessoas foi confirmado
-  type QKey = 'unit' | 'people' | 'date' | 'time' | 'area';
+  type QKey = 'occasion' | 'unit' | 'people' | 'date' | 'time' | 'area';
   const [editing, setEditing] = React.useState<QKey | null>(null);
   const [peopleDone, setPeopleDone] = React.useState(false);
   const [, setTick] = React.useState(0);
   React.useEffect(() => { const i = window.setInterval(() => setTick((x) => x + 1), 60000); return () => window.clearInterval(i); }, []);
 
   const patch = (p: Partial<Draft>) => setDraft((d) => ({ ...d, ...p }));
+  const pickOccasion = (v: Exclude<Occasion, null>) => { patch({ occasion: v }); setEditing(null); track('step_view', { step: 'ocasiao', type: v }); };
 
   React.useEffect(() => {
     const d = loadDraft();
@@ -69,7 +78,7 @@ function Tela1() {
     if (!d.adults && wantPeople >= 1 && wantPeople <= 200) { d.adults = Math.floor(wantPeople); }
     // ?occasion=aniversario (anúncio de aniversário) já marca a ocasião
     const occ = String(params.get('occasion') || params.get('ocasiao') || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-    if (!d.occasion && (occ === 'ANIVERSARIO' || occ === 'CONFRATERNIZACAO' || occ === 'EMPRESA')) d.occasion = occ as Occasion;
+    if (!d.occasion && (occ === 'ANIVERSARIO' || occ === 'CONFRATERNIZACAO' || occ === 'EMPRESA' || occ === 'PARTICULAR')) d.occasion = occ as Occasion;
     const wantDate = params.get('date') || params.get('dia');
     if (!d.dateYMD && wantDate && /^\d{4}-\d{2}-\d{2}$/.test(wantDate) && wantDate >= dayjs().format('YYYY-MM-DD')) d.dateYMD = wantDate;
     // guarda a origem (UTMs) no rascunho: a tela 2 não tem mais a query na URL
@@ -80,7 +89,7 @@ function Tela1() {
     }
     setDraft(d); setPeopleDone(false); setReady(true); track('step_view', { step: 'quando' });
     const edit = params.get('edit');
-    if (edit === 'unit' || edit === 'people' || edit === 'date' || edit === 'time') setEditing(edit);
+    if (edit === 'occasion' || edit === 'unit' || edit === 'people' || edit === 'date' || edit === 'time') setEditing(edit);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   React.useEffect(() => { if (ready) saveDraft(draft); }, [draft, ready]);
@@ -230,6 +239,7 @@ function Tela1() {
   // ---------- validação ----------
   const missing: string[] = [];
   if (!draft.unitId) missing.push('a casa');
+  if (!draft.occasion) missing.push('a ocasião');
   if (draft.adults <= 0) missing.push('quantos adultos');
   if (!draft.dateYMD) missing.push('o dia');
   if (!draft.time) missing.push('o horário');
@@ -258,6 +268,7 @@ function Tela1() {
   // ---------- fluxo progressivo ----------
   const timeLabel = (hhmm: string) => hhmm.replace(':00', 'h').replace(':30', 'h30');
   const answers: Record<QKey, string | null> = {
+    occasion: draft.occasion ? OCCASIONS.find((o) => o.value === draft.occasion)?.label ?? null : null,
     unit: draft.unitId ? `Mané ${meta?.short || draft.unitName || ''}`.trim() : null,
     people: peopleDone && draft.adults > 0 && !belowMin && !tooBig
       ? `${total} pessoas${draft.kids ? ` (${draft.kids} ${draft.kids === 1 ? 'criança' : 'crianças'})` : ''}`
@@ -266,7 +277,7 @@ function Tela1() {
     time: draft.time ? timeLabel(draft.time) : null,
     area: draft.areaName ? draft.areaName.replace(/^Ala\s+/i, '') : null,
   };
-  const order: QKey[] = ['unit', 'people', 'date', 'time'];
+  const order: QKey[] = ['unit', 'occasion', 'people', 'date', 'time'];
   const firstOpen = order.find((k) => !answers[k]) ?? null;
   const active: QKey = editing ?? firstOpen ?? 'area';
   const stateOf = (k: QKey): 'active' | 'done' | 'locked' =>
@@ -299,8 +310,29 @@ function Tela1() {
         )}
       </Question>
 
-      {/* 2. pessoas */}
-      <Question id="people" title="Quem vem?" aside="o número exato ajuda a montar a mesa" index={2} state={stateOf('people')} answer={answers.people} onEdit={() => setEditing('people')}>
+      {/* 2. ocasião: logo depois da casa, porque decide se aparecem os bônus de aniversário */}
+      <Question id="occasion" title="Qual é a ocasião?" index={2} state={stateOf('occasion')} answer={answers.occasion} onEdit={() => setEditing('occasion')}>
+        {/* aniversário em destaque, com o bônus dito na própria opção; as outras ficam em chips simples */}
+        <div className={s.occ} role="radiogroup" aria-label="Ocasião">
+          <button type="button" role="radio" aria-checked={draft.occasion === 'ANIVERSARIO'} className={s.occBday} onClick={() => pickOccasion('ANIVERSARIO')}>
+            <span className={s.occBdayIcon} aria-hidden="true"><IconCake size={26} stroke={1.8} /></span>
+            <span className={s.occBdayText}>
+              <b>Aniversário</b>
+              <small>ganha até {fmtBRL(BIRTHDAY_TIERS[BIRTHDAY_TIERS.length - 1].bonus)} de bônus em consumação, a partir de {GUEST_LIST_MIN} pessoas</small>
+            </span>
+            <IconArrowRight size={18} stroke={2.4} className={s.occBdayArrow} aria-hidden="true" />
+          </button>
+          <div className={s.chips}>
+            {OCCASIONS.filter((o) => o.value !== 'ANIVERSARIO').map((o) => (
+              <button key={o.value} type="button" role="radio" aria-checked={draft.occasion === o.value} className={s.chip} onClick={() => pickOccasion(o.value)}>{o.label}</button>
+            ))}
+          </div>
+        </div>
+        <p className={s.hint}>O bônus é só para reserva de aniversário.</p>
+      </Question>
+
+      {/* 3. pessoas */}
+      <Question id="people" title="Quem vem?" aside="o número exato ajuda a montar a mesa" index={3} state={stateOf('people')} answer={answers.people} onEdit={() => setEditing('people')}>
         <div className={s.counterCard}>
           <PeopleCounter id="reserva-adultos" label="Adultos" helper="Conte você também" value={draft.adults} min={0} max={200}
             quick={[2, 4, 6, 8, 10, 12, 14, 30, 40]} onChange={(n) => patch({ adults: n })} />
@@ -315,7 +347,7 @@ function Tela1() {
 
           </div>
         </div>
-        {draft.adults > 0 && !tooBig && <BenefitCard people={total} occasion={draft.occasion} onBirthday={(on) => patch({ occasion: on ? 'ANIVERSARIO' : null })} />}
+        {draft.occasion === 'ANIVERSARIO' && draft.adults > 0 && !tooBig && <BenefitCard people={total} />}
         {tooBig ? (
           <div className={`${s.alert} ${s.alertInfo}`} role="status">
             <b>Grupo grande merece atenção pessoal.</b>
@@ -334,15 +366,15 @@ function Tela1() {
         )}
       </Question>
 
-      {/* 3. dia */}
-      <Question id="date" title="Que dia?" index={3} state={stateOf('date')} answer={answers.date} onEdit={() => setEditing('date')}>
+      {/* 4. dia */}
+      <Question id="date" title="Que dia?" index={4} state={stateOf('date')} answer={answers.date} onEdit={() => setEditing('date')}>
         <DayChips value={draft.dateYMD} sp={sp} onChange={(d) => { patch({ dateYMD: d, time: null, areaId: null, areaName: null }); if (d) setEditing(null); }} />
         {draft.dateYMD === dayjs().format('YYYY-MM-DD') && <p className={s.hint}>{earliest.reason}</p>}
         {sp && <p className={s.hint}>O Mané de São Paulo não abre às segundas.</p>}
       </Question>
 
-      {/* 4. horário */}
-      <Question id="time" title="Que horas vocês chegam?" aside="a mesa espera 15 min" index={4} state={stateOf('time')} answer={answers.time} onEdit={() => setEditing('time')}>
+      {/* 5. horário */}
+      <Question id="time" title="Que horas vocês chegam?" aside="a mesa espera 15 min" index={5} state={stateOf('time')} answer={answers.time} onEdit={() => setEditing('time')}>
         {draft.dateYMD && (availLoading && !avail ? (
           <div className={s.slots} aria-busy="true">{Array.from({ length: 8 }).map((_, i) => <div key={i} className={s.skeleton} />)}</div>
         ) : (
@@ -363,7 +395,7 @@ function Tela1() {
         )}
       </Question>
 
-      {/* 5. ocasião + ambiente */}
+      {/* 6. ambiente */}
       {showArea && belowPeak && (
         <div className={`${s.alert} ${s.alertWarn} ${s.reveal}`} role="status">
           <b>Nesse horário a casa reserva a partir de {peakMin} pessoas.</b>
@@ -372,14 +404,6 @@ function Tela1() {
       )}
       {showArea && (
         <>
-          <section className={`${s.block} ${s.reveal}`} aria-labelledby="q-occ" data-step={5}>
-            <h2 className={s.q} id="q-occ"><span className={s.qTitle}><span className={s.stepBadge} aria-hidden="true">5</span>É uma ocasião especial?</span><small>opcional</small></h2>
-            <ChipGroup<Occasion & string> soft ariaLabel="Ocasião"
-              options={[{ value: 'ANIVERSARIO', label: 'Aniversário' }, { value: 'CONFRATERNIZACAO', label: 'Confraternização' }, { value: 'EMPRESA', label: 'Empresa' }]}
-              value={draft.occasion as any} onChange={(v) => patch({ occasion: (v as Occasion) ?? null })} />
-            <BenefitCard people={total} occasion={draft.occasion} compact />
-          </section>
-
           <section className={`${s.block} ${s.reveal}`} aria-labelledby="q-area" data-step={6}>
             <h2 className={s.q} id="q-area"><span className={s.qTitle}><span className={s.stepBadge} aria-hidden="true">6</span>Onde vocês querem ficar?</span></h2>
             {areas.length === 0 && availLoading ? (

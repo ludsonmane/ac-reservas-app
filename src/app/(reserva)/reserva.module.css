@@ -345,3 +345,19 @@
   .shell:has(.footer) :global(.agente-fab) { bottom: calc(106px + env(safe-area-inset-bottom, 0px)); }
   .shell:has(.footer) :global(.agente-hint) { bottom: calc(168px + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* pergunta 1 (ocasião): aniversário em destaque, verde do Mané com dourado, dizendo o bônus na própria opção */
+.occ { display: grid; gap: 12px; }
+.occBday {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; text-align: left;
+  padding: 14px 16px; border-radius: 16px; cursor: pointer; font: inherit; color: #fff8ec;
+  background: linear-gradient(160deg, #04665d 0%, #034c46 55%, #02332f 100%); border: 1px solid rgba(245, 198, 74, 0.55);
+  box-shadow: 0 10px 26px rgba(3, 76, 70, 0.25); transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.occBday:hover { transform: translateY(-1px); box-shadow: 0 14px 30px rgba(3, 76, 70, 0.32); }
+.occBday[aria-checked='true'] { border-color: #f5c64a; box-shadow: 0 0 0 3px rgba(245, 198, 74, 0.55), 0 10px 26px rgba(3, 76, 70, 0.3); }
+.occBdayIcon { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: rgba(245, 198, 74, 0.2); color: #ffe08a; }
+.occBdayText { display: grid; gap: 2px; min-width: 0; }
+.occBdayText b { font-family: var(--font-merri), Georgia, serif; font-weight: 900; font-size: 18px; }
+.occBdayText small { font-size: 13px; line-height: 1.35; color: #f5c64a; font-weight: 700; }
+.occBdayArrow { color: #ffe08a; }
