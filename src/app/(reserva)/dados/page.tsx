@@ -308,7 +308,7 @@ export default function Dados() {
     ? <>Já temos tudo do seu cadastro. Confira e confirme a mesa.</>
     : isBirthday
       ? <>{missing.join(', ')}: é por aí que chegam a confirmação e o convite da agenda. {tier ? <>O <b>bônus de {fmtBRL(tier.bonus)}</b> em consumação já está garantido para o dia.</> : <>O <b>mimo de aniversário</b> já está garantido.</>}</>
-      : <>{missing.join(', ')}: é por aí que chegam a confirmação, o convite da agenda e o <b>bônus de aniversário</b> quando for a sua vez.</>;
+      : <>{missing.join(', ')}: é por aí que chegam a confirmação e o convite da agenda.</>;
 
   return (
     <>
