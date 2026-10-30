@@ -98,3 +98,20 @@
 @keyframes nowIn { from { transform: scale(0.4) rotate(-20deg); opacity: 0; } 70% { transform: scale(1.12); opacity: 1; } to { transform: none; } }
 .teaser { border-style: dashed; color: rgba(251, 245, 233, 0.75); }
 .teaser .icon { background: rgba(201, 162, 39, 0.18); color: #e8c65a; }
+
+/* fora do aniversário: o bônus em R$ é só um convite, tracejado e sem dourado de conquista */
+.bday {
+  display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 4px 10px; position: relative;
+  padding: 10px 12px; border-radius: 12px; border: 1px dashed rgba(245, 198, 74, 0.6); background: rgba(245, 198, 74, 0.08);
+}
+.bdayIcon { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: rgba(245, 198, 74, 0.18); color: #ffe08a; }
+.bdayText { display: grid; gap: 2px; min-width: 0; }
+.bdayText b { font-family: var(--font-merri), Georgia, serif; font-weight: 900; font-size: 14.5px; color: #ffe08a; }
+.bdayText small { font-size: 12px; line-height: 1.35; color: rgba(255, 248, 236, 0.88); }
+.bdayBtn {
+  grid-column: 2; justify-self: start; margin-top: 6px; padding: 8px 14px; border-radius: 999px; border: 0; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 700; color: #1b2a28; background: linear-gradient(135deg, #f8d778, #f5c64a 60%, #e0a92a);
+  box-shadow: 0 4px 12px rgba(245, 198, 74, 0.35);
+}
+.bdayBtn:focus-visible, .bdayUndo:focus-visible { outline: 2px solid #fff8ec; outline-offset: 2px; }
+.bdayUndo { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 12.5px; color: rgba(255, 248, 236, 0.75); text-decoration: underline; text-underline-offset: 2px; }

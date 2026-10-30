@@ -315,7 +315,7 @@ function Tela1() {
 
           </div>
         </div>
-        {draft.adults > 0 && !tooBig && <BenefitCard people={total} occasion={draft.occasion} />}
+        {draft.adults > 0 && !tooBig && <BenefitCard people={total} occasion={draft.occasion} onBirthday={(on) => patch({ occasion: on ? 'ANIVERSARIO' : null })} />}
         {tooBig ? (
           <div className={`${s.alert} ${s.alertInfo}`} role="status">
             <b>Grupo grande merece atenção pessoal.</b>
