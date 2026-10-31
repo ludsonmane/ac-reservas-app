@@ -14,6 +14,18 @@ export const UNIT_META: UnitMeta[] = [
   { slug: 'partage', short: 'Partage', sub: 'Lago Sul', concierge: '61982850776' },
 ];
 
+/**
+ * Mínimo fixo de pessoas por casa (vale em qualquer horário) quando a API não manda `minPeople`.
+ * O valor do admin (Unidades → "Mínimo de pessoas (sempre)"), quando existe, prevalece.
+ */
+export const UNIT_MIN_PEOPLE: Partial<Record<UnitMeta['slug'], number>> = { partage: 4 };
+
+export function unitMinPeople(u: { slug?: string | null; name?: string | null; minPeople?: number | null }): number | null {
+  if (typeof u.minPeople === 'number' && u.minPeople > 0) return u.minPeople;
+  const slug = detectSlug(u.slug, u.name);
+  return (slug && UNIT_MIN_PEOPLE[slug]) || null;
+}
+
 /** Casas fora da reserva online (somem do front; reservas antigas continuam na API). */
 export const HIDDEN_SLUGS: UnitMeta['slug'][] = ['sp'];
 

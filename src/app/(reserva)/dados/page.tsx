@@ -294,7 +294,7 @@ export default function Dados() {
     OUTSIDE_OPENING_HOURS: { title: 'Esse horário está fora do funcionamento.', action: { label: 'Escolher outro horário', href: '/?edit=time' } },
     RECURRING_BLOCKED: { title: 'Esse horário não recebe reservas.', action: { label: 'Escolher outro horário', href: '/?edit=time' } },
     BLOCKED_DAY: { title: 'Esse dia está bloqueado para reservas.', action: { label: 'Escolher outro dia', href: '/?edit=date' } },
-    MIN_PEOPLE_REQUIRED: { title: 'Nesse horário a casa reserva a partir de mais pessoas.', action: { label: 'Ajustar o grupo', href: '/?edit=people' } },
+    MIN_PEOPLE_REQUIRED: { title: 'O grupo está abaixo do mínimo da casa.', action: { label: 'Ajustar o grupo', href: '/?edit=people' } },
     MAX_PEOPLE_EXCEEDED: { title: 'Grupo grande merece atenção pessoal.', action: { label: 'Chamar a equipe no WhatsApp', href: conciergeLink(meta?.concierge || '61982850776', `Oi! Quero reservar para ${total} pessoas no Mané ${meta?.short || ''}. Podem me ajudar?`) } },
     FESTIVAL_AREA_UNAVAILABLE: { title: 'Essa área só abre em dias de festival.', action: { label: 'Escolher outro ambiente', href: '/?edit=time' } },
     AREA_NOT_FOUND: { title: 'Esse ambiente não está mais disponível.', action: { label: 'Escolher outro ambiente', href: '/?edit=time' } },

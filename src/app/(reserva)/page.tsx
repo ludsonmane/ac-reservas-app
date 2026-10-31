@@ -20,7 +20,7 @@ import { BIRTHDAY_TIERS, GUEST_LIST_MIN, fmtBRL } from './_lib/benefits';
 import { EMPTY_DRAFT, loadDraft, saveDraft, type Draft, type Occasion } from './_lib/draft';
 import { track } from './_lib/track';
 import { ensureAnalyticsReady, setActiveUnitPixelFromUnit } from '@/lib/analytics';
-import { detectSlug, metaFor, conciergeLink, HIDDEN_SLUGS } from './_lib/units';
+import { detectSlug, metaFor, conciergeLink, HIDDEN_SLUGS, unitMinPeople } from './_lib/units';
 import {
   DEFAULT_MIN_PEOPLE, MAX_PEOPLE_WITHOUT_CONCIERGE, earliestBookable, isSpUnit, isBsbUnit, periodOf,
   ruleCovers, type RecurringRule, fmtLongDate, peakMinPeople, unitRulesForDay, lastBookableSlot,
@@ -106,12 +106,18 @@ function Tela1() {
         if (!alive) return;
         const norm: UnitOption[] = (list ?? []).map((u) => ({
           id: String(u.id), name: String(u.name ?? ''), slug: u.slug ?? null,
-          minPeople: typeof u.minPeople === 'number' ? u.minPeople : null,
+          minPeople: unitMinPeople({ slug: u.slug, name: u.name, minPeople: typeof u.minPeople === 'number' ? u.minPeople : null }),
         })).filter((u) => !HIDDEN_SLUGS.includes(detectSlug(u.slug, u.name) as any)); // SP fora da reserva online (histórico intacto na API)
         setUnits(norm);
         // rascunho antigo apontando pra casa escondida volta pra escolha da casa
-        if (draft.unitId && !norm.some((u) => u.id === draft.unitId)) {
+        const restored = draft.unitId ? norm.find((u) => u.id === draft.unitId) : null;
+        if (draft.unitId && !restored) {
           patch({ unitId: null, unitName: null, unitSlug: null, minPeople: null, time: null, areaId: null, areaName: null });
+        }
+        // rascunho salvo antes da regra mudar: o mínimo da casa vem sempre da lista atual
+        if (restored) {
+          const min = Math.max(DEFAULT_MIN_PEOPLE, restored.minPeople ?? 0);
+          if (draft.minPeople !== min) patch({ minPeople: min });
         }
         // pré-seleção pelo link (?unit=bsb|ac|sp|partage ou id)
         const want = params.get('unit');
@@ -332,7 +338,7 @@ function Tela1() {
       </Question>
 
       {/* 3. pessoas */}
-      <Question id="people" title="Quem vem?" aside="o número exato ajuda a montar a mesa" index={3} state={stateOf('people')} answer={answers.people} onEdit={() => setEditing('people')}>
+      <Question id="people" title="Quem vem?" aside={minPeople > DEFAULT_MIN_PEOPLE ? `${meta?.short ? `a ${meta.short}` : 'esta casa'} reserva a partir de ${minPeople} pessoas` : 'o número exato ajuda a montar a mesa'} index={3} state={stateOf('people')} answer={answers.people} onEdit={() => setEditing('people')}>
         <div className={s.counterCard}>
           <PeopleCounter id="reserva-adultos" label="Adultos" helper="Conte você também" value={draft.adults} min={0} max={200}
             quick={[2, 4, 6, 8, 10, 12, 14, 30, 40]} onChange={(n) => patch({ adults: n })} />
@@ -342,7 +348,7 @@ function Tela1() {
             <span>Total na mesa</span>
             <span className={s.totalNum}><b>{total}</b>{total === 1 ? 'pessoa' : 'pessoas'}</span>
             {draft.unitId && total > 0 && belowMin && (
-              <p className={`${s.totalNote} ${s.warn}`}>Mínimo de {minPeople} pessoas nesta casa.</p>
+              <p className={`${s.totalNote} ${s.warn}`}>Mínimo de {minPeople} pessoas nesta casa. Grupo menor não precisa reservar: é só chegar.</p>
             )}
 
           </div>
